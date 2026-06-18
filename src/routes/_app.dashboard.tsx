@@ -102,6 +102,37 @@ function Dashboard() {
   // Expert Review Status State
   const [expertReviewStatus, setExpertReviewStatus] = useState<string | null>(null);
 
+  // User Assessment status state
+  const [userStatus, setUserStatus] = useState<{
+    hasCompletedAssessment: boolean;
+    assessmentCompletedAt: string | null;
+    lastAssessmentUpdate: string | null;
+  } | null>(null);
+
+  // Fetch assessment status on mount/result change
+  useEffect(() => {
+    if (!result) return;
+    const fetchUserStatus = async () => {
+      try {
+        let idToken = "mock-uid-guest";
+        if (auth.currentUser) idToken = await auth.currentUser.getIdToken();
+        const resp = await fetch(`${API_URL}/api/user/status`, {
+          headers: {
+            Authorization: `Bearer ${idToken}`,
+          },
+        });
+        if (resp.ok) {
+          const data = await resp.json();
+          setUserStatus(data);
+        }
+      } catch (err) {
+        console.error("Failed to fetch user status for dashboard:", err);
+      }
+    };
+    fetchUserStatus();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [result]);
+
   // Fetch expert review request status
   useEffect(() => {
     if (!result) return;
@@ -358,6 +389,51 @@ function Dashboard() {
     doc.save(`healthguard-report-${new Date().toISOString().slice(0, 10)}.pdf`);
   }
 
+  // Dynamic Journey calculations (Onboarding Roadmap Restructure)
+  const hasCompletedAssessment = !!result;
+  const lastUpdateDateStr = userStatus?.lastAssessmentUpdate || result?.updatedAt || null;
+  
+  let profileAgeDays = 0;
+  if (lastUpdateDateStr) {
+    const lastUpdate = new Date(lastUpdateDateStr);
+    const diffTime = Math.abs(new Date().getTime() - lastUpdate.getTime());
+    profileAgeDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+  }
+
+  const hasScannedFood = !!localStorage.getItem("hg.hasScannedFood");
+
+  let nextStepTitle = "";
+  let nextStepDesc = "";
+  let nextStepLink = "";
+  let nextStepButton = "";
+
+  if (!hasCompletedAssessment) {
+    nextStepTitle = "Complete Assessment";
+    nextStepDesc = "Fill in your demographic and physiological parameters to generate your profile.";
+    nextStepLink = "/assessment";
+    nextStepButton = "Start Assessment";
+  } else if (!hasScannedFood) {
+    nextStepTitle = "Scan your first food item";
+    nextStepDesc = "Use our AI scanner to assess packaged ingredient safety against your health risks.";
+    nextStepLink = "/scanner";
+    nextStepButton = "Open Scanner";
+  } else {
+    nextStepTitle = "Check your Action Plan updates";
+    nextStepDesc = "Your AI Coach has updated suggestions to lower your specific risk metrics.";
+    nextStepLink = "/action-plan";
+    nextStepButton = "Open Action Plan";
+  }
+
+  const formatDate = (dateStr: string | null) => {
+    if (!dateStr) return "N/A";
+    const d = new Date(dateStr);
+    return d.toLocaleDateString(undefined, {
+      year: "numeric",
+      month: "long",
+      day: "numeric",
+    });
+  };
+
   const overall = result.overallScore;
   const overallPct = Math.min(100, (overall / 80) * 100);
   const overallColor =
@@ -395,33 +471,61 @@ function Dashboard() {
         </div>
       </div>
 
-      {/* Onboarding Roadmap Hero */}
-      <div className="p-6 rounded-2xl bg-gradient-to-r from-teal/10 via-primary/5 to-surface border border-teal/10">
-        <h2 className="font-display text-base font-bold text-foreground flex items-center gap-2">
-          Your Health Journey
-        </h2>
-        <p className="text-xs text-muted-foreground mt-1 mb-4">
-          Follow this guided path to manage and optimize your preventive healthcare metrics:
-        </p>
-        <div className="grid gap-4 grid-cols-2 sm:grid-cols-5">
-          {[
-            { step: "1", title: "Assess", desc: "Complete Assessment", to: "/assessment" },
-            { step: "2", title: "Understand Risk", desc: "Review Risk Drivers", to: "/dashboard" },
-            { step: "3", title: "Take Action", desc: "Follow Action Plan", to: "/action-plan" },
-            { step: "4", title: "Scan Foods", desc: "Scan packaged food", to: "/scanner" },
-            { step: "5", title: "Track Progress", desc: "Log Weight & Vitals", to: "/progress" },
-          ].map((item) => (
-            <Link
-              key={item.step}
-              to={item.to}
-              className="flex flex-col p-3.5 rounded-xl border border-border/60 bg-surface/50 hover:bg-teal/5 hover:border-teal/20 transition-all"
-            >
-              <span className="font-display text-lg font-black text-teal/80">0{item.step}</span>
-              <span className="text-xs font-bold text-foreground mt-1 leading-snug">{item.title}</span>
-              <span className="text-[10px] text-muted-foreground mt-0.5 leading-snug">{item.desc}</span>
-            </Link>
-          ))}
+      {/* Dynamic Journey Section */}
+      <div className="grid gap-6 md:grid-cols-3">
+        {/* Left 2 cols: Progress & Recommended Next Step */}
+        <div className="md:col-span-2 p-6 rounded-2xl bg-gradient-to-r from-teal/10 via-primary/5 to-surface border border-teal/10 flex flex-col justify-between space-y-4">
+          <div>
+            <h2 className="font-display text-base font-bold text-foreground flex items-center gap-2">
+              Your Journey Status
+            </h2>
+            <div className="flex flex-col gap-2.5 mt-3 text-xs">
+              <div className="flex items-center gap-2 text-teal font-medium">
+                <span className="grid h-5 w-5 place-items-center rounded-full bg-teal/20 text-teal text-[10px] font-bold">✓</span>
+                <span>Assessment Complete</span>
+              </div>
+              <div className="flex items-center gap-2 text-teal font-medium">
+                <span className="grid h-5 w-5 place-items-center rounded-full bg-teal/20 text-teal text-[10px] font-bold">✓</span>
+                <span>Risk Profile Generated</span>
+              </div>
+              <div className="mt-2 p-3.5 rounded-xl border border-border bg-surface-muted/40 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <div className="space-y-1">
+                  <span className="text-[10px] uppercase font-bold text-muted-foreground tracking-wider font-mono">Next Recommended Step:</span>
+                  <h4 className="font-bold text-foreground text-sm">{nextStepTitle}</h4>
+                  <p className="text-[11px] text-muted-foreground leading-normal">{nextStepDesc}</p>
+                </div>
+                <Button asChild size="sm" className="bg-teal text-white hover:bg-teal/90 shrink-0 text-xs font-bold rounded-lg h-9">
+                  <Link to={nextStepLink}>{nextStepButton}</Link>
+                </Button>
+              </div>
+            </div>
+          </div>
         </div>
+
+        {/* Right 1 col: Profile Age & Assessment Date */}
+        <Card className="border-border bg-surface shadow-card-soft h-full flex flex-col justify-between">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-xs font-mono uppercase tracking-wider text-muted-foreground">
+              Assessment Validity
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="py-4 flex-1 flex flex-col justify-center text-center space-y-2">
+            <div>
+              <p className="text-xs text-muted-foreground">Profile Age</p>
+              <h3 className="font-display text-3xl font-black text-foreground mt-1">
+                {profileAgeDays === 0 ? "Today" : `${profileAgeDays} ${profileAgeDays === 1 ? "day" : "days"} old`}
+              </h3>
+            </div>
+            <div className="text-[10px] text-muted-foreground border-t border-border/40 pt-2.5 mt-2">
+              Completed: {formatDate(lastUpdateDateStr)}
+            </div>
+          </CardContent>
+          <CardFooter className="pt-0 pb-4 justify-center bg-surface-muted/10 border-t border-border/30 rounded-b-xl py-3">
+            <Button asChild variant="ghost" className="text-xs font-bold text-teal hover:bg-teal/5 h-8">
+              <Link to="/assessment">Update Assessment</Link>
+            </Button>
+          </CardFooter>
+        </Card>
       </div>
 
       {/* Main Layout Area */}

@@ -321,6 +321,12 @@ function ScannerPage() {
   const [isScanning, setIsScanning] = useState(false);
   const [report, setReport] = useState<IngredientReport | null>(null);
 
+  useEffect(() => {
+    if (report) {
+      localStorage.setItem("hg.hasScannedFood", "true");
+    }
+  }, [report]);
+
   // Webcam States
   const [isCameraActive, setIsCameraActive] = useState(false);
   const videoRef = useRef<HTMLVideoElement | null>(null);

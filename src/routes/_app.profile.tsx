@@ -1,5 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useAuth } from "@/contexts/auth-context";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -14,11 +14,15 @@ import {
   Shield,
   FileText,
   Activity,
+  ClipboardList,
 } from "lucide-react";
+import { auth } from "@/lib/firebase";
 
 export const Route = createFileRoute("/_app/profile")({
   component: ProfilePage,
 });
+
+const API_URL = import.meta.env.VITE_API_URL || "http://localhost:5000";
 
 function ProfilePage() {
   useEffect(() => {
@@ -26,6 +30,48 @@ function ProfilePage() {
   }, []);
 
   const { user, logout } = useAuth();
+
+  const [assessmentStatus, setAssessmentStatus] = useState<{
+    hasCompletedAssessment: boolean;
+    lastAssessmentUpdate: string | null;
+  } | null>(null);
+  const [loadingStatus, setLoadingStatus] = useState(true);
+
+  useEffect(() => {
+    const fetchStatus = async () => {
+      try {
+        let idToken = "mock-uid-guest";
+        if (auth.currentUser) {
+          idToken = await auth.currentUser.getIdToken();
+        }
+        const res = await fetch(`${API_URL}/api/user/status`, {
+          headers: {
+            Authorization: `Bearer ${idToken}`,
+          },
+        });
+        if (res.ok) {
+          const data = await res.json();
+          setAssessmentStatus(data);
+        }
+      } catch (err) {
+        console.error("Failed to fetch assessment status in profile:", err);
+      } finally {
+        setLoadingStatus(false);
+      }
+    };
+    fetchStatus();
+  }, []);
+
+  const formatDate = (dateStr: string | null) => {
+    if (!dateStr) return "N/A";
+    const d = new Date(dateStr);
+    return d.toLocaleDateString(undefined, {
+      year: "numeric",
+      month: "long",
+      day: "numeric",
+    });
+  };
+
 
   useEffect(() => {
     if (user) {
@@ -120,6 +166,47 @@ function ProfilePage() {
               >
                 {isGoogle ? "Google Account" : "Email Account"}
               </Badge>
+            </div>
+          </div>
+
+          {/* Health Profile Status (Reassessment Panel) */}
+          <div className="w-full space-y-2.5 pt-2 text-left border-t border-border/40">
+            <h3 className="text-[10px] font-bold uppercase tracking-widest text-teal/80">
+              Health Profile Onboarding
+            </h3>
+            <div className="rounded-xl border border-border bg-surface-muted/30 p-4 space-y-3.5">
+              <div className="flex items-center justify-between text-xs">
+                <span className="text-muted-foreground font-medium flex items-center gap-1.5">
+                  <ClipboardList className="h-4 w-4 text-teal" /> Onboarding Status
+                </span>
+                {loadingStatus ? (
+                  <Loader2 className="h-3 w-3 animate-spin text-teal" />
+                ) : (
+                  <Badge className="bg-teal/15 text-teal hover:bg-teal/15 border-teal/10 font-bold rounded-full text-[10px] uppercase">
+                    {assessmentStatus?.hasCompletedAssessment ? "Completed" : "Pending"}
+                  </Badge>
+                )}
+              </div>
+              <div className="text-[11px] text-muted-foreground leading-normal space-y-1">
+                <p>
+                  {assessmentStatus?.hasCompletedAssessment
+                    ? "Your baseline risk drivers and customized wellness plans are active."
+                    : "Please complete your initial assessment to generate your risk profile."}
+                </p>
+                {assessmentStatus?.lastAssessmentUpdate && (
+                  <p className="text-[10px] text-muted-foreground/80 mt-1 font-mono">
+                    Last Updated: {formatDate(assessmentStatus.lastAssessmentUpdate)}
+                  </p>
+                )}
+              </div>
+              <Button
+                asChild
+                className="w-full bg-teal text-white hover:bg-teal/95 font-bold text-xs h-9 cursor-pointer"
+              >
+                <Link to="/assessment">
+                  {assessmentStatus?.hasCompletedAssessment ? "Reassess Health Profile" : "Start Initial Assessment"}
+                </Link>
+              </Button>
             </div>
           </div>
 

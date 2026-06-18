@@ -1,4 +1,4 @@
-import { createFileRoute, Outlet, Link, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, Outlet, Link, useNavigate, useRouterState } from "@tanstack/react-router";
 import { useEffect } from "react";
 import { useAuth } from "@/contexts/auth-context";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
@@ -23,12 +23,22 @@ export const Route = createFileRoute("/_app")({
 function AppLayout() {
   const { user, loading, logout } = useAuth();
   const navigate = useNavigate();
+  const pathname = useRouterState({ select: (s) => s.location.pathname });
 
   useEffect(() => {
     if (!loading && !user) {
       navigate({ to: "/login" });
     }
   }, [user, loading, navigate]);
+
+  useEffect(() => {
+    if (!loading && user) {
+      const hasAssessment = !!localStorage.getItem("hg.result.v1");
+      if (!hasAssessment && pathname !== "/assessment") {
+        navigate({ to: "/assessment" });
+      }
+    }
+  }, [user, loading, pathname, navigate]);
 
   if (loading) {
     return (

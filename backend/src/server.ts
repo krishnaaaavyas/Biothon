@@ -98,6 +98,38 @@ app.get("/health", (req, res) => {
   res.json({ status: "OK", timestamp: new Date().toISOString() });
 });
 
+// GET /api/user/status - check assessment status
+app.get("/api/user/status", requireAuth, async (req: AuthenticatedRequest, res) => {
+  const uid = req.user?.uid;
+  if (!uid) {
+    return res.status(400).json({ error: "Bad Request: Missing User UID" });
+  }
+
+  try {
+    const userSnap = await db.collection("users").doc(uid).get();
+    if (userSnap.exists) {
+      const data = userSnap.data();
+      return res.json({
+        hasCompletedAssessment: !!data?.hasCompletedAssessment,
+        assessmentCompletedAt: data?.assessmentCompletedAt || null,
+        lastAssessmentUpdate: data?.lastAssessmentUpdate || null,
+      });
+    }
+
+    // Fallback if user doc doesn't exist yet but profile does
+    const profileSnap = await db.collection("profiles").doc(uid).get();
+    const hasProfile = profileSnap.exists && !!profileSnap.data()?.result;
+    return res.json({
+      hasCompletedAssessment: hasProfile,
+      assessmentCompletedAt: hasProfile ? profileSnap.data()?.updatedAt : null,
+      lastAssessmentUpdate: hasProfile ? profileSnap.data()?.updatedAt : null,
+    });
+  } catch (err) {
+    console.error("Error fetching user status:", err);
+    return res.status(500).json({ error: "Database Error" });
+  }
+});
+
 // GET /api/profile - retrieve user profile
 app.get("/api/profile", requireAuth, async (req: AuthenticatedRequest, res) => {
   const uid = req.user?.uid;
@@ -243,12 +275,21 @@ app.post("/api/profile", requireAuth, async (req: AuthenticatedRequest, res) => 
 
     // Also sync standard details in the collections for users
     const userRef = db.collection("users").doc(uid);
+    const userSnap = await userRef.get();
+    const existingUser = userSnap.exists ? userSnap.data() : null;
+    const now = new Date().toISOString();
+    const assessmentCompletedAt = existingUser?.assessmentCompletedAt || now;
+
     await userRef.set(
       {
         uid,
         email: req.user?.email || null,
         name: req.user?.name || null,
-        updatedAt: new Date().toISOString(),
+        displayName: req.user?.name || null,
+        hasCompletedAssessment: true,
+        assessmentCompletedAt,
+        lastAssessmentUpdate: now,
+        updatedAt: now,
       },
       { merge: true },
     );

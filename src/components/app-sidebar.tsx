@@ -32,7 +32,6 @@ import { cn } from "@/lib/utils";
 
 const product = [
   { to: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
-  { to: "/assessment", label: "Assessment", icon: ClipboardList },
   { to: "/scanner", label: "Food Scanner", icon: ScanLine },
   { to: "/action-plan", label: "Action Plan", icon: Brain },
   { to: "/progress", label: "Progress", icon: Activity },

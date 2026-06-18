@@ -36,7 +36,7 @@ function LoginPage() {
       if (hasAssessment) {
         navigate({ to: "/dashboard" });
       } else {
-        navigate({ to: "/" });
+        navigate({ to: "/assessment" });
       }
     }
   }, [user, loading, syncing, navigate]);
