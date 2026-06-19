@@ -12,7 +12,8 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { isConfigured, db, auth } from "@/lib/firebase";
-import { doc, setDoc, serverTimestamp } from "firebase/firestore";
+import { doc, getDoc, setDoc, serverTimestamp } from "firebase/firestore";
+import { useAuth } from "@/contexts/auth-context";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -56,6 +57,7 @@ function AssessmentPage() {
     document.title = "Health Assessment — HealthGuard";
   }, []);
   const navigate = useNavigate();
+  const { setHasCompletedAssessment } = useAuth();
   const assess = assessHealth;
   const [, setResult] = useHealthResult();
   const [profile, setProfile] = useProfile();
@@ -103,25 +105,31 @@ function AssessmentPage() {
 
       // Write onboarding status flag to firestore users collection
       if (isConfigured && auth.currentUser) {
-        try {
-          await setDoc(
-            doc(db, "users", auth.currentUser.uid),
-            {
-              hasCompletedAssessment: true,
-              assessmentCompletedAt: serverTimestamp(),
-              lastAssessmentUpdatedAt: serverTimestamp(),
-            },
-            { merge: true },
-          );
-        } catch (dbErr) {
-          console.warn("Failed to write onboarding status to Firestore:", dbErr);
+        const userRef = doc(db, "users", auth.currentUser.uid);
+        const userSnap = await getDoc(userRef);
+        const exists = userSnap.exists();
+        const userData = exists ? userSnap.data() : null;
+
+        const updateData: any = {
+          uid: auth.currentUser.uid,
+          email: auth.currentUser.email,
+          displayName: auth.currentUser.displayName || null,
+          hasCompletedAssessment: true,
+          lastAssessmentUpdatedAt: serverTimestamp(),
+        };
+
+        if (!userData || !userData.assessmentCompletedAt) {
+          updateData.assessmentCompletedAt = serverTimestamp();
         }
+
+        await setDoc(userRef, updateData, { merge: true });
       }
 
+      setHasCompletedAssessment(true);
       toast.success("Assessment complete");
       navigate({ to: "/dashboard" });
     } catch (e) {
-      console.error(e);
+      console.error("Assessment submit flow failure:", e);
       toast.error("Assessment failed. Please try again.");
     } finally {
       setLoading(false);

@@ -23,7 +23,7 @@ function LoginPage() {
     document.title = "Sign In — HealthGuard";
   }, []);
 
-  const { loginWithEmail, loginWithGoogle, user, loading, syncing } = useAuth();
+  const { loginWithEmail, loginWithGoogle, user, loading, syncing, hasCompletedAssessment } = useAuth();
   const navigate = useNavigate();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -31,15 +31,14 @@ function LoginPage() {
 
   // Redirect if user is already logged in
   useEffect(() => {
-    if (!loading && !syncing && user) {
-      const hasAssessment = !!localStorage.getItem("hg.result.v1");
-      if (hasAssessment) {
+    if (!loading && user && hasCompletedAssessment !== null) {
+      if (hasCompletedAssessment === true) {
         navigate({ to: "/dashboard" });
       } else {
         navigate({ to: "/assessment" });
       }
     }
-  }, [user, loading, syncing, navigate]);
+  }, [user, loading, hasCompletedAssessment, navigate]);
 
   const handleEmailLogin = async (e: React.FormEvent) => {
     e.preventDefault();

@@ -24,7 +24,7 @@ function SignupPage() {
     document.title = "Create Account — HealthGuard";
   }, []);
 
-  const { signUpWithEmail, user, loading, syncing } = useAuth();
+  const { signUpWithEmail, user, loading, syncing, hasCompletedAssessment } = useAuth();
   const navigate = useNavigate();
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
@@ -34,15 +34,14 @@ function SignupPage() {
 
   // Redirect if user is already logged in
   useEffect(() => {
-    if (!loading && !syncing && user) {
-      const hasAssessment = !!localStorage.getItem("hg.result.v1");
-      if (hasAssessment) {
+    if (!loading && user && hasCompletedAssessment !== null) {
+      if (hasCompletedAssessment === true) {
         navigate({ to: "/dashboard" });
       } else {
         navigate({ to: "/assessment" });
       }
     }
-  }, [user, loading, syncing, navigate]);
+  }, [user, loading, hasCompletedAssessment, navigate]);
 
   const handleSignup = async (e: React.FormEvent) => {
     e.preventDefault();

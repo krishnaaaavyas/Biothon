@@ -176,6 +176,36 @@ export const t: Dict = {
     hi: "हमें अपने स्वास्थ्य के बारे में बताएं",
     gu: "અમને તમારા સ્વાસ્થ્ય વિશે કહો",
   },
+  progressTracker: {
+    en: "Progress Tracker",
+    hi: "प्रगति ट्रैकर",
+    gu: "પ્રગતિ ટ્રેકર",
+  },
+  reassessHealthProfile: {
+    en: "Reassess Health Profile",
+    hi: "स्वास्थ्य प्रोफ़ाइल का पुनर्मूल्यांकन करें",
+    gu: "આરોગ્ય પ્રોફાઇલનું પુનઃમૂલ્યાંકન કરો",
+  },
+  startInitialAssessment: {
+    en: "Start Initial Assessment",
+    hi: "प्रारंभिक मूल्यांकन शुरू करें",
+    gu: "પ્રારંભિક મૂલ્યાંકન શરૂ કરો",
+  },
+  humanExpertReview: {
+    en: "Human Expert Review",
+    hi: "मानव विशेषज्ञ समीक्षा",
+    gu: "માનવ નિષ્ણાત સમીક્ષા",
+  },
+  clinicalReviewModule: {
+    en: "Clinical Review Module",
+    hi: "नैदानिक ​​समीक्षा मॉड्यूल",
+    gu: "ક્લિનિકલ સમીક્ષા મોડ્યુલ",
+  },
+  wellnessTool: {
+    en: "Wellness Tool",
+    hi: "कल्याण उपकरण",
+    gu: "વેલનેસ ટૂલ",
+  },
 };
 
 import { useState, useEffect } from "react";
@@ -185,13 +215,27 @@ export function tr(key: keyof typeof t, lang: Lang): string {
 }
 
 export function useLanguage(): Lang {
-  const [language, setLanguage] = useState<Lang>(() => {
-    return (localStorage.getItem("hg.lang.v1") as Lang) || "en";
-  });
+  const getStoredLang = (): Lang => {
+    const raw = localStorage.getItem("hg.lang.v1");
+    if (!raw) return "en";
+    try {
+      const parsed = JSON.parse(raw);
+      if (parsed === "en" || parsed === "hi" || parsed === "gu") {
+        return parsed as Lang;
+      }
+    } catch {
+      if (raw === "en" || raw === "hi" || raw === "gu") {
+        return raw as Lang;
+      }
+    }
+    return "en";
+  };
+
+  const [language, setLanguage] = useState<Lang>(getStoredLang);
 
   useEffect(() => {
     const sync = () => {
-      setLanguage((localStorage.getItem("hg.lang.v1") as Lang) || "en");
+      setLanguage(getStoredLang());
     };
 
     window.addEventListener("hg:language-change", sync);

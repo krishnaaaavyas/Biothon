@@ -2,6 +2,7 @@ import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useState, useEffect, useRef } from "react";
 import { useAuth } from "@/contexts/auth-context";
 import { useProfile, useHealthResult } from "@/lib/health-store";
+import { useLanguage, tr } from "@/lib/i18n";
 import {
   Card,
   CardContent,
@@ -167,6 +168,7 @@ async function sendMessage(
 }
 
 function ExpertReviewPage() {
+  const currentLang = useLanguage();
   const { user } = useAuth();
   const [profile] = useProfile();
   const [result] = useHealthResult();
@@ -377,10 +379,10 @@ function ExpertReviewPage() {
             variant="secondary"
             className="rounded-full bg-teal/10 text-teal border border-teal/20"
           >
-            Clinical Review Module
+            {tr("clinicalReviewModule", currentLang)}
           </Badge>
           <h1 className="mt-3 font-display text-3xl font-bold tracking-tight sm:text-4xl">
-            Human Expert Review
+            {tr("humanExpertReview", currentLang)}
           </h1>
           <p className="mt-2 text-muted-foreground text-sm leading-relaxed max-w-2xl">
             Submit your personalized health risk summary and food scan trends to a human medical

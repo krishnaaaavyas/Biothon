@@ -12,6 +12,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { useProfile, useHealthResult, useHistory } from "@/lib/health-store";
+import { useLanguage, tr } from "@/lib/i18n";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -70,6 +71,7 @@ function KpiCard({
 }
 
 function ProgressPage() {
+  const currentLang = useLanguage();
   const navigate = useNavigate();
   const [profile, setProfile] = useProfile();
   const [result, setResult] = useHealthResult();
@@ -168,10 +170,10 @@ function ProgressPage() {
           variant="secondary"
           className="rounded-full bg-teal/10 text-teal border border-teal/20"
         >
-          Track Vitals
+          {tr("progress", currentLang)}
         </Badge>
         <h1 className="mt-3 font-display text-3xl font-bold tracking-tight sm:text-4xl">
-          Progress Tracker
+          {tr("progressTracker", currentLang)}
         </h1>
         <p className="mt-2 max-w-2xl text-muted-foreground text-sm leading-relaxed">
           Log weight and track clinical risk improvements over time.

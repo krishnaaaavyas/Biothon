@@ -211,8 +211,8 @@ function ProfilePage() {
                   className="w-full bg-teal text-white hover:bg-teal/95 font-bold text-xs h-9 cursor-pointer"
                 >
                   {assessmentStatus?.hasCompletedAssessment
-                    ? "Reassess Health Profile"
-                    : "Start Initial Assessment"}
+                    ? tr("reassessHealthProfile", currentLang)
+                    : tr("startInitialAssessment", currentLang)}
                 </Button>
               </CardFooter>
             </Card>

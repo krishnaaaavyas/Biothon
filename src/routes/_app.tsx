@@ -16,17 +16,14 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 
-import { useHealthResult } from "@/lib/health-store";
-
 export const Route = createFileRoute("/_app")({
   component: AppLayout,
 });
 
 function AppLayout() {
-  const { user, loading, syncing, logout } = useAuth();
+  const { user, loading, syncing, logout, hasCompletedAssessment } = useAuth();
   const navigate = useNavigate();
   const pathname = useRouterState({ select: (s) => s.location.pathname });
-  const [result] = useHealthResult();
 
   useEffect(() => {
     if (!loading && !user) {
@@ -35,13 +32,12 @@ function AppLayout() {
   }, [user, loading, navigate]);
 
   useEffect(() => {
-    if (!loading && !syncing && user) {
-      const hasAssessment = !!result;
-      if (!hasAssessment && pathname !== "/assessment") {
+    if (!loading && user && hasCompletedAssessment !== null) {
+      if (!hasCompletedAssessment && pathname !== "/assessment") {
         navigate({ to: "/assessment" });
       }
     }
-  }, [user, loading, syncing, pathname, navigate, result]);
+  }, [user, loading, hasCompletedAssessment, pathname, navigate]);
 
   if (loading || syncing) {
     return (

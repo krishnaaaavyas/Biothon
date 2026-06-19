@@ -9,7 +9,8 @@ import {
   updateProfile,
   onAuthStateChanged,
 } from "firebase/auth";
-import { auth, googleProvider, isConfigured } from "@/lib/firebase";
+import { auth, googleProvider, isConfigured, db } from "@/lib/firebase";
+import { doc, getDoc, setDoc, serverTimestamp } from "firebase/firestore";
 
 const API_URL = import.meta.env.VITE_API_URL || "http://localhost:5000";
 import { useProfile, useHealthResult, useHistory } from "@/lib/health-store";
@@ -24,6 +25,8 @@ interface AuthContextType {
   user: User | null;
   loading: boolean;
   syncing: boolean;
+  hasCompletedAssessment: boolean | null;
+  setHasCompletedAssessment: React.Dispatch<React.SetStateAction<boolean | null>>;
   loginWithGoogle: () => Promise<void>;
   loginWithEmail: (email: string, pass: string) => Promise<void>;
   signUpWithEmail: (email: string, pass: string, name: string) => Promise<void>;
@@ -38,6 +41,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const [syncing, setSyncing] = useState(false);
+  const [hasCompletedAssessment, setHasCompletedAssessment] = useState<boolean | null>(null);
   const isSyncingRef = useRef(false);
 
   // Read local stores so we can watch them reactively
@@ -67,9 +71,33 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
       clearTimeout(timer);
       setUser(firebaseUser);
-      setLoading(false);
 
       if (firebaseUser && isConfigured) {
+        // Fetch/create Firestore user document
+        try {
+          const userDocRef = doc(db, "users", firebaseUser.uid);
+          const userDocSnap = await getDoc(userDocRef);
+
+          if (!userDocSnap.exists()) {
+            await setDoc(userDocRef, {
+              uid: firebaseUser.uid,
+              email: firebaseUser.email,
+              displayName: firebaseUser.displayName || null,
+              hasCompletedAssessment: false,
+              createdAt: serverTimestamp(),
+            });
+            setHasCompletedAssessment(false);
+          } else {
+            const userData = userDocSnap.data();
+            setHasCompletedAssessment(!!userData?.hasCompletedAssessment);
+          }
+        } catch (dbErr) {
+          console.error("Error fetching/creating user doc in auth-context:", dbErr);
+          setHasCompletedAssessment(false);
+        }
+
+        setLoading(false);
+
         // Logged in: Sync from Express Backend to LocalStorage
         isSyncingRef.current = true;
         setSyncing(true);
@@ -159,6 +187,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           isSyncingRef.current = false;
           setSyncing(false);
         }
+      } else {
+        setHasCompletedAssessment(null);
+        setLoading(false);
       }
     });
 
@@ -338,6 +369,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         user,
         loading,
         syncing,
+        hasCompletedAssessment,
+        setHasCompletedAssessment,
         loginWithGoogle,
         loginWithEmail,
         signUpWithEmail,
