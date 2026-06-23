@@ -40,8 +40,14 @@ import {
   type Profile,
 } from "@/lib/health-store";
 import { tr } from "@/lib/i18n";
+import { z } from "zod";
+
+const assessmentSearchSchema = z.object({
+  mode: z.string().optional(),
+});
 
 export const Route = createFileRoute("/_app/assessment")({
+  validateSearch: (search) => assessmentSearchSchema.parse(search),
   component: AssessmentPage,
 });
 
@@ -53,10 +59,19 @@ const steps = [
 ];
 
 function AssessmentPage() {
+  const { mode } = Route.useSearch();
+  const { hasCompletedAssessment, loading: authLoading } = useAuth();
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    if (!authLoading && hasCompletedAssessment && mode !== "reassess") {
+      navigate({ to: "/dashboard", replace: true });
+    }
+  }, [hasCompletedAssessment, authLoading, mode, navigate]);
+
   useEffect(() => {
     document.title = "Health Assessment — HealthGuard";
   }, []);
-  const navigate = useNavigate();
   const { setHasCompletedAssessment } = useAuth();
   const assess = assessHealth;
   const [, setResult] = useHealthResult();

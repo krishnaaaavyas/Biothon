@@ -211,7 +211,7 @@ function ProfilePage() {
 
               <CardFooter className="p-4 pt-0">
                 <Button
-                  onClick={() => navigate({ to: "/assessment" })}
+                  onClick={() => navigate({ to: "/assessment", search: { mode: "reassess" } })}
                   className="w-full bg-teal text-white hover:bg-teal/95 font-bold text-xs h-9 cursor-pointer"
                 >
                   {assessmentStatus?.hasCompletedAssessment

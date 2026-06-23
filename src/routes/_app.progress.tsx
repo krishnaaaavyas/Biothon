@@ -329,7 +329,7 @@ function ProgressPage() {
           <div className="space-y-4">
             <h2 className="font-display text-base font-bold text-foreground flex items-center gap-2">
               <Brain className="h-4.5 w-4.5 text-teal animate-pulse-slow" />
-              Projections & Trend Forecast
+              {tr("projTitle", currentLang)}
             </h2>
 
             {predLoading ? (
@@ -342,23 +342,24 @@ function ProgressPage() {
                 <Card className="border-border bg-surface shadow-card-soft flex flex-col justify-between p-5">
                   <div className="space-y-1">
                     <span className="text-[10px] uppercase font-bold text-muted-foreground tracking-wider font-mono">
-                      Current Forecast Trend
+                      {tr("forecastTrend", currentLang)}
                     </span>
                     <h3 className="font-display text-2xl font-bold flex items-center gap-2 capitalize">
                       {prediction.trend === "improving" ? (
-                        <span className="text-green-500">Improving ▼</span>
+                        <span className="text-green-500">{tr("improving", currentLang)}</span>
                       ) : prediction.trend === "worsening" ? (
-                        <span className="text-red-500">Worsening ▲</span>
+                        <span className="text-red-500">{tr("worsening", currentLang)}</span>
                       ) : (
-                        <span className="text-amber-500">Stable ▬</span>
+                        <span className="text-amber-500">{tr("stable", currentLang)}</span>
                       )}
                     </h3>
                     <p className="text-xs text-muted-foreground">
-                      Confidence rating: {Math.round((prediction.confidence || 0) * 100)}%
+                      {tr("confidenceRating", currentLang)}{" "}
+                      {Math.round((prediction.confidence || 0) * 100)}%
                     </p>
                   </div>
                   <div className="text-[10px] text-muted-foreground border-t border-border/40 pt-2.5 mt-4">
-                    *Estimated risk category. For awareness & lifestyle guidance only.
+                    {tr("estRiskDisclaimer", currentLang)}
                   </div>
                 </Card>
 
@@ -367,7 +368,7 @@ function ProgressPage() {
                   <div className="grid gap-4 sm:grid-cols-2">
                     <div className="space-y-1">
                       <span className="text-[10px] uppercase font-bold text-muted-foreground tracking-wider font-mono">
-                        Projected Risk (30 Days)
+                        {tr("projected30", currentLang)}
                       </span>
                       <div className="font-display text-3xl font-extrabold text-foreground">
                         {prediction.predictedRisk30Days}%
@@ -379,7 +380,7 @@ function ProgressPage() {
                     </div>
                     <div className="space-y-1">
                       <span className="text-[10px] uppercase font-bold text-muted-foreground tracking-wider font-mono">
-                        Projected Risk (90 Days)
+                        {tr("projected90", currentLang)}
                       </span>
                       <div className="font-display text-3xl font-extrabold text-foreground">
                         {prediction.predictedRisk90Days}%
@@ -394,7 +395,7 @@ function ProgressPage() {
                   {prediction.reasons && prediction.reasons.length > 0 && (
                     <div className="rounded-lg bg-accent/15 border border-border/40 p-3.5 space-y-1.5 text-left">
                       <span className="text-[9px] uppercase font-bold text-teal tracking-wider font-mono">
-                        Predictive Insights
+                        {tr("predInsights", currentLang)}
                       </span>
                       <ul className="list-disc pl-3 text-[11px] text-foreground/80 space-y-1">
                         {prediction.reasons.map((reason, idx) => (
@@ -410,10 +411,10 @@ function ProgressPage() {
               <Card className="border-border border-dashed bg-surface shadow-card-soft p-8 text-center flex flex-col items-center justify-center min-h-[160px]">
                 <TrendingDown className="h-8 w-8 text-teal/40 mb-2" />
                 <h3 className="font-display text-xs font-bold text-foreground">
-                  Projections Unavailable
+                  {tr("projUnavailable", currentLang)}
                 </h3>
                 <p className="text-[11px] text-muted-foreground mt-1 max-w-xs leading-relaxed">
-                  Add more progress logs to unlock prediction. (Requires at least 3 logs).
+                  {tr("addMoreLogs", currentLang)}
                 </p>
               </Card>
             )}

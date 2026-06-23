@@ -337,6 +337,7 @@ export async function assessHealth({ data }: { data: z.infer<typeof InputSchema>
     factors: analysis.factors,
     actionPriorities: analysis.actionPriorities,
     bmi: analysis.bmi,
+    mlRisk: analysis.mlRisk || null,
   };
 }
 

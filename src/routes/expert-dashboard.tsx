@@ -443,40 +443,63 @@ function ExpertDashboardPage() {
             Expert Portal Restricted
           </CardTitle>
           <p className="text-sm text-muted-foreground mt-3 leading-relaxed">
-            Your current account does not have clinical expert permissions. To view pending patient
-            records, you must register your account in our sandbox.
+            Your current account does not have clinical expert permissions. Access to the
+            HealthGuard Clinical Portal is restricted to verified healthcare professionals.
           </p>
-          <div className="bg-surface-muted/30 border border-border p-4 rounded-xl mt-6 text-xs text-left leading-relaxed text-muted-foreground space-y-2">
-            <p className="font-bold text-foreground">🧪 Sandbox Instructions</p>
-            <p>
-              We provide a mock registration path for local validators. Click the button below to
-              mark your Firebase UID as a verified specialist.
-            </p>
-          </div>
-          <CardFooter className="flex flex-col gap-3 mt-8 p-0">
-            <Button
-              onClick={handleDevRegisterExpert}
-              disabled={devRegistering}
-              className="w-full bg-teal text-white hover:bg-teal/95 font-bold gap-2 py-5"
-            >
-              {devRegistering ? (
-                <>
-                  <Loader2 className="h-4 w-4 animate-spin" /> Registering Specialist...
-                </>
-              ) : (
-                <>
-                  <UserPlus className="h-4 w-4" /> Register as Mock Expert
-                </>
-              )}
-            </Button>
-            <Button
-              asChild
-              variant="ghost"
-              className="w-full text-xs text-muted-foreground hover:bg-muted"
-            >
-              <Link to="/dashboard">Return to Patient Dashboard</Link>
-            </Button>
-          </CardFooter>
+          {import.meta.env.DEV ? (
+            <>
+              <div className="bg-surface-muted/30 border border-border p-4 rounded-xl mt-6 text-xs text-left leading-relaxed text-muted-foreground space-y-2">
+                <p className="font-bold text-foreground">🧪 Sandbox Instructions</p>
+                <p>
+                  We provide a mock registration path for local validators. Click the button below
+                  to mark your Firebase UID as a verified specialist.
+                </p>
+              </div>
+              <CardFooter className="flex flex-col gap-3 mt-8 p-0">
+                <Button
+                  onClick={handleDevRegisterExpert}
+                  disabled={devRegistering}
+                  className="w-full bg-teal text-white hover:bg-teal/95 font-bold gap-2 py-5 cursor-pointer"
+                >
+                  {devRegistering ? (
+                    <>
+                      <Loader2 className="h-4 w-4 animate-spin" /> Registering Specialist...
+                    </>
+                  ) : (
+                    <>
+                      <UserPlus className="h-4 w-4" /> Register as Mock Expert
+                    </>
+                  )}
+                </Button>
+                <Button
+                  asChild
+                  variant="ghost"
+                  className="w-full text-xs text-muted-foreground hover:bg-muted"
+                >
+                  <Link to="/dashboard">Return to Patient Dashboard</Link>
+                </Button>
+              </CardFooter>
+            </>
+          ) : (
+            <>
+              <div className="bg-surface-muted/30 border border-border p-4 rounded-xl mt-6 text-xs text-left leading-relaxed text-muted-foreground space-y-2">
+                <p className="font-bold text-foreground">Clinical Portal Access</p>
+                <p>
+                  Access to the HealthGuard Clinical Portal is restricted. If you are a clinician
+                  and need portal credentials, please contact our support team.
+                </p>
+              </div>
+              <CardFooter className="flex flex-col gap-3 mt-8 p-0">
+                <Button
+                  asChild
+                  variant="outline"
+                  className="w-full text-xs text-muted-foreground border-border hover:bg-muted py-5"
+                >
+                  <Link to="/dashboard">Return to Patient Dashboard</Link>
+                </Button>
+              </CardFooter>
+            </>
+          )}
         </Card>
       </div>
     );

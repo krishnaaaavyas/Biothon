@@ -553,6 +553,9 @@ app.post("/api/risk/calculate", requireAuth, async (req: AuthenticatedRequest, r
       createdAt: new Date().toISOString(),
     });
 
+    // Attach mlRisk directly to the analysis response payload so it is returned to the client immediately
+    (analysis as any).mlRisk = mlRisk || null;
+
     return res.json({
       success: true,
       analysis,

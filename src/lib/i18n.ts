@@ -3810,6 +3810,91 @@ export const translations: Dict = {
   },
   familyHistoryLabel: { en: "Family history", hi: "पारिवारिक इतिहास", gu: "પારિવારિક ઇતિહાસ" },
   noneReported: { en: "none reported", hi: "कोई रिपोर्ट नहीं की गई", gu: "કોઈ નોંધાયેલ નથી" },
+  projTitle: {
+    en: "Projections & Trend Forecast",
+    hi: "अनुमान और रुझान पूर्वानुमान",
+    gu: "અંદાજો અને વલણ પૂર્વાનુમાન",
+  },
+  forecastTrend: {
+    en: "Current Forecast Trend",
+    hi: "वर्तमान पूर्वानुमान रुझान",
+    gu: "વર્તમાન પૂર્વાનુમાન વલણ",
+  },
+  improving: {
+    en: "Improving ▼",
+    hi: "सुधार हो रहा है ▼",
+    gu: "સુધારો થઈ રહ્યો છે ▼",
+  },
+  worsening: {
+    en: "Worsening ▲",
+    hi: "बिगड़ रहा है ▲",
+    gu: "બગડી રહ્યું છે ▲",
+  },
+  stable: {
+    en: "Stable ▬",
+    hi: "स्थिर ▬",
+    gu: "સ્થિર ▬",
+  },
+  confidenceRating: {
+    en: "Confidence rating:",
+    hi: "विश्वास रेटिंग:",
+    gu: "આત્મવિશ્વાસ રેટિંગ:",
+  },
+  estRiskDisclaimer: {
+    en: "*Estimated risk category. For awareness & lifestyle guidance only.",
+    hi: "*अनुमानित जोखिम श्रेणी। केवल जागरूकता और जीवन शैली मार्गदर्शन के लिए।",
+    gu: "*અંદાજિત જોખમ શ્રેણી. ફક્ત જાગૃતિ અને જીવનશૈલી માર્ગદર્શન માટે.",
+  },
+  projected30: {
+    en: "Projected Risk (30 Days)",
+    hi: "अनुमानित जोखिम (30 दिन)",
+    gu: "અંદાજિત જોખમ (30 દિવસ)",
+  },
+  projected90: {
+    en: "Projected Risk (90 Days)",
+    hi: "अनुमानित जोखिम (90 दिन)",
+    gu: "અંદાજિત જોખમ (90 દિવસ)",
+  },
+  predInsights: {
+    en: "Predictive Insights",
+    hi: "पूर्वानुमानित अंतर्दृष्टि",
+    gu: "પૂર્વાનુમાનિત આંતરદૃષ્ટિ",
+  },
+  projUnavailable: {
+    en: "Projections Unavailable",
+    hi: "अनुमान अनुपलब्ध",
+    gu: "અંદાજો અપ્રાપ્ય",
+  },
+  addMoreLogs: {
+    en: "Add more progress logs to unlock prediction. (Requires at least 3 logs).",
+    hi: "भविष्यवाणी को अनलॉक करने के लिए और प्रगति लॉग जोड़ें। (कम से कम 3 लॉग की आवश्यकता है)।",
+    gu: "પૂર્વાનુમાન અનલૉક કરવા માટે વધુ પ્રગતિ લૉગ્સ ઉમેરો. (ઓછામાં ઓછા 3 લૉગ્સની જરૂર છે).",
+  },
+  mlRiskCategory: {
+    en: "Estimated Risk Category (ML)",
+    hi: "अनुमानित जोखिम श्रेणी (ML)",
+    gu: "અંદાજિત જોખમ શ્રેણી (ML)",
+  },
+  modelVersion: {
+    en: "Model version:",
+    hi: "मॉडल संस्करण:",
+    gu: "મોડેલ સંસ્કરણ:",
+  },
+  confidence: {
+    en: "Confidence:",
+    hi: "विश्वास:",
+    gu: "આત્મવિશ્વાસ:",
+  },
+  supportingInsights: {
+    en: "Supporting Insights",
+    hi: "सहायक अंतर्दृष्टि",
+    gu: "સહાયક આંતરદૃષ્ટિ",
+  },
+  mlDisclaimer: {
+    en: "*Based on your provided data. For awareness and lifestyle guidance only.",
+    hi: "*आपके द्वारा प्रदान किए गए डेटा पर आधारित। केवल जागरूकता और जीवन शैली मार्गदर्शन के लिए।",
+    gu: "*તમારા દ્વારા પ્રદાન કરેલ ડેટા પર આધારિત. ફક્ત જાગૃતિ અને જીવનશૈલી માર્ગદર્શન માટે.",
+  },
 };
 
 import { useState, useEffect, useContext } from "react";

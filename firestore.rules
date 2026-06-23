@@ -1,8 +1,27 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
+    // 1. Users can read/write their own user record
     match /users/{userId} {
       allow read, write: if request.auth != null && request.auth.uid == userId;
+    }
+
+    // 2. Expert messages can be read by authenticated users and created if the sender matches request.auth.uid
+    match /expertMessages/{messageId} {
+      allow read: if request.auth != null;
+      allow create: if request.auth != null && request.resource.data.senderId == request.auth.uid;
+      allow update, delete: if false;
+    }
+
+    // 3. Feedback can be created by anyone, but not read/modified
+    match /feedback/{feedbackId} {
+      allow create: if true;
+      allow read, update, delete: if false;
+    }
+
+    // 4. Default deny all other client access to protect data privacy
+    match /{document=**} {
+      allow read, write: if false;
     }
   }
 }

@@ -408,40 +408,42 @@ function ExpertReviewPage() {
         </div>
 
         {/* Developer sandbox shortcuts */}
-        <div className="rounded-xl border border-dashed border-teal/30 bg-teal/5 p-4 max-w-xs shrink-0">
-          <div className="text-[11px] font-bold text-teal uppercase tracking-wider mb-2 flex items-center gap-1.5">
-            <UserCheck className="h-3.5 w-3.5" /> Developer Sandbox
+        {import.meta.env.DEV && (
+          <div className="rounded-xl border border-dashed border-teal/30 bg-teal/5 p-4 max-w-xs shrink-0">
+            <div className="text-[11px] font-bold text-teal uppercase tracking-wider mb-2 flex items-center gap-1.5">
+              <UserCheck className="h-3.5 w-3.5" /> Developer Sandbox
+            </div>
+            <p className="text-[11px] text-muted-foreground mb-3 leading-snug">
+              Toggle this account as an expert to access the Doctor/Nutritionist view at{" "}
+              <code className="bg-muted px-1 py-0.5 rounded text-[10px]">/expert-dashboard</code>.
+            </p>
+            <div className="flex flex-col gap-2">
+              <Button
+                onClick={handleDevRegisterExpert}
+                size="xs"
+                variant="outline"
+                disabled={devRegistering}
+                className="text-[10px] h-7 cursor-pointer border-teal/40 hover:bg-teal/10"
+              >
+                {devRegistering ? "Registering..." : "Mock Doctor Signup"}
+              </Button>
+              <Button
+                asChild
+                size="xs"
+                className="text-[10px] h-7 bg-teal hover:bg-teal/95 font-semibold text-white"
+              >
+                <Link to="/expert-dashboard">
+                  {currentLang === "hi"
+                    ? "विशेषज्ञ डैशबोर्ड खोलें"
+                    : currentLang === "gu"
+                      ? "નિષ્ણાત ડેશબોર્ડ ખોલો"
+                      : "Open Expert Dashboard"}{" "}
+                  <ArrowRight className="ml-1 h-3 w-3" />
+                </Link>
+              </Button>
+            </div>
           </div>
-          <p className="text-[11px] text-muted-foreground mb-3 leading-snug">
-            Toggle this account as an expert to access the Doctor/Nutritionist view at{" "}
-            <code className="bg-muted px-1 py-0.5 rounded text-[10px]">/expert-dashboard</code>.
-          </p>
-          <div className="flex flex-col gap-2">
-            <Button
-              onClick={handleDevRegisterExpert}
-              size="xs"
-              variant="outline"
-              disabled={devRegistering}
-              className="text-[10px] h-7 cursor-pointer border-teal/40 hover:bg-teal/10"
-            >
-              {devRegistering ? "Registering..." : "Mock Doctor Signup"}
-            </Button>
-            <Button
-              asChild
-              size="xs"
-              className="text-[10px] h-7 bg-teal hover:bg-teal/95 font-semibold text-white"
-            >
-              <Link to="/expert-dashboard">
-                {currentLang === "hi"
-                  ? "विशेषज्ञ डैशबोर्ड खोलें"
-                  : currentLang === "gu"
-                    ? "નિષ્ણાત ડેશબોર્ડ ખોલો"
-                    : "Open Expert Dashboard"}{" "}
-                <ArrowRight className="ml-1 h-3 w-3" />
-              </Link>
-            </Button>
-          </div>
-        </div>
+        )}
       </div>
 
       {/* Main Container */}
