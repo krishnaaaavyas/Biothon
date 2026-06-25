@@ -686,7 +686,7 @@ function Dashboard() {
                   <div className="flex items-center justify-between">
                     <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground font-mono flex items-center gap-1.5">
                       <Brain className="h-3.5 w-3.5 text-teal animate-pulse-slow" />
-                      {tr("mlRiskCategory", currentLang)}
+                      {tr("mlRiskCategory", currentLang) || "ML Risk Category"}
                     </span>
                     <Badge
                       variant="outline"
@@ -703,24 +703,36 @@ function Dashboard() {
                   </div>
                   <div className="text-[11px] text-muted-foreground flex items-center justify-between">
                     <span>
-                      {tr("modelVersion", currentLang)} {result.mlRisk.modelVersion}
+                      {tr("modelVersion", currentLang) || "Model:"} {result.mlRisk.modelVersion}
                     </span>
                     <span>
-                      {tr("confidence", currentLang)} {Math.round(result.mlRisk.confidence * 100)}%
+                      {tr("confidence", currentLang) || "Confidence:"}{" "}
+                      {(() => {
+                        const rawConf = result.mlRisk.confidence;
+                        return rawConf <= 1 ? Math.round(rawConf * 100) : Math.round(rawConf);
+                      })()}
+                      %
                     </span>
                   </div>
+                  {result.mlRisk.explanation && (
+                    <p className="text-xs text-muted-foreground leading-normal mt-1 text-left">
+                      {result.mlRisk.explanation}
+                    </p>
+                  )}
                   {result.mlRisk.supportingFactors &&
                     result.mlRisk.supportingFactors.length > 0 && (
                       <div className="text-[11px] font-medium text-foreground bg-accent/20 rounded-lg p-2.5 space-y-1 border border-border/40">
                         <div className="text-[9px] uppercase font-bold text-muted-foreground tracking-wider font-mono">
-                          {tr("supportingInsights", currentLang)}
+                          {tr("supportingInsights", currentLang) || "Top Signals"}
                         </div>
                         <ul className="list-disc pl-3.5 space-y-1 text-left">
-                          {result.mlRisk.supportingFactors.map((factor: string, idx: number) => (
-                            <li key={idx} className="leading-snug">
-                              {factor}
-                            </li>
-                          ))}
+                          {result.mlRisk.supportingFactors
+                            .slice(0, 2)
+                            .map((factor: string, idx: number) => (
+                              <li key={idx} className="leading-snug">
+                                {factor}
+                              </li>
+                            ))}
                         </ul>
                       </div>
                     )}

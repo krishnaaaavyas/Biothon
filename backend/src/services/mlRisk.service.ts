@@ -2,9 +2,10 @@ import { type UserProfile, type CompleteRiskAnalysis } from "./risk.service.js";
 
 export interface MlRiskResult {
   mlRiskCategory: "low" | "moderate" | "high";
-  confidence: number;
+  confidence: number; // 0 - 100
   supportingFactors: string[];
   modelVersion: "ml-risk-v1";
+  explanation: string;
 }
 
 export class MlRiskService {
@@ -16,119 +17,180 @@ export class MlRiskService {
     profile: UserProfile,
     clinicalRiskResult: CompleteRiskAnalysis,
   ): MlRiskResult {
-    let lifestylePoints = 0;
-    const maxLifestylePoints = 125;
+    let score = 0;
     const factors: string[] = [];
+    const lang = profile.language || "en";
 
     // 1. BMI calculation
     const heightM = profile.heightCm / 100;
     const bmi = profile.weightKg / (heightM * heightM);
 
-    if (bmi >= 30) {
-      lifestylePoints += 25;
-      factors.push(`Physiological strain from elevated BMI (${bmi.toFixed(1)})`);
-    } else if (bmi >= 25) {
-      lifestylePoints += 12;
-      factors.push(`Slightly elevated BMI (${bmi.toFixed(1)})`);
-    } else if (bmi < 18.5) {
-      lifestylePoints += 8;
-      factors.push(`Below-normal BMI index (${bmi.toFixed(1)})`);
+    if (bmi >= 25) {
+      score += 15;
+      if (lang === "hi") {
+        factors.push("उच्च बीएमआई (अधिक वजन या मोटापा)");
+      } else if (lang === "gu") {
+        factors.push("ઉચ્ચ BMI (વધુ વજન અથવા સ્થૂળતા)");
+      } else {
+        factors.push(`High BMI (${bmi.toFixed(1)})`);
+      }
     }
 
-    // 2. Smoking status
+    // 2. sedentary lifestyle
+    const isSedentary = profile.exercise === "none" || (profile as any).exerciseLevel === "none";
+    if (isSedentary) {
+      score += 15;
+      if (lang === "hi") {
+        factors.push("गतिहीन जीवन शैली (कोई व्यायाम दर्ज नहीं)");
+      } else if (lang === "gu") {
+        factors.push("બેઠાડુ જીવનશૈલી (કોઈ કસરત નોંધાયેલ નથી)");
+      } else {
+        factors.push("Sedentary lifestyle");
+      }
+    }
+
+    // 3. age over 45
+    if (profile.age > 45) {
+      score += 10;
+      if (lang === "hi") {
+        factors.push(`45 वर्ष से अधिक आयु (${profile.age} वर्ष)`);
+      } else if (lang === "gu") {
+        factors.push(`45 વર્ષથી વધુ ઉંમર (${profile.age} વર્ષ)`);
+      } else {
+        factors.push(`Age over 45 years (${profile.age})`);
+      }
+    }
+
+    // 4. smoking
     if (profile.smoking === "current") {
-      lifestylePoints += 25;
-      factors.push("Significant risk impact from current smoking status");
-    } else if (profile.smoking === "former") {
-      lifestylePoints += 10;
-      factors.push("Moderate risk residual from historical tobacco use");
+      score += 12;
+      if (lang === "hi") {
+        factors.push("सक्रिय धूम्रपान की स्थिति");
+      } else if (lang === "gu") {
+        factors.push("સક્રિય ધૂમ્રપાનની સ્થિતિ");
+      } else {
+        factors.push("Active smoking status");
+      }
     }
 
-    // 3. Exercise level
-    if (profile.exercise === "none") {
-      lifestylePoints += 20;
-      factors.push("Lack of physical conditioning from sedentary habits");
-    } else if (profile.exercise === "light") {
-      lifestylePoints += 10;
-      factors.push("Light physical activity level limits metabolic efficiency");
-    }
-
-    // 4. Alcohol consumption
+    // 5. frequent alcohol
     const alcVal = (profile.alcohol || "").toLowerCase();
-    if (alcVal.includes("heavy") || alcVal.includes("frequent")) {
-      lifestylePoints += 15;
-      factors.push("Elevated risk contributions from frequent or heavy alcohol intake");
-    } else if (
-      alcVal.includes("occasional") ||
-      alcVal.includes("moderate") ||
-      alcVal.includes("drink")
-    ) {
-      lifestylePoints += 5;
-      factors.push("Minor risk contribution from occasional alcohol intake");
+    if (alcVal.includes("frequent") || alcVal.includes("heavy")) {
+      score += 8;
+      if (lang === "hi") {
+        factors.push("बार-बार या भारी शराब का सेवन");
+      } else if (lang === "gu") {
+        factors.push("વારંવાર અથવા ભારે દારૂનો વપરાશ");
+      } else {
+        factors.push("Frequent or heavy alcohol consumption");
+      }
     }
 
-    // 5. Family history genetics
-    const fhLower = profile.familyHistory.toLowerCase();
+    // 6. family history
+    const fhLower = (profile.familyHistory || "").toLowerCase();
     if (
-      fhLower.includes("diabet") ||
-      fhLower.includes("sugar") ||
-      fhLower.includes("heart") ||
-      fhLower.includes("cardiac") ||
-      fhLower.includes("stroke") ||
-      fhLower.includes("bp") ||
-      fhLower.includes("hypertension")
+      fhLower.trim().length > 0 &&
+      !fhLower.includes("none") &&
+      !fhLower.includes("no family history") &&
+      !fhLower.includes("no ")
     ) {
-      lifestylePoints += 15;
-      factors.push("Genetic predisposition indicated by family medical history");
+      score += 10;
+      if (lang === "hi") {
+        factors.push("क्रोनिक बीमारियों का पारिवारिक इतिहास");
+      } else if (lang === "gu") {
+        factors.push("ક્રોનિક રોગોનો પારિવારિક ઇતિહાસ");
+      } else {
+        factors.push("Family history of chronic diseases");
+      }
     }
 
-    // 6. Active symptoms
-    const sxLower = profile.symptoms.toLowerCase();
+    // 7. active symptoms
+    const sxLower = (profile.symptoms || "").toLowerCase();
     if (
       sxLower.trim().length > 0 &&
       !sxLower.includes("none") &&
       !sxLower.includes("no symptoms")
     ) {
-      lifestylePoints += 10;
-      factors.push("Presence of metabolic or vascular symptoms reported");
+      score += 8;
+      if (lang === "hi") {
+        factors.push("सक्रिय लक्षणों की उपस्थिति");
+      } else if (lang === "gu") {
+        factors.push("સક્રિય લક્ષણોની હાજરી");
+      } else {
+        factors.push("Presence of active symptoms");
+      }
     }
 
-    // 7. Age grouping
-    if (profile.age >= 55) {
-      lifestylePoints += 15;
-      factors.push(`Vascular strain associated with age parameter (${profile.age} years)`);
-    } else if (profile.age >= 45) {
-      lifestylePoints += 8;
-      factors.push(`Demographic risk multiplier from age parameter (${profile.age} years)`);
+    // 8. high clinical overall risk
+    const isHighClinicalOverall =
+      clinicalRiskResult.overallRisk >= 60 || clinicalRiskResult.overallRiskLabel === "High";
+
+    if (isHighClinicalOverall) {
+      score += 20;
+      if (lang === "hi") {
+        factors.push("बढ़ा हुआ समग्र नैदानिक जोखिम");
+      } else if (lang === "gu") {
+        factors.push("એલિવેટેડ ક્લિનિકલ જોખમ");
+      } else {
+        factors.push("Elevated clinical overall risk");
+      }
     }
 
-    // Normalize lifestyle score
-    const lifestyleScore = Math.min(100, Math.round((lifestylePoints / maxLifestylePoints) * 100));
-
-    // Combine clinical score and lifestyle score
-    // Give significant weight to clinical risks but modulate with lifestyle score
-    let combinedScore = Math.round(0.4 * clinicalRiskResult.overallRisk + 0.6 * lifestyleScore);
-
-    // If clinical assessments have high-risk categorizations, boost classification safety ceiling
-    const hasHighClinical =
-      clinicalRiskResult.diabetesRisk.level === "High" ||
-      clinicalRiskResult.heartRisk.level === "High" ||
-      clinicalRiskResult.hypertensionRisk.level === "High";
-
-    if (hasHighClinical && combinedScore < 65) {
-      combinedScore += 10; // Boost risk estimation for medical safety
+    // 9. high clinical diabetes/heart/hypertension risk
+    if (clinicalRiskResult.diabetesRisk.level === "High") {
+      score += 10;
+      if (lang === "hi") {
+        factors.push("उच्च नैदानिक मधुमेह जोखिम");
+      } else if (lang === "gu") {
+        factors.push("ઉચ્ચ ક્લિનિકલ ડાયાબિટીસ જોખમ");
+      } else {
+        factors.push("High clinical diabetes risk");
+      }
+    }
+    if (clinicalRiskResult.heartRisk.level === "High") {
+      score += 10;
+      if (lang === "hi") {
+        factors.push("उच्च नैदानिक हृदय रोग जोखिम");
+      } else if (lang === "gu") {
+        factors.push("ઉચ્ચ ક્લિનિકલ હૃદય રોગ જોખમ");
+      } else {
+        factors.push("High clinical heart disease risk");
+      }
+    }
+    if (clinicalRiskResult.hypertensionRisk.level === "High") {
+      score += 10;
+      if (lang === "hi") {
+        factors.push("उच्च नैदानिक उच्च रक्तचाप जोखिम");
+      } else if (lang === "gu") {
+        factors.push("ઉચ્ચ ક્લિનિકલ હાયપરટેન્શન જોખમ");
+      } else {
+        factors.push("High clinical hypertension risk");
+      }
     }
 
-    // Classify into categories
+    // Fallback if factors list is empty
+    if (factors.length === 0) {
+      if (lang === "hi") {
+        factors.push("सामान्य सीमाओं के भीतर बुनियादी पैरामीटर");
+      } else if (lang === "gu") {
+        factors.push("સામાન્ય મર્યાદામાં મૂળભૂત પરિમાણો");
+      } else {
+        factors.push("Baseline parameters within normal limits");
+      }
+    }
+
+    // Classify
     let mlRiskCategory: "low" | "moderate" | "high" = "low";
-    if (combinedScore >= 60) {
+    if (score >= 65) {
       mlRiskCategory = "high";
-    } else if (combinedScore >= 30) {
+    } else if (score >= 35) {
       mlRiskCategory = "moderate";
     }
 
-    // Determine confidence based on data completeness and signal consistency
-    let completenessCount = 0;
+    // Determine confidence
+    let confidence = 85;
+
+    // Completeness check
     const checkFields = [
       profile.age,
       profile.gender,
@@ -140,33 +202,72 @@ export class MlRiskService {
       profile.symptoms,
       profile.alcohol,
     ];
+
     checkFields.forEach((field) => {
-      if (field !== undefined && field !== null && String(field).trim() !== "") {
-        completenessCount += 1;
+      if (field === undefined || field === null || String(field).trim() === "") {
+        confidence -= 3;
       }
     });
 
-    const completenessFactor = completenessCount / checkFields.length; // Max 1.0
+    // Clinical agreement check
+    const clinicalLabel = (clinicalRiskResult.overallRiskLabel || "Low").toLowerCase();
+    if (mlRiskCategory === clinicalLabel) {
+      confidence += 10;
+    } else if (
+      (mlRiskCategory === "low" && clinicalLabel === "high") ||
+      (mlRiskCategory === "high" && clinicalLabel === "low")
+    ) {
+      confidence -= 20;
+    } else {
+      confidence -= 5;
+    }
 
-    // Alignment factor (higher confidence if clinical risk matches lifestyle score)
-    const riskDiff = Math.abs(clinicalRiskResult.overallRisk - lifestyleScore);
-    const alignmentFactor = 1 - riskDiff / 100; // Max 1.0
+    // Clamp confidence between 50 and 98
+    confidence = Math.max(50, Math.min(98, confidence));
 
-    // Compute final confidence percentage
-    const rawConfidence = 0.6 * completenessFactor + 0.4 * alignmentFactor;
-    // Map to a reasonable confidence interval (e.g. 70% to 95%) for display
-    const confidence = Math.max(0.7, Math.min(0.95, Number(rawConfidence.toFixed(2))));
-
-    // Fallback if no specific factors were added
-    if (factors.length === 0) {
-      factors.push("Baseline lifestyle parameters within normal limits");
+    // Localize explanation
+    let explanation = "";
+    if (mlRiskCategory === "low") {
+      if (lang === "hi") {
+        explanation =
+          "आपकी प्रोफ़ाइल इष्टतम सीमाओं के भीतर मेट्रिक्स के साथ कम जोखिम स्तर का सुझाव देती है। अपनी सक्रिय और संतुलित दिनचर्या बनाए रखना जारी रखें।";
+      } else if (lang === "gu") {
+        explanation =
+          "તમારી પ્રોફાઇલ શ્રેષ્ઠ શ્રેણીમાં મેટ્રિક્સ સાથે નીચા જોખમ સ્તરનું સૂચન કરે છે. તમારી સક્રિય અને સંતુલિત દિનચર્યા જાળવી રાખવાનું ચાલુ રાખો.";
+      } else {
+        explanation =
+          "Your profile suggests a low risk level with metrics within optimal ranges. Continue maintaining your active and balanced routine.";
+      }
+    } else if (mlRiskCategory === "moderate") {
+      if (lang === "hi") {
+        explanation =
+          "आपकी जीवनशैली या बायोमेट्रिक कारकों में कुछ बढ़े हुए संकेतक पाए गए हैं। हम नियमित शारीरिक गतिविधि और संतुलित आहार को शामिल करने की सलाह देते हैं।";
+      } else if (lang === "gu") {
+        explanation =
+          "તમારી જીવનશૈલી અથવા બાયોમેટ્રિક પરિબળોમાં કેટલાક એલિવેટેડ સૂચકાંકો જોવા મળ્યા છે. અમે નિયમિત શારીરિક પ્રવૃત્તિ અને સંતુલિત આહારનો સમાવેશ કરવાની ભલામણ કરીએ છીએ.";
+      } else {
+        explanation =
+          "Some elevated indicators were detected in your lifestyle or biometric factors. We recommend incorporating regular physical activity and a balanced diet.";
+      }
+    } else {
+      if (lang === "hi") {
+        explanation =
+          "आपके नैदानिक स्कोर और जीवनशैली मेट्रिक्स में कई उच्च जोखिम वाले संकेतक पाए गए हैं। हम व्यक्तिगत नैदानिक समीक्षा के लिए स्वास्थ्य पेशेवर से परामर्श करने की दृढ़ सलाह देते हैं।";
+      } else if (lang === "gu") {
+        explanation =
+          "તમારા ક્લિનિકલ સ્કોર અને જીવનશૈલી મેટ્રિક્સમાં બહુવિધ ઉચ્ચ-જોખમ સૂચકાંકો જોવા મળ્યા છે. અમે વ્યક્તિગત નિદાન સમીક્ષા માટે આરોગ્ય વ્યાવસાયિકની સલાહ લેવાની ભારપૂર્વક ભલામણ કરીએ છીએ.";
+      } else {
+        explanation =
+          "Multiple high-risk indicators were detected in your clinical score and lifestyle metrics. We strongly advise consulting a healthcare professional for a personalized diagnostic review.";
+      }
     }
 
     return {
       mlRiskCategory,
       confidence,
-      supportingFactors: factors.slice(0, 3), // Return up to top 3 supporting factors
+      supportingFactors: factors.slice(0, 3), // return top supporting factors
       modelVersion: "ml-risk-v1",
+      explanation,
     };
   }
 }

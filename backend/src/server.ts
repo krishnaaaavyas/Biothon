@@ -189,6 +189,7 @@ app.get("/api/profile", requireAuth, async (req: AuthenticatedRequest, res) => {
           symptoms: data.symptoms,
           alcohol: data.alcohol || undefined,
           diseases: data.diseases || undefined,
+          language: data.language || "en",
         },
         result: data.result || null,
         history: historyList,
@@ -249,11 +250,19 @@ app.post("/api/profile", requireAuth, async (req: AuthenticatedRequest, res) => 
           symptoms: data.symptoms,
           alcohol: data.alcohol || null,
           diseases: data.diseases || null,
+          language: data.language || "en",
         },
         analysis,
       );
     } catch (mlErr) {
-      console.error("ML risk calculation failed in profile save, fallback to null:", mlErr);
+      console.error("ML risk calculation failed in profile save, fallback:", mlErr);
+      mlRisk = {
+        mlRiskCategory: "unknown",
+        confidence: 0,
+        supportingFactors: [],
+        modelVersion: "ml-risk-v1",
+        explanation: "ML risk classification is currently unavailable.",
+      };
     }
 
     const updatedData: any = {
@@ -270,6 +279,7 @@ app.post("/api/profile", requireAuth, async (req: AuthenticatedRequest, res) => 
       symptoms: data.symptoms,
       alcohol: data.alcohol || null,
       diseases: data.diseases || null,
+      language: data.language || "en",
       result: {
         risk: {
           diabetes: analysis.diabetesRisk.risk,
@@ -419,7 +429,37 @@ app.post("/api/risk/calculate", requireAuth, async (req: AuthenticatedRequest, r
       diseases: data.diseases || null,
     });
 
-    // Call AIService to get AI-enriched rationale and plans
+    // Calculate ML risk supporting category before calling AIService.generateFullAdvice
+    let mlRisk: any = null;
+    try {
+      mlRisk = MlRiskService.classifyMlRisk(
+        {
+          age: data.age,
+          gender: data.gender,
+          heightCm: data.heightCm,
+          weightKg: data.weightKg,
+          smoking: data.smoking,
+          exercise: data.exercise,
+          familyHistory: data.familyHistory,
+          symptoms: data.symptoms,
+          alcohol: data.alcohol || null,
+          diseases: data.diseases || null,
+          language: data.language || "en",
+        },
+        analysis,
+      );
+    } catch (mlErr) {
+      console.error("ML risk calculation failed in clinical risk calculate, fallback:", mlErr);
+      mlRisk = {
+        mlRiskCategory: "unknown",
+        confidence: 0,
+        supportingFactors: [],
+        modelVersion: "ml-risk-v1",
+        explanation: "ML risk classification is currently unavailable.",
+      };
+    }
+
+    // Call AIService to get AI-enriched rationale and plans, passing mlRisk as 4th parameter
     const enriched = await AIService.generateFullAdvice(
       uid,
       {
@@ -440,6 +480,7 @@ app.post("/api/risk/calculate", requireAuth, async (req: AuthenticatedRequest, r
         heart: analysis.heartRisk.risk,
         hypertension: analysis.hypertensionRisk.risk,
       },
+      mlRisk,
     );
 
     // Merge enriched rationales and plans into analysis
@@ -447,31 +488,6 @@ app.post("/api/risk/calculate", requireAuth, async (req: AuthenticatedRequest, r
     analysis.dietPlan = enriched.dietPlan;
     analysis.exercisePlan = enriched.exercisePlan;
     analysis.preventionTips = enriched.preventionTips;
-
-    // Calculate ML risk supporting category
-    let mlRisk: any = null;
-    try {
-      mlRisk = MlRiskService.classifyMlRisk(
-        {
-          age: data.age,
-          gender: data.gender,
-          heightCm: data.heightCm,
-          weightKg: data.weightKg,
-          smoking: data.smoking,
-          exercise: data.exercise,
-          familyHistory: data.familyHistory,
-          symptoms: data.symptoms,
-          alcohol: data.alcohol || null,
-          diseases: data.diseases || null,
-        },
-        analysis,
-      );
-    } catch (mlErr) {
-      console.error(
-        "ML risk calculation failed in clinical risk calculate, fallback to null:",
-        mlErr,
-      );
-    }
 
     // Write assessment record in the 'assessments' collection
     const assessmentRef = db.collection("assessments").doc();
@@ -519,6 +535,7 @@ app.post("/api/risk/calculate", requireAuth, async (req: AuthenticatedRequest, r
       symptoms: data.symptoms,
       alcohol: data.alcohol || null,
       diseases: data.diseases || null,
+      language: data.language || "en",
       result: {
         risk: {
           diabetes: analysis.diabetesRisk.risk,
@@ -773,7 +790,7 @@ app.post("/api/coach/diet", requireAuth, async (req: AuthenticatedRequest, res) 
         symptoms: profileData.symptoms || "",
         alcohol: profileData.alcohol || undefined,
         diseases: profileData.diseases || undefined,
-        language: language,
+        language: language as "en" | "hi" | "gu",
       },
       region,
       dietType,
@@ -824,7 +841,7 @@ app.post("/api/coach/fitness", requireAuth, async (req: AuthenticatedRequest, re
         symptoms: profileData.symptoms || "",
         alcohol: profileData.alcohol || undefined,
         diseases: profileData.diseases || undefined,
-        language: language,
+        language: language as "en" | "hi" | "gu",
       },
       fitnessLevel,
       riskScores,
@@ -873,7 +890,7 @@ app.post("/api/coach/prevention", requireAuth, async (req: AuthenticatedRequest,
         symptoms: profileData.symptoms || "",
         alcohol: profileData.alcohol || undefined,
         diseases: profileData.diseases || undefined,
-        language: language,
+        language: language as "en" | "hi" | "gu",
       },
       riskScores,
     );

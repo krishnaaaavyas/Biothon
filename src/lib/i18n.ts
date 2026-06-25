@@ -3891,9 +3891,9 @@ export const translations: Dict = {
     gu: "સહાયક આંતરદૃષ્ટિ",
   },
   mlDisclaimer: {
-    en: "*Based on your provided data. For awareness and lifestyle guidance only.",
-    hi: "*आपके द्वारा प्रदान किए गए डेटा पर आधारित। केवल जागरूकता और जीवन शैली मार्गदर्शन के लिए।",
-    gu: "*તમારા દ્વારા પ્રદાન કરેલ ડેટા પર આધારિત. ફક્ત જાગૃતિ અને જીવનશૈલી માર્ગદર્શન માટે.",
+    en: "*Estimated ML risk category based on your provided lifestyle and health profile. For awareness only, not a diagnosis.",
+    hi: "*आपके द्वारा प्रदान की गई जीवनशैली और स्वास्थ्य प्रोफ़ाइल पर आधारित अनुमानित एमएल जोखिम श्रेणी। केवल जागरूकता के लिए, निदान नहीं।",
+    gu: "*તમારી પૂરી પાડવામાં આવેલ જીવનશૈલી અને આરોગ્ય પ્રોફાઇલ પર આધારિત અંદાજિત એમએલ જોખમ શ્રેણી. ફક્ત જાગૃતિ માટે, નિદાન નથી.",
   },
 };
 

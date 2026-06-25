@@ -9,6 +9,7 @@ export interface UserProfile {
   symptoms: string;
   alcohol?: string | null;
   diseases?: string | null;
+  language?: "en" | "hi" | "gu";
 }
 
 export interface Factor {

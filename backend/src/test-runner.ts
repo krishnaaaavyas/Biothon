@@ -9,15 +9,15 @@ async function runTestRunner() {
   console.log("==================================================");
 
   // ----------------------------------------------------
-  // PROFILE A: age 20, normal BMI, non-smoker, light exercise
+  // PROFILE A: Low-risk user
   // ----------------------------------------------------
   const profileA = {
-    age: 20,
+    age: 22,
     gender: "male" as const,
     heightCm: 175,
-    weightKg: 65, // BMI ~ 21.2 (Normal)
+    weightKg: 67.5, // BMI = 22.0
     smoking: "never" as const,
-    exercise: "light" as const,
+    exercise: "moderate" as const,
     familyHistory: "None",
     symptoms: "None",
     alcohol: "never",
@@ -25,33 +25,33 @@ async function runTestRunner() {
   };
 
   // ----------------------------------------------------
-  // PROFILE B: age 45, high BMI, sedentary, family history diabetes
+  // PROFILE B: Moderate/high lifestyle risk
   // ----------------------------------------------------
   const profileB = {
     age: 45,
     gender: "female" as const,
-    heightCm: 165,
-    weightKg: 85, // BMI ~ 31.2 (Obese)
+    heightCm: 170,
+    weightKg: 86.7, // BMI = 30.0
     smoking: "never" as const,
     exercise: "none" as const,
-    familyHistory: "Type 2 Diabetes in mother",
-    symptoms: "Mild fatigue",
+    familyHistory: "Diabetes in mother",
+    symptoms: "fatigue",
     alcohol: "occasional",
     diseases: "None",
   };
 
   // ----------------------------------------------------
-  // PROFILE C: age 55, smoker, alcohol frequent, high BP risk
+  // PROFILE C: High cardiovascular-risk profile
   // ----------------------------------------------------
   const profileC = {
-    age: 55,
+    age: 56,
     gender: "male" as const,
-    heightCm: 180,
-    weightKg: 95, // BMI ~ 29.3 (Overweight)
+    heightCm: 175,
+    weightKg: 88.8, // BMI = 29.0
     smoking: "current" as const,
     exercise: "none" as const,
-    familyHistory: "Hypertension and stroke in father",
-    symptoms: "None",
+    familyHistory: "Cardiovascular history",
+    symptoms: "chest discomfort, breathlessness",
     alcohol: "frequent",
     diseases: "None",
   };
@@ -68,7 +68,7 @@ async function runTestRunner() {
   console.log(
     "Profile A (ML Risk Category):   ",
     mlA.mlRiskCategory,
-    `(Confidence: ${Math.round(mlA.confidence * 100)}%, Version: ${mlA.modelVersion})`,
+    `(Confidence: ${mlA.confidence}%, Version: ${mlA.modelVersion})`,
   );
   console.log("Profile A (Supporting Factors): ", mlA.supportingFactors);
 
@@ -82,7 +82,7 @@ async function runTestRunner() {
   console.log(
     "Profile B (ML Risk Category):   ",
     mlB.mlRiskCategory,
-    `(Confidence: ${Math.round(mlB.confidence * 100)}%, Version: ${mlB.modelVersion})`,
+    `(Confidence: ${mlB.confidence}%, Version: ${mlB.modelVersion})`,
   );
   console.log("Profile B (Supporting Factors): ", mlB.supportingFactors);
 
@@ -96,7 +96,7 @@ async function runTestRunner() {
   console.log(
     "Profile C (ML Risk Category):   ",
     mlC.mlRiskCategory,
-    `(Confidence: ${Math.round(mlC.confidence * 100)}%, Version: ${mlC.modelVersion})`,
+    `(Confidence: ${mlC.confidence}%, Version: ${mlC.modelVersion})`,
   );
   console.log("Profile C (Supporting Factors): ", mlC.supportingFactors);
 

@@ -156,6 +156,7 @@ export class AIService {
     userId: string,
     profile: UserProfile & { language: string },
     scores: { diabetes: number; heart: number; hypertension: number },
+    mlRisk?: any,
   ): Promise<any> {
     const snapshot = {
       age: profile.age,
@@ -195,6 +196,11 @@ export class AIService {
       .map((td) => `- ${td.factor} (${td.contribution}% contribution)`)
       .join("\n");
 
+    let mlContext = "";
+    if (mlRisk) {
+      mlContext = `\n\nSupporting Machine Learning Risk Classification:\n- ML Risk Category: ${mlRisk.mlRiskCategory}\n- Confidence: ${mlRisk.confidence}%\n- Supporting Factors: ${mlRisk.supportingFactors?.join(", ") || "None"}\n- Model Version: ${mlRisk.modelVersion}\n\nPlease incorporate a brief explanation of how this ML classification aligns with or complements the clinical metrics (explain this alignment as part of the rationale for the overall risk description, without recalculating any disease risk).`;
+    }
+
     const targetLang = langName[profile.language] || "English";
     const prompt = `You are a clinical wellness coach explaining health assessments.
 We have run clinical models (FINDRISC for Diabetes, Framingham for CVD and Hypertension) and got:
@@ -207,7 +213,7 @@ ${topDriversStr || "None identified"}
 
 Risk Composition:
 - Modifiable Lifestyle Factors: ${driverResult.modifiableRisk}%
-- Non-modifiable Fixed Factors: ${driverResult.nonModifiableRisk}%
+- Non-modifiable Fixed Factors: ${driverResult.nonModifiableRisk}%${mlContext}
 
 Explain rationales for these risk scores based on demographic profile, family history, and symptoms. Focus on explaining these actual risk drivers and how addressing modifiable lifestyle risk drivers can help reduce overall health risk.
 Create a customized regional diet plan (e.g., Indian foods if target language is Hindi/Gujarati).
