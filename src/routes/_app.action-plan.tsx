@@ -241,7 +241,13 @@ function ActionPlanPage() {
     document.title = `${tr("actionPlan", currentLang)} — HealthGuard`;
   }, [currentLang]);
 
-  if (!profile || !result) {
+  const hasValidResult =
+    Boolean(result) &&
+    typeof result?.overallRisk === "string" &&
+    typeof result?.bmi === "number" &&
+    Boolean(profile);
+
+  if (!hasValidResult) {
     return (
       <div className="mx-auto max-w-xl px-6 py-24 text-center flex flex-col items-center justify-center">
         <div className="mx-auto grid h-14 w-14 place-items-center rounded-2xl bg-accent text-teal shadow-card-soft">
@@ -254,6 +260,7 @@ function ActionPlanPage() {
           {tr("actionPlanAssessDesc", currentLang)}
         </p>
         <Button
+          type="button"
           onClick={() => navigate({ to: "/assessment" })}
           className="mt-8 gap-2 bg-primary text-primary-foreground hover:bg-primary/90 shadow-md font-semibold px-6 py-2 h-11"
         >
@@ -266,10 +273,11 @@ function ActionPlanPage() {
 
   // Determine fitness level baseline
   let recFitness: FitnessLevel = "beginner";
-  if (profile.exercise === "active") recFitness = "advanced";
-  else if (profile.exercise === "moderate") recFitness = "intermediate";
+  if (profile?.exercise === "active") recFitness = "advanced";
+  else if (profile?.exercise === "moderate") recFitness = "intermediate";
 
   const weekdays = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"];
+  const bmiVal = typeof result?.bmi === "number" ? result.bmi.toFixed(1) : "22.0";
 
   return (
     <div className="mx-auto max-w-7xl px-6 py-10 lg:py-14 space-y-10">
@@ -299,27 +307,32 @@ function ActionPlanPage() {
           </CardTitle>
         </CardHeader>
         <CardContent className="pt-2">
-          {result.actionPriorities && result.actionPriorities.length > 0 ? (
+          {result?.actionPriorities && result.actionPriorities.length > 0 ? (
             <div className="grid gap-3 sm:grid-cols-3">
-              {result.actionPriorities.slice(0, 3).map((p, i) => (
-                <div
-                  key={i}
-                  className="flex items-start gap-3.5 rounded-xl border border-border bg-surface-muted/50 p-4"
-                >
-                  <span className="font-display text-lg font-black text-teal shrink-0">
-                    {i + 1}
-                  </span>
-                  <div className="min-w-0">
-                    <p className="text-sm font-bold text-foreground leading-snug">{p.action}</p>
-                    <p className="text-[10px] text-teal mt-1 font-semibold uppercase tracking-wider font-mono">
-                      {tr("benefitRiskDrop", currentLang).replace(
-                        "{impact}",
-                        Math.abs(p.estimatedImpact).toString(),
-                      )}
-                    </p>
+              {result.actionPriorities.slice(0, 3).map((p, i) => {
+                if (!p || typeof p.action !== "string" || typeof p.estimatedImpact !== "number") {
+                  return null;
+                }
+                return (
+                  <div
+                    key={i}
+                    className="flex items-start gap-3.5 rounded-xl border border-border bg-surface-muted/50 p-4"
+                  >
+                    <span className="font-display text-lg font-black text-teal shrink-0">
+                      {i + 1}
+                    </span>
+                    <div className="min-w-0">
+                      <p className="text-sm font-bold text-foreground leading-snug">{p.action}</p>
+                      <p className="text-[10px] text-teal mt-1 font-semibold uppercase tracking-wider font-mono">
+                        {tr("benefitRiskDrop", currentLang).replace(
+                          "{impact}",
+                          Math.abs(p.estimatedImpact).toString(),
+                        )}
+                      </p>
+                    </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           ) : (
             <div className="grid gap-3 sm:grid-cols-3">
@@ -357,7 +370,7 @@ function ActionPlanPage() {
               {tr("weeklyMealPlanner", currentLang)}
             </h3>
             <p className="text-xs text-muted-foreground mt-1">
-              {tr("mealPlannerDesc", currentLang).replace("{bmi}", result.bmi.toFixed(1))}
+              {tr("mealPlannerDesc", currentLang).replace("{bmi}", bmiVal)}
             </p>
           </div>
           <div className="flex rounded-lg border border-border bg-surface p-1">

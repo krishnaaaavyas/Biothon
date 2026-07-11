@@ -32,12 +32,9 @@ function AppLayout() {
       if (!user) {
         navigate({ to: "/" });
       } else if (hasCompletedAssessment !== null) {
-        if (hasCompletedAssessment) {
-          if (pathname === "/assessment") {
-            console.log("Redirecting to dashboard/assessment");
-            navigate({ to: "/dashboard" });
-          }
-        } else {
+        // If the user has not completed their onboarding assessment, force them to go there.
+        // If they have completed it, do NOT block them from visiting /assessment for reassessment.
+        if (!hasCompletedAssessment) {
           if (pathname !== "/assessment") {
             console.log("Redirecting to dashboard/assessment");
             navigate({ to: "/assessment" });

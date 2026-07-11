@@ -2,7 +2,9 @@ import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { useHealthResult, useProfile } from "@/lib/health-store";
 import { useLanguage, tr } from "@/lib/i18n";
-import { auth } from "@/lib/firebase";
+import { auth, db, isConfigured } from "@/lib/firebase";
+import { doc, setDoc } from "firebase/firestore";
+import { useAuth } from "@/contexts/auth-context";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -53,6 +55,47 @@ function Dashboard() {
 
   const [result, setResult] = useHealthResult();
   const [profile, setProfile] = useProfile();
+
+  const {
+    loading: authLoading,
+    syncing: authSyncing,
+    hasCompletedAssessment,
+    setHasCompletedAssessment,
+  } = useAuth();
+
+  const hasValidHealthResult =
+    Boolean(result) && typeof result?.overallRisk === "string" && Boolean(profile);
+
+  // Inconsistent-state self-repair
+  useEffect(() => {
+    if (!authLoading && !authSyncing && hasCompletedAssessment === true) {
+      const isValid =
+        Boolean(result) && typeof result?.overallRisk === "string" && Boolean(profile);
+
+      if (!isValid) {
+        console.warn(
+          "[Dashboard Recovery] Inconsistent state: hasCompletedAssessment is true but profile/result is missing. Resetting...",
+        );
+        setHasCompletedAssessment(false);
+        if (isConfigured && auth.currentUser) {
+          const uid = auth.currentUser.uid;
+          const userRef = doc(db, "users", uid);
+          setDoc(userRef, { hasCompletedAssessment: false }, { merge: true })
+            .then(() => console.log("[Dashboard Recovery] Reset completion status in cloud db"))
+            .catch((err) =>
+              console.error("[Dashboard Recovery] Failed to reset cloud status:", err),
+            );
+        }
+      }
+    }
+  }, [
+    result,
+    profile,
+    authLoading,
+    authSyncing,
+    hasCompletedAssessment,
+    setHasCompletedAssessment,
+  ]);
 
   const API_URL = import.meta.env.VITE_API_URL || "http://localhost:5000";
 
@@ -247,7 +290,7 @@ function Dashboard() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [result]);
 
-  if (!result || !profile) return <EmptyState />;
+  if (!hasValidHealthResult) return <EmptyState />;
 
   function download() {
     if (!result || !profile) return;
@@ -362,14 +405,14 @@ function Dashboard() {
 
     // Plans
     const sections: Array<[string, string]> = [
-      ["Diet plan", result.dietPlan],
-      ["Exercise plan", result.exercisePlan],
-      ["Prevention recommendations", result.preventionTips],
+      ["Diet plan", result.dietPlan || ""],
+      ["Exercise plan", result.exercisePlan || ""],
+      ["Prevention recommendations", result.preventionTips || ""],
     ];
     sections.forEach(([t, body]) => {
       y += 6;
       title(t);
-      para(body.replace(/[#*_`>]/g, ""));
+      para((body || "").replace(/[#*_`>]/g, ""));
     });
 
     ensureSpace(40);
@@ -386,7 +429,6 @@ function Dashboard() {
   }
 
   // Dynamic Journey calculations (Onboarding Roadmap Restructure)
-  const hasCompletedAssessment = !!result;
   const lastUpdateDateStr = userStatus?.lastAssessmentUpdate || result?.updatedAt || null;
 
   let profileAgeDays = 0;
@@ -964,7 +1006,11 @@ export function EmptyState() {
       </p>
 
       <Button
-        onClick={() => navigate({ to: "/assessment" })}
+        type="button"
+        onClick={() => {
+          console.log("Start Assessment clicked");
+          navigate({ to: "/assessment" });
+        }}
         className="mt-8 gap-2 bg-primary text-primary-foreground hover:bg-primary/90 shadow-md transition-all font-semibold px-6 py-2 h-11"
       >
         <span>{tr("startAssessment", currentLang)}</span>

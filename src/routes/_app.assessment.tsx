@@ -63,11 +63,8 @@ function AssessmentPage() {
   const { hasCompletedAssessment, loading: authLoading } = useAuth();
   const navigate = useNavigate();
 
-  useEffect(() => {
-    if (!authLoading && hasCompletedAssessment && mode !== "reassess") {
-      navigate({ to: "/dashboard", replace: true });
-    }
-  }, [hasCompletedAssessment, authLoading, mode, navigate]);
+  // Assessment route must remain accessible for first assessment, reassessment, and recovery.
+  // No automatic redirection away from it is needed based on hasCompletedAssessment.
 
   useEffect(() => {
     document.title = "Health Assessment — HealthGuard";
@@ -98,6 +95,7 @@ function AssessmentPage() {
 
   async function submit(values: Profile) {
     setLoading(true);
+    const API_URL = import.meta.env.VITE_API_URL || "http://localhost:5000";
     try {
       const res = (await assess({
         data: {
@@ -108,17 +106,56 @@ function AssessmentPage() {
           language: lang,
         },
       })) as HealthResult & { bmi: number };
+
+      // 1. Save profile, result, and history locally first
       setProfile(values);
       setResult(res);
-      pushHistory({
+
+      const newHistoryEntry = {
         date: new Date().toISOString(),
         overallScore: res.overallScore,
         bmi: res.bmi,
         weightKg: values.weightKg,
         risks: res.risk,
-      });
+      };
+      pushHistory(newHistoryEntry);
 
-      // Write onboarding status flag to firestore users collection
+      // 2. Synchronously write profile, result, and history to the backend API and wait for it to succeed
+      if (auth.currentUser) {
+        try {
+          const idToken = await auth.currentUser.getIdToken();
+          const localHistoryRaw = localStorage.getItem("hg.history.v1");
+          const historyList = localHistoryRaw ? JSON.parse(localHistoryRaw) : [];
+
+          const syncBody = {
+            ...values,
+            result: res,
+            history: historyList,
+          };
+
+          console.log("[Assessment Submit] Pushing assessment data to Express backend database...");
+          const backendResp = await fetch(`${API_URL}/api/profile`, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${idToken}`,
+            },
+            body: JSON.stringify(syncBody),
+          });
+          if (!backendResp.ok) {
+            console.error(
+              "Backend database sync failed during assessment submit:",
+              backendResp.statusText,
+            );
+          } else {
+            console.log("Backend database sync completed successfully.");
+          }
+        } catch (syncErr) {
+          console.error("Failed to sync assessment changes to backend database:", syncErr);
+        }
+      }
+
+      // 3. Only after backend sync is finished, update onboarding status in Firestore users collection
       if (isConfigured && auth.currentUser) {
         const uid = auth.currentUser.uid;
         console.log(`[Firestore Debug] [Assessment Submit] Starting db write for users/${uid}`);
@@ -165,6 +202,7 @@ function AssessmentPage() {
         }
       }
 
+      // 4. Update the auth context state and navigate to the dashboard
       setHasCompletedAssessment(true);
       toast.success("Assessment complete");
       navigate({ to: "/dashboard" });
