@@ -27,7 +27,7 @@ function ClinicalSourcesPage() {
         {/* Hero Section */}
         <section className="border-b border-border bg-surface-muted/30 relative overflow-hidden">
           <div className="absolute inset-0 bg-grid opacity-30 pointer-events-none" />
-          <div className="mx-auto max-w-7xl px-6 py-10 relative">
+          <div className="mx-auto max-w-[1440px] px-4 py-10 relative">
             <Badge
               variant="secondary"
               className="rounded-full bg-teal/10 text-teal border border-teal/20 hover:bg-teal/20"
@@ -51,7 +51,7 @@ function ClinicalSourcesPage() {
         </section>
 
         {/* Sources Detail */}
-        <section className="mx-auto max-w-7xl px-6 py-10">
+        <section className="mx-auto max-w-[1440px] px-4 py-10">
           <div className="grid gap-12 lg:grid-cols-3">
             {/* Source 1: Diabetes */}
             <Card className="border-border bg-surface shadow-card-soft hover:shadow-md hover:border-teal/30 hover:-translate-y-0.5 transition-all duration-300 flex flex-col justify-between">
@@ -150,7 +150,7 @@ function ClinicalSourcesPage() {
 
         {/* Disclaimer section */}
         <section className="border-t border-border bg-surface-muted/20 py-10">
-          <div className="mx-auto max-w-4xl px-6 flex flex-col items-center gap-4">
+          <div className="mx-auto max-w-[1100px] px-4 flex flex-col items-center gap-4">
             <BookOpen className="h-8 w-8 text-teal" />
             <h2 className="font-display text-2xl font-bold tracking-tight text-foreground">
               {tr("projectStatementTitle", currentLang)}

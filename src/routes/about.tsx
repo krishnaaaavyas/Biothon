@@ -5,15 +5,17 @@ import { SiteFooter } from "@/components/marketing/site-footer";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import {
-  Brain,
-  Heart,
   ShieldAlert,
   ArrowRight,
   ShieldCheck,
-  Activity,
   BookOpen,
   Github,
   Linkedin,
+  Sparkles,
+  FileText,
+  Heart,
+  Lock,
+  LineChart,
 } from "lucide-react";
 import { useLanguage, tr } from "@/lib/i18n";
 import SplitText from "@/components/ui/split-text";
@@ -33,112 +35,215 @@ function AboutPage() {
     <div className="min-h-screen bg-background font-sans antialiased text-foreground">
       <SiteHeader />
 
-      <div className="pt-12 pb-10">
-        {/* 1. Header Banner */}
-        <section className="mx-auto max-w-7xl px-6 pt-6 pb-6">
-          <div className="text-center max-w-4xl mx-auto">
-            <Badge
-              variant="secondary"
-              className="rounded-full bg-teal/10 text-teal border border-teal/20"
-            >
-              {tr("projectOverview", currentLang)}
-            </Badge>
-            <SplitText
-              text="HealthGuard"
-              className="mt-5 font-display text-4xl sm:text-5xl lg:text-6xl font-extrabold tracking-tight text-foreground"
-              delay={35}
-              duration={0.6}
-              ease="power3.out"
-              splitType="chars"
-              tag="h1"
-              textAlign="center"
-            />
-            <p className="mt-5 mx-auto max-w-3xl text-base sm:text-lg leading-relaxed text-muted-foreground">
-              {tr("aboutSub", currentLang)}
-            </p>
+      <div className="pb-10">
+        {/* 1. What is HealthGuard (At the Top, Centered) */}
+        <section className="border-b border-border bg-gradient-to-b from-background to-surface-muted/5 pt-10 pb-12 text-center">
+          <div className="mx-auto max-w-[1440px] px-4">
+            <div className="max-w-3xl mx-auto space-y-6 flex flex-col items-center">
+              <SplitText
+                text={tr("whatIsHealthGuard", currentLang)}
+                className="font-display text-4xl sm:text-5xl font-extrabold tracking-tight text-foreground"
+                delay={35}
+                duration={0.6}
+                ease="power3.out"
+                splitType="chars"
+                tag="h1"
+                textAlign="center"
+                threshold={0}
+                rootMargin="0px"
+              />
+              <p className="text-base sm:text-lg leading-relaxed text-muted-foreground/90 max-w-2xl mx-auto">
+                {tr("whatIsHealthGuardDesc", currentLang)}
+              </p>
+            </div>
           </div>
         </section>
 
-        {/* 2. Core Domains & Focus Areas */}
-        <section className="border-b border-border bg-surface-muted/10 py-8">
-          <div className="mx-auto max-w-7xl px-6">
-            <div className="text-center max-w-3xl mx-auto mb-10">
-              <Badge
-                variant="secondary"
-                className="rounded-full bg-teal/10 text-teal border border-teal/20"
-              >
-                {tr("coreDomains", currentLang)}
-              </Badge>
+        {/* 2. How to Use Section (Centered Steps) */}
+        <section className="border-b border-border bg-surface-muted/10 py-12">
+          <div className="mx-auto max-w-[1440px] px-4">
+            <div className="text-center max-w-xl mx-auto mb-8">
               <SplitText
-                text={tr("focusAreas", currentLang)}
-                className="mt-4 font-display text-3xl font-bold tracking-tight text-foreground"
+                text={tr("howToUse", currentLang) + "?"}
+                className="font-display text-3xl font-bold tracking-tight text-foreground"
                 delay={35}
                 duration={0.6}
                 ease="power3.out"
                 splitType="chars"
                 tag="h2"
                 textAlign="center"
+                threshold={0}
+                rootMargin="0px"
               />
-              <p className="mt-2 text-sm text-muted-foreground">
-                {tr("coreDomainsSub", currentLang)}
-              </p>
             </div>
-
-            <div className="grid gap-8 md:grid-cols-3">
+            
+            <div className="max-w-2xl mx-auto space-y-4">
               {[
                 {
-                  icon: Brain,
-                  title: tr("diabetesRisk", currentLang),
-                  desc: tr("diabetesRiskDesc", currentLang),
+                  title: tr("step1Title", currentLang),
+                  desc: tr("step1Desc", currentLang),
                 },
                 {
-                  icon: Activity,
-                  title: tr("hypertensionRisk", currentLang),
-                  desc: tr("hypertensionRiskDesc", currentLang),
+                  title: tr("step2Title", currentLang),
+                  desc: tr("step2Desc", currentLang),
                 },
                 {
-                  icon: Heart,
-                  title: tr("heartDiseaseRisk", currentLang),
-                  desc: tr("heartDiseaseRiskDesc", currentLang),
+                  title: tr("step3Title", currentLang),
+                  desc: tr("step3Desc", currentLang),
                 },
-              ].map((f, idx) => (
-                <Card
-                  key={idx}
-                  className="border-border/80 bg-surface shadow-card-soft hover:shadow-elevated hover:border-teal/30 hover:-translate-y-0.5 transition-all duration-300"
-                >
-                  <CardContent className="p-8">
-                    <div className="grid h-12 w-12 place-items-center rounded-xl bg-teal/10 text-teal">
-                      <f.icon className="h-6 w-6" />
-                    </div>
-                    <h3 className="mt-5 font-display text-lg font-bold text-foreground">
-                      {f.title}
+              ].map((step, idx) => (
+                <div key={idx} className="flex gap-4 items-start p-5 rounded-2xl border border-border/80 bg-surface shadow-card-soft transition-all duration-300 hover:border-teal/30">
+                  <div className="flex h-8 w-8 shrink-0 select-none items-center justify-center rounded-full bg-teal/10 text-teal font-bold text-sm border border-teal/20">
+                    {idx + 1}
+                  </div>
+                  <div className="space-y-1 text-left">
+                    <h3 className="font-display font-bold text-base text-foreground leading-snug">
+                      {step.title}
                     </h3>
-                    <p className="mt-3 text-xs leading-relaxed text-muted-foreground">{f.desc}</p>
-                  </CardContent>
-                </Card>
+                    <p className="text-sm leading-relaxed text-muted-foreground">
+                      {step.desc}
+                    </p>
+                  </div>
+                </div>
               ))}
             </div>
           </div>
         </section>
 
-        {/* 3. Framework & Ethics (Educational Project Information) */}
-        <section className="mx-auto max-w-7xl px-6 py-8">
-          <div className="text-center max-w-3xl mx-auto mb-10">
-            <Badge
-              variant="secondary"
-              className="rounded-full bg-teal/10 text-teal border border-teal/20"
-            >
-              {tr("frameworkEthics", currentLang)}
-            </Badge>
+        {/* 3. Why Choose HealthGuard Section */}
+        <section className="border-b border-border bg-background py-16">
+          <div className="mx-auto max-w-[1440px] px-4">
+            <div className="text-center max-w-3xl mx-auto mb-12">
+              <SplitText
+                text={tr("whyChooseHealthGuard", currentLang)}
+                className="font-display text-3xl font-bold tracking-tight text-foreground"
+                delay={35}
+                duration={0.6}
+                ease="power3.out"
+                splitType="chars"
+                tag="h2"
+                textAlign="center"
+                threshold={0}
+                rootMargin="0px"
+              />
+              <p className="mt-3 text-sm text-muted-foreground">
+                {tr("whyChooseHealthGuardSub", currentLang)}
+              </p>
+            </div>
+
+            <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+              {[
+                {
+                  icon: ShieldCheck,
+                  title: tr("wcEvidenceTitle", currentLang),
+                  desc: tr("wcEvidenceDesc", currentLang),
+                  color: "teal",
+                },
+                {
+                  icon: Sparkles,
+                  title: tr("wcAiTitle", currentLang),
+                  desc: tr("wcAiDesc", currentLang),
+                  color: "purple",
+                },
+                {
+                  icon: FileText,
+                  title: tr("wcBloodTitle", currentLang),
+                  desc: tr("wcBloodDesc", currentLang),
+                  color: "blue",
+                },
+                {
+                  icon: Heart,
+                  title: tr("wcPreventiveTitle", currentLang),
+                  desc: tr("wcPreventiveDesc", currentLang),
+                  color: "green",
+                },
+                {
+                  icon: Lock,
+                  title: tr("wcPrivacyTitle", currentLang),
+                  desc: tr("wcPrivacyDesc", currentLang),
+                  color: "indigo",
+                },
+                {
+                  icon: LineChart,
+                  title: tr("wcInsightsTitle", currentLang),
+                  desc: tr("wcInsightsDesc", currentLang),
+                  color: "orange",
+                },
+              ].map((item, idx) => {
+                const gradients: Record<string, string> = {
+                  teal: "linear-gradient(135deg, hsl(174, 75%, 45%), hsl(174, 75%, 35%))",
+                  slate: "linear-gradient(135deg, hsl(215, 20%, 50%), hsl(215, 20%, 40%))",
+                  petrol: "linear-gradient(135deg, hsl(195, 50%, 48%), hsl(195, 50%, 38%))",
+                  emerald: "linear-gradient(135deg, hsl(150, 45%, 45%), hsl(150, 45%, 35%))",
+                  indigo: "linear-gradient(135deg, hsl(225, 40%, 52%), hsl(225, 40%, 42%))",
+                  darkSlate: "linear-gradient(135deg, hsl(220, 15%, 40%), hsl(220, 15%, 30%))",
+                };
+
+                const colorMap: Record<string, string> = {
+                  teal: "teal",
+                  purple: "slate",
+                  indigo: "indigo",
+                  orange: "darkSlate",
+                  blue: "petrol",
+                  green: "emerald",
+                };
+                const themeColor = colorMap[item.color] || "teal";
+
+                return (
+                  <Card
+                    key={idx}
+                    className="group/card border-border/80 bg-surface shadow-card-soft hover:shadow-elevated hover:border-teal/30 hover:-translate-y-0.5 transition-all duration-300"
+                  >
+                    <CardContent className="p-8 space-y-5">
+                      <div
+                        className="relative w-14 h-14 select-none"
+                        style={{ perspective: "20rem", transformStyle: "preserve-3d" }}
+                      >
+                        <span
+                          className="absolute inset-0 rounded-2xl shadow-sm transition-all duration-300 group-hover/card:translate-x-[4px] group-hover/card:translate-y-[4px] group-hover/card:scale-[0.95]"
+                          style={{
+                            background: gradients[themeColor],
+                          }}
+                        />
+                        <span
+                          className="absolute inset-0 rounded-2xl bg-surface/50 border border-border/80 backdrop-blur-md flex items-center justify-center transition-all duration-300 group-hover/card:translate-x-[-3px] group-hover/card:translate-y-[-3px] group-hover/card:scale-[1.02] shadow-sm dark:bg-card/50"
+                          style={{
+                            backdropFilter: "blur(8px)",
+                            WebkitBackdropFilter: "blur(8px)",
+                          }}
+                        >
+                          <item.icon className="h-6 w-6 text-foreground" />
+                        </span>
+                      </div>
+                      <div className="space-y-2">
+                        <h3 className="font-display text-lg font-bold text-foreground">
+                          {item.title}
+                        </h3>
+                        <p className="text-sm leading-relaxed text-muted-foreground">{item.desc}</p>
+                      </div>
+                    </CardContent>
+                  </Card>
+                );
+              })}
+            </div>
+          </div>
+        </section>
+
+        {/* 4. Framework & Ethics (Educational Project Information) */}
+        <section className="border-b border-border bg-surface-muted/10 py-12">
+          <div className="mx-auto max-w-[1440px] px-4">
+            <div className="text-center max-w-3xl mx-auto mb-10">
             <SplitText
               text={tr("eduProjectLinks", currentLang)}
-              className="mt-4 font-display text-3xl font-bold tracking-tight text-foreground"
+              className="font-display text-3xl font-bold tracking-tight text-foreground"
               delay={35}
               duration={0.6}
               ease="power3.out"
               splitType="chars"
               tag="h2"
               textAlign="center"
+              threshold={0}
+              rootMargin="0px"
             />
             <p className="mt-2 text-sm text-muted-foreground">
               {tr("frameworkEthicsSub", currentLang)}
@@ -186,11 +291,13 @@ function AboutPage() {
               </Card>
             </Link>
           </div>
+          </div>
         </section>
 
-        {/* 4. Strict Medical Disclaimer */}
-        <section className="mx-auto max-w-4xl px-6 pb-10">
-          <Card className="border-red-500/20 bg-red-500/5 dark:bg-red-500/10">
+        {/* 5. Strict Medical Disclaimer */}
+        <section className="border-b border-border bg-background py-10">
+          <div className="mx-auto max-w-[1100px] px-4">
+            <Card className="border-red-500/20 bg-red-500/5 dark:bg-red-500/10">
             <CardContent className="p-6 sm:p-8 flex gap-4">
               <ShieldAlert className="h-6 w-6 text-red-500 shrink-0 mt-0.5" />
               <div>
@@ -202,16 +309,17 @@ function AboutPage() {
                 </p>
               </div>
             </CardContent>
-          </Card>
+            </Card>
+          </div>
         </section>
 
-        {/* 5. About the Developers */}
-        <section className="border-t border-border bg-surface-muted/10 py-10">
-          <div className="mx-auto max-w-7xl px-6">
+        {/* 6. About the Developers */}
+        <section className="bg-surface-muted/10 py-16">
+          <div className="mx-auto max-w-[1440px] px-4">
             <div className="text-center max-w-3xl mx-auto mb-12">
               <Badge
                 variant="secondary"
-                className="rounded-full bg-teal/10 text-teal border border-teal/20"
+                className="rounded-full bg-teal/10 text-teal border border-teal/20 text-xs sm:text-sm px-3.5 py-1 font-semibold hover:bg-teal/15 transition-colors duration-200"
               >
                 {tr("devInfoTitle", currentLang) || "Meet the Developers"}
               </Badge>
@@ -224,6 +332,8 @@ function AboutPage() {
                 splitType="chars"
                 tag="h2"
                 textAlign="center"
+                threshold={0}
+                rootMargin="0px"
               />
             </div>
 
@@ -285,7 +395,7 @@ function AboutPage() {
         </section>
       </div>
 
-      <SiteFooter hideDisclaimer={true} />
+      <SiteFooter hideDisclaimer={true} showFeatures={true} />
     </div>
   );
 }

@@ -40,7 +40,7 @@ import { useAuth } from "@/contexts/auth-context";
 import { useLanguage, tr } from "@/lib/i18n";
 import { Threads } from "@/components/ui/threads";
 import SplitText from "@/components/ui/split-text";
-import ScrollVelocity from "@/components/ui/scroll-velocity";
+import { LogoLoop } from "@/components/ui/logo-loop";
 import CountUp from "@/components/ui/count-up";
 
 export const Route = createFileRoute("/")({
@@ -84,7 +84,7 @@ function Landing() {
         </div>
         <div className="absolute inset-0 bg-grid opacity-40 pointer-events-none z-0" />
         <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-teal/40 to-transparent z-0" />
-        <div className="relative z-10 mx-auto max-w-7xl px-6 items-center">
+        <div className="relative z-10 mx-auto max-w-[1440px] px-4 items-center">
           <div className="max-w-3xl flex flex-col justify-center">
             <SplitText
               text={tr("homeTitle", currentLang)}
@@ -138,7 +138,7 @@ function Landing() {
 
       {/* Why HealthGuard? */}
       <section className="border-b border-border bg-surface">
-        <div className="mx-auto max-w-7xl px-6 py-8">
+        <div className="mx-auto max-w-[1440px] px-4 py-8">
           <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-6">
             <div className="max-w-xs shrink-0">
               <Badge
@@ -160,7 +160,7 @@ function Landing() {
 
       {/* Evidence-Aware Screening Framework Section */}
       <section className="border-b border-border bg-surface-muted/30">
-        <div className="mx-auto max-w-7xl px-6 py-10">
+        <div className="mx-auto max-w-[1440px] px-4 py-10">
           <div className="max-w-3xl mb-12">
             <Badge
               variant="secondary"
@@ -276,8 +276,8 @@ function Landing() {
 
       {/* FAQ */}
       <section className="border-b border-border bg-surface">
-        <div className="mx-auto grid max-w-7xl gap-12 px-6 py-10 lg:grid-cols-12">
-          <div className="lg:col-span-4 flex flex-col justify-center">
+        <div className="mx-auto grid max-w-[1440px] gap-12 px-4 py-10 lg:grid-cols-12">
+          <div className="lg:col-span-4 flex flex-col justify-center items-center text-center lg:items-start lg:text-left">
             <Badge variant="secondary" className="rounded-full w-fit">
               FAQ
             </Badge>
@@ -323,11 +323,11 @@ function Landing() {
                   a: tr("faq6A", currentLang),
                 },
               ].map((f, i) => (
-                <AccordionItem key={i} value={`item-${i}`} className="border-border/80">
-                  <AccordionTrigger className="text-left text-sm font-semibold hover:text-teal hover:no-underline py-3">
+                <AccordionItem key={i} value={`item-${i}`} className="border-border/80 last:border-b-0">
+                  <AccordionTrigger className="text-left text-base sm:text-lg font-bold hover:text-teal hover:no-underline py-4">
                     {f.q}
                   </AccordionTrigger>
-                  <AccordionContent className="text-xs leading-relaxed text-muted-foreground pb-4">
+                  <AccordionContent className="text-sm sm:text-base leading-7 text-muted-foreground pb-4">
                     {f.a}
                   </AccordionContent>
                 </AccordionItem>
@@ -338,7 +338,7 @@ function Landing() {
       </section>
       {/* Why Prevention Matters */}
       <section className="border-t border-border bg-surface-muted/10">
-        <div className="mx-auto max-w-7xl px-6 pt-10 pb-8">
+        <div className="mx-auto max-w-[1440px] px-4 pt-10 pb-8">
           <div className="text-center max-w-3xl mx-auto mb-16 space-y-4">
             <Badge
               variant="secondary"
@@ -417,19 +417,50 @@ function Landing() {
 
       {/* Scroll Velocity Marquee - Full Screen Edge-to-Edge */}
       <div className="py-6 w-full overflow-hidden select-none bg-surface-muted/10 border-y border-border/10">
-        <ScrollVelocity
-          texts={[
-            "Lifestyle Assessment   •   Symptoms   •   Blood Pressure   •   Blood Reports   •   Diabetes Screening   •   Hypertension Screening   •   Anaemia Screening   •   Evidence-Based Analysis   •   Personalized Health Insights   •   AI Explanation   •   Preventive Healthcare   •   "
-          ]}
-          velocity={12}
-          className="text-lg md:text-xl font-bold uppercase tracking-wider text-teal/40 font-display"
-          numCopies={8}
+        <LogoLoop
+          logos={[
+            "Lifestyle Assessment",
+            "Symptoms",
+            "Blood Pressure",
+            "Blood Reports",
+            "Diabetes Screening",
+            "Hypertension Screening",
+            "Anaemia Screening",
+            "Evidence-Based Analysis",
+            "Personalized Health Insights",
+            "AI Explanation",
+            "Preventive Healthcare",
+          ].flatMap((text) => [
+            {
+              node: (
+                <span className="text-lg md:text-xl font-bold uppercase tracking-wider text-teal/40 font-display whitespace-nowrap transition-colors duration-300 hover:text-teal cursor-default">
+                  {text}
+                </span>
+              ),
+              title: text,
+            },
+            {
+              node: (
+                <span className="text-lg md:text-xl font-bold uppercase tracking-wider text-teal/40 font-display select-none cursor-default">
+                  •
+                </span>
+              ),
+              title: "separator",
+            },
+          ])}
+          speed={60}
+          direction="left"
+          logoHeight={28}
+          gap={36}
+          pauseOnHover={false}
+          scaleOnHover
+          fadeOut
+          fadeOutColor="var(--color-background)"
         />
       </div>
 
-      {/* Natural transition to assessment */}
       <section className="bg-surface-muted/10 pt-8 pb-10">
-        <div className="mx-auto max-w-7xl px-6">
+        <div className="mx-auto max-w-[1440px] px-4">
           <div className="border border-border bg-surface rounded-2xl p-8 max-w-4xl mx-auto text-center space-y-6 shadow-sm">
             <div className="space-y-2 max-w-2xl mx-auto">
               <h3 className="font-display text-xl font-bold text-foreground">

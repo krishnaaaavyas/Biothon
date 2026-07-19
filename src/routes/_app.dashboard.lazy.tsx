@@ -385,7 +385,7 @@ function Dashboard() {
     (bootstrapLoading || authLoading || authSyncing) && !hasValidHealthResult;
   if (isSyncingFirstTime) {
     return (
-      <div className="mx-auto max-w-[1440px] px-6 py-10 space-y-6 animate-pulse">
+      <div className="mx-auto max-w-[1600px] px-4 py-10 space-y-6 animate-pulse">
         <div className="h-10 bg-muted/40 w-1/4 rounded-lg" />
         <div className="h-4 bg-muted/30 w-1/3 rounded-lg" />
         <div className="grid gap-6 md:grid-cols-3">
@@ -503,7 +503,7 @@ function Dashboard() {
   ];
 
   return (
-    <div className="mx-auto max-w-[1440px] px-6 py-10 space-y-6">
+    <div className="mx-auto max-w-[1600px] px-4 py-10 space-y-6">
       {/* Wake-up & Error Diagnostic Banners */}
       {isWaking && (
         <div className="p-4 bg-teal/10 border border-teal/20 text-teal text-xs font-semibold rounded-xl flex items-center gap-2">

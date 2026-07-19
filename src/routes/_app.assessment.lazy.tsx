@@ -165,7 +165,7 @@ function AssessmentPage() {
   }
 
   return (
-    <div className="mx-auto max-w-7xl px-6 py-10 lg:py-14">
+    <div className="mx-auto max-w-[1440px] px-4 py-10 lg:py-14">
       <div className="mb-8">
         <Badge
           variant="secondary"

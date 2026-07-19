@@ -1,15 +1,21 @@
 import { ShieldCheck, AlertTriangle, Users } from "lucide-react";
 import { useLanguage, tr } from "@/lib/i18n";
 
-export function SiteFooter({ hideDisclaimer = false }: { hideDisclaimer?: boolean }) {
+export function SiteFooter({
+  hideDisclaimer = false,
+  showFeatures = false,
+}: {
+  hideDisclaimer?: boolean;
+  showFeatures?: boolean;
+}) {
   const currentLang = useLanguage();
 
   return (
     <footer className="border-t border-border bg-surface-muted/30">
-      <div className="mx-auto max-w-7xl px-6 py-12">
-        <div className="flex flex-col md:flex-row md:justify-start gap-12 md:gap-16 items-stretch">
+      <div className="mx-auto max-w-[1440px] px-4 py-12">
+        <div className="grid grid-cols-1 md:grid-cols-12 gap-8 md:gap-12 items-stretch">
           {/* Project Overview */}
-          <div className="max-w-md space-y-4 flex flex-col justify-between">
+          <div className="col-span-1 md:col-span-6 lg:col-span-5 space-y-4 flex flex-col justify-between">
             <div>
               <div className="flex items-center gap-2.5 h-8">
                 <div className="relative h-8 w-8 shrink-0 select-none glass-logo">
@@ -28,21 +34,33 @@ export function SiteFooter({ hideDisclaimer = false }: { hideDisclaimer?: boolea
             </div>
           </div>
 
-          {/* Vertical Divider */}
-          <div className="hidden md:block w-px bg-border/60 self-stretch my-1" />
-
           {/* Developers */}
-          <div className="space-y-4">
+          <div className={`${showFeatures ? "md:col-span-3 lg:col-span-3" : "md:col-span-6 lg:col-span-7"} col-span-1 md:border-l md:border-border/60 md:pl-8 lg:pl-12 space-y-4`}>
             <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-foreground font-mono h-8">
               <Users className="h-4 w-4 text-teal" />
               <span>{tr("developers", currentLang)}</span>
             </div>
-            <ul className="space-y-2 text-sm text-muted-foreground">
+            <ul className="space-y-2 text-sm text-muted-foreground font-medium">
               <li>Krish Savaliya</li>
               <li>Krishna Vyas</li>
               <li>Jiya Singh</li>
             </ul>
           </div>
+
+          {/* Features */}
+          {showFeatures && (
+            <div className="col-span-1 md:col-span-3 lg:col-span-4 md:border-l md:border-border/60 md:pl-8 lg:pl-12 space-y-4">
+              <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-foreground font-mono h-8">
+                <ShieldCheck className="h-4 w-4 text-teal" />
+                <span>{tr("keyFeaturesTitle", currentLang)}</span>
+              </div>
+              <ul className="space-y-2 text-sm text-muted-foreground font-medium">
+                <li>{tr("pillar1Title", currentLang)}</li>
+                <li>{tr("pillar2Title", currentLang)}</li>
+                <li>{tr("pillar3Title", currentLang)}</li>
+              </ul>
+            </div>
+          )}
         </div>
 
         {/* Separator & Disclaimer */}

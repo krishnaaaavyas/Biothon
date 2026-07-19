@@ -547,7 +547,7 @@ function ExpertDashboardPage() {
       </header>
 
       {/* Main clinical dashboard layout */}
-      <main className="flex-1 p-6 md:p-8 max-w-7xl mx-auto w-full grid gap-8 md:grid-cols-3">
+      <main className="flex-1 p-4 md:p-6 max-w-[1600px] mx-auto w-full grid gap-8 md:grid-cols-3">
         {/* Left column: List of pending & active reviews */}
         <div className="space-y-6 md:col-span-1">
           {/* Active Reviews (Reviews Accepted by this expert) */}

@@ -86,25 +86,42 @@ function ContactPage() {
       <Toaster richColors position="top-center" />
       <SiteHeader />
 
-      {/* Header section with reduced height */}
+      {/* Header section with grid layout */}
       <section className="border-b border-border bg-surface-muted/30">
-        <div className="mx-auto max-w-7xl px-6 py-10">
-          <Badge
-            variant="secondary"
-            className="rounded-full bg-teal/10 text-teal border border-teal/20 hover:bg-teal/20"
-          >
-            {tr("support", currentLang)}
-          </Badge>
-          <h1 className="mt-3 font-display text-4xl font-bold tracking-tight">
-            {tr("support", currentLang)}
-          </h1>
-          <p className="mt-2 max-w-2xl text-base text-muted-foreground">
-            {tr("projectFeedbackDesc", currentLang)}
-          </p>
+        <div className="mx-auto max-w-[1440px] px-4 py-10 grid gap-8 md:grid-cols-12 items-center">
+          <div className="md:col-span-7 lg:col-span-8">
+            <Badge
+              variant="secondary"
+              className="rounded-full bg-teal/10 text-teal border border-teal/20 hover:bg-teal/20"
+            >
+              {tr("support", currentLang)}
+            </Badge>
+            <h1 className="mt-3 font-display text-4xl font-bold tracking-tight text-foreground">
+              {tr("support", currentLang)}
+            </h1>
+            <p className="mt-2 text-base text-muted-foreground leading-relaxed max-w-2xl">
+              {tr("projectFeedbackDesc", currentLang)}
+            </p>
+          </div>
+
+          <div className="md:col-span-5 lg:col-span-4">
+            {/* Educational Disclaimer Card */}
+            <Card className="border-border/80 bg-surface shadow-[0_2px_8px_rgba(0,0,0,0.02)]">
+              <CardContent className="p-5 space-y-3">
+                <h2 className="font-display text-base font-bold tracking-tight flex items-center gap-2 text-foreground">
+                  <BookOpen className="h-4.5 w-4.5 text-teal" />{" "}
+                  {tr("educationalDisclaimer", currentLang)}
+                </h2>
+                <div className="rounded-lg border border-warning/30 bg-warning/5 p-3 text-xs leading-relaxed text-muted-foreground">
+                  ⚠️ {tr("educationalDisclaimerDesc", currentLang)}
+                </div>
+              </CardContent>
+            </Card>
+          </div>
         </div>
       </section>
 
-      <section className="mx-auto max-w-7xl px-6 py-10 space-y-8">
+      <section className="mx-auto max-w-[1440px] px-4 py-10 space-y-8">
         <div className="grid gap-8 lg:grid-cols-5">
           {/* Left Column - FAQ and Disclaimer */}
           <div className="lg:col-span-3 space-y-6">
@@ -146,10 +163,10 @@ function ContactPage() {
                       value={`faq-${idx}`}
                       className="border-b border-border/80 last:border-0 py-1"
                     >
-                      <AccordionTrigger className="text-left text-sm font-semibold hover:text-teal hover:no-underline py-2 transition-colors">
+                      <AccordionTrigger className="text-left text-base sm:text-lg font-bold hover:text-teal hover:no-underline py-3.5 transition-colors">
                         {faq.q}
                       </AccordionTrigger>
-                      <AccordionContent className="text-xs text-muted-foreground leading-relaxed pt-1 pb-2">
+                      <AccordionContent className="text-sm sm:text-base leading-7 text-muted-foreground pt-1 pb-3">
                         {faq.a}
                       </AccordionContent>
                     </AccordionItem>
@@ -158,18 +175,6 @@ function ContactPage() {
               </CardContent>
             </Card>
 
-            {/* Educational Disclaimer Card - Placed below FAQ */}
-            <Card className="border-border/80 bg-surface shadow-[0_2px_8px_rgba(0,0,0,0.02)]">
-              <CardContent className="p-6 space-y-3">
-                <h2 className="font-display text-lg font-bold tracking-tight flex items-center gap-2 text-foreground">
-                  <BookOpen className="h-5 w-5 text-teal" />{" "}
-                  {tr("educationalDisclaimer", currentLang)}
-                </h2>
-                <div className="rounded-lg border border-warning/30 bg-warning/5 p-4 text-xs leading-relaxed text-muted-foreground">
-                  ⚠️ {tr("educationalDisclaimerDesc", currentLang)}
-                </div>
-              </CardContent>
-            </Card>
           </div>
 
           {/* Right Column - Project Feedback */}
