@@ -61,3 +61,8 @@ health-intelligence/data/external/
 *.dta
 *.sav
 *.sas7bdat
+C:\Users\admin\Documents\HealthGuard-Restricted-Data
+
+# Private / restricted data folder — real dataset goes here, never committed
+health-intelligence/private-data/
+!health-intelligence/private-data/.gitkeep
