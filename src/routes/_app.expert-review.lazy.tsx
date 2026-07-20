@@ -31,6 +31,8 @@ import {
 } from "lucide-react";
 import { isConfigured, db, auth } from "@/lib/firebase";
 import SplitText from "@/components/ui/split-text";
+import { ShapeGrid } from "@/components/ui/shape-grid";
+
 import {
   collection,
   query,
@@ -417,7 +419,21 @@ function ExpertReviewPage() {
   const isCancelled = activeRequest?.status === "cancelled";
 
   return (
-    <div className="mx-auto max-w-4xl px-6 py-10 lg:py-14 space-y-8">
+    <div className="relative w-full min-h-[calc(100vh-3.5rem)] overflow-hidden flex flex-col justify-start isolate animate-fade-in">
+      {/* Background Grid */}
+      <div className="absolute inset-0 -z-10 opacity-70">
+        <ShapeGrid
+          speed={0.2}
+          squareSize={40}
+          direction="diagonal"
+          borderColor="rgba(20, 184, 166, 0.08)"
+          hoverFillColor="rgba(20, 184, 166, 0.15)"
+          shape="square"
+          hoverTrailAmount={4}
+        />
+      </div>
+
+      <div className="mx-auto max-w-7xl px-4 sm:px-6 py-6 lg:py-8 w-full space-y-6">
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
@@ -451,7 +467,7 @@ function ExpertReviewPage() {
             </div>
             <p className="text-[11px] text-muted-foreground mb-3 leading-snug">
               Toggle this account as an expert to access the Doctor/Nutritionist view at{" "}
-              <code className="bg-muted px-1 py-0.5 rounded text-[10px]">/expert-dashboard</code>.
+              <code className="bg-muted px-1 py-0.5 rounded text-xs">/expert-dashboard</code>.
             </p>
             <div className="flex flex-col gap-2">
               <Button
@@ -459,14 +475,14 @@ function ExpertReviewPage() {
                 size="sm"
                 variant="outline"
                 disabled={devRegistering}
-                className="text-[10px] h-7 cursor-pointer border-teal/40 hover:bg-teal/10"
+                className="text-xs h-7 cursor-pointer border-teal/40 hover:bg-teal/10"
               >
                 {devRegistering ? "Registering..." : "Mock Doctor Signup"}
               </Button>
               <Button
                 asChild
                 size="sm"
-                className="text-[10px] h-7 bg-teal hover:bg-teal/95 font-semibold text-white"
+                className="text-xs h-7 bg-teal hover:bg-teal/95 font-semibold text-white"
               >
                 <Link to="/expert-dashboard">
                   {currentLang === "hi"
@@ -595,7 +611,7 @@ function ExpertReviewPage() {
                       <p className="text-xs font-bold text-foreground">
                         {activeRequest.assignedExpertName}
                       </p>
-                      <p className="text-[10px] text-muted-foreground">
+                      <p className="text-xs text-muted-foreground">
                         {tr("assignedExpert", currentLang)}
                       </p>
                     </div>
@@ -613,7 +629,7 @@ function ExpertReviewPage() {
                   </p>
                   <p>
                     <strong>{tr("requestIdLabel", currentLang)}</strong>{" "}
-                    <code className="bg-muted px-1 py-0.5 rounded text-[10px] select-all">
+                    <code className="bg-muted px-1 py-0.5 rounded text-[11px] select-all">
                       {activeRequest.id}
                     </code>
                   </p>
@@ -645,7 +661,7 @@ function ExpertReviewPage() {
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-3 text-xs leading-normal">
-                <div className="grid grid-cols-2 gap-2 bg-surface-muted/30 p-2.5 rounded-lg border border-border/60 font-mono text-[10px]">
+                <div className="grid grid-cols-2 gap-2 bg-surface-muted/30 p-2.5 rounded-lg border border-border/60 font-mono text-[11px]">
                   <div>
                     {tr("age", currentLang)}:{" "}
                     <span className="font-bold text-foreground">
@@ -682,7 +698,7 @@ function ExpertReviewPage() {
                 </div>
 
                 <div className="space-y-1.5 border-t border-border/40 pt-3">
-                  <p className="font-bold text-[10px] uppercase text-muted-foreground tracking-wider">
+                  <p className="font-bold text-[11px] uppercase text-muted-foreground tracking-wider">
                     {tr("lifestyleLabel", currentLang)}
                   </p>
                   <div className="flex flex-wrap gap-1">
@@ -705,7 +721,7 @@ function ExpertReviewPage() {
 
                 {activeRequest.profileSnapshot?.symptoms && (
                   <div className="space-y-1 border-t border-border/40 pt-3">
-                    <p className="font-bold text-[10px] uppercase text-muted-foreground tracking-wider">
+                    <p className="font-bold text-[11px] uppercase text-muted-foreground tracking-wider">
                       {tr("symptomsLabel", currentLang)}
                     </p>
                     <p className="text-muted-foreground italic text-[11px] truncate">
@@ -731,10 +747,10 @@ function ExpertReviewPage() {
                   {tr("reviewPendingDesc", currentLang)}
                 </p>
                 <div className="mt-6 border-t border-border/50 pt-6 max-w-sm text-left">
-                  <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">
+                  <p className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider">
                     {tr("noteLabel", currentLang)}
                   </p>
-                  <p className="text-[10px] text-muted-foreground leading-normal mt-1">
+                  <p className="text-[11px] text-muted-foreground leading-normal mt-1">
                     {tr("reviewPendingNote", currentLang)}
                   </p>
                 </div>
@@ -750,7 +766,7 @@ function ExpertReviewPage() {
                       <CardTitle className="text-sm font-bold flex items-center gap-1.5">
                         {tr("clinicalChatRoom", currentLang)}
                       </CardTitle>
-                      <CardDescription className="text-[10px] text-muted-foreground">
+                      <CardDescription className="text-xs text-muted-foreground">
                         {isCompleted
                           ? tr("archivedReadOnly", currentLang)
                           : tr("chatActiveWithAdvisor", currentLang)}
@@ -758,7 +774,7 @@ function ExpertReviewPage() {
                     </div>
                   </div>
                   {isCompleted && (
-                    <Badge className="bg-blue-500/15 text-blue-400 border border-blue-500/20 font-bold text-[10px] rounded-full">
+                    <Badge className="bg-blue-500/15 text-blue-400 border border-blue-500/20 font-bold text-xs rounded-full">
                       {tr("archived", currentLang)}
                     </Badge>
                   )}
@@ -788,7 +804,7 @@ function ExpertReviewPage() {
                         >
                           <Avatar className="h-6 w-6 border border-border/50 shrink-0">
                             <AvatarFallback
-                              className={`text-[9px] font-bold ${isMe ? "bg-primary text-primary-foreground" : "bg-teal text-white"}`}
+                              className={`text-[11px] font-bold ${isMe ? "bg-primary text-primary-foreground" : "bg-teal text-white"}`}
                             >
                               {isMe ? "ME" : "EX"}
                             </AvatarFallback>
@@ -856,6 +872,7 @@ function ExpertReviewPage() {
           </div>
         </div>
       )}
+    </div>
     </div>
   );
 }

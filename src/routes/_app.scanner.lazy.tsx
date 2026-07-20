@@ -29,6 +29,8 @@ import {
   type IngredientReport,
 } from "@/lib/health.functions";
 import SplitText from "@/components/ui/split-text";
+import { ShapeGrid } from "@/components/ui/shape-grid";
+
 
 export const Route = createLazyFileRoute("/_app/scanner")({
   component: ScannerPage,
@@ -585,7 +587,21 @@ function ScannerPage() {
   };
 
   return (
-    <div className="mx-auto max-w-7xl px-4 sm:px-6 py-6 lg:py-8">
+    <div className="relative w-full min-h-[calc(100vh-3.5rem)] overflow-hidden flex flex-col justify-start isolate">
+      {/* Background Grid */}
+      <div className="absolute inset-0 -z-10 opacity-70">
+        <ShapeGrid
+          speed={0.2}
+          squareSize={40}
+          direction="diagonal"
+          borderColor="rgba(20, 184, 166, 0.08)"
+          hoverFillColor="rgba(20, 184, 166, 0.15)"
+          shape="square"
+          hoverTrailAmount={4}
+        />
+      </div>
+
+      <div className="mx-auto max-w-7xl px-4 sm:px-6 py-6 lg:py-8 w-full">
       {/* Header */}
       <div className="mb-6">
         <Badge
@@ -1094,6 +1110,7 @@ function ScannerPage() {
           )}
         </div>
       </div>
+    </div>
     </div>
   );
 }

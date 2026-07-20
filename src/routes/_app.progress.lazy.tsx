@@ -22,6 +22,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { auth } from "@/lib/firebase";
 import SplitText from "@/components/ui/split-text";
+import { ShapeGrid } from "@/components/ui/shape-grid";
+
 import {
   ResponsiveContainer,
   CartesianGrid,
@@ -62,7 +64,7 @@ function KpiCard({
           <Icon className="h-5 w-5" />
         </div>
         <div className="min-w-0">
-          <div className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+          <div className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
             {label}
           </div>
           <div className="font-display text-lg font-bold text-foreground">{value}</div>
@@ -225,7 +227,21 @@ function ProgressPage() {
   }
 
   return (
-    <div className="mx-auto max-w-7xl px-6 py-10 lg:py-14 space-y-8">
+    <div className="relative w-full min-h-[calc(100vh-3.5rem)] overflow-hidden flex flex-col justify-start isolate animate-fade-in">
+      {/* Background Grid */}
+      <div className="absolute inset-0 -z-10 opacity-70">
+        <ShapeGrid
+          speed={0.2}
+          squareSize={40}
+          direction="diagonal"
+          borderColor="rgba(20, 184, 166, 0.08)"
+          hoverFillColor="rgba(20, 184, 166, 0.15)"
+          shape="square"
+          hoverTrailAmount={4}
+        />
+      </div>
+
+      <div className="mx-auto max-w-7xl px-4 sm:px-6 py-6 lg:py-8 w-full space-y-6">
       {/* Header */}
       <div>
         <Badge
@@ -364,7 +380,7 @@ function ProgressPage() {
                 {/* Trend & Confidence Card */}
                 <Card className="border-border bg-surface shadow-card-soft flex flex-col justify-between p-5">
                   <div className="space-y-1">
-                    <span className="text-[10px] uppercase font-bold text-muted-foreground tracking-wider font-mono">
+                    <span className="text-[11px] uppercase font-bold text-muted-foreground tracking-wider font-mono">
                       {tr("forecastTrend", currentLang)}
                     </span>
                     <h3 className="font-display text-2xl font-bold flex items-center gap-2 capitalize">
@@ -380,7 +396,7 @@ function ProgressPage() {
                       Projections assume the entered trend continues.
                     </p>
                   </div>
-                  <div className="text-[10px] text-muted-foreground border-t border-border/40 pt-2.5 mt-4">
+                  <div className="text-[11px] text-muted-foreground border-t border-border/40 pt-2.5 mt-4">
                     {tr("estRiskDisclaimer", currentLang)}
                   </div>
                 </Card>
@@ -389,7 +405,7 @@ function ProgressPage() {
                 <Card className="border-border bg-surface shadow-card-soft md:col-span-2 p-5 space-y-4">
                   <div className="grid gap-4 sm:grid-cols-2">
                     <div className="space-y-1">
-                      <span className="text-[10px] uppercase font-bold text-muted-foreground tracking-wider font-mono">
+                      <span className="text-[11px] uppercase font-bold text-muted-foreground tracking-wider font-mono">
                         {tr("projected30", currentLang)}
                       </span>
                       <div className="font-display text-3xl font-extrabold text-foreground">
@@ -401,7 +417,7 @@ function ProgressPage() {
                       />
                     </div>
                     <div className="space-y-1">
-                      <span className="text-[10px] uppercase font-bold text-muted-foreground tracking-wider font-mono">
+                      <span className="text-[11px] uppercase font-bold text-muted-foreground tracking-wider font-mono">
                         {tr("projected90", currentLang)}
                       </span>
                       <div className="font-display text-3xl font-extrabold text-foreground">
@@ -416,7 +432,7 @@ function ProgressPage() {
 
                   {prediction.reasons && prediction.reasons.length > 0 && (
                     <div className="rounded-lg bg-accent/15 border border-border/40 p-3.5 space-y-1.5 text-left">
-                      <span className="text-[9px] uppercase font-bold text-teal tracking-wider font-mono">
+                      <span className="text-[11px] uppercase font-bold text-teal tracking-wider font-mono">
                         {tr("predInsights", currentLang)}
                       </span>
                       <ul className="list-disc pl-3 text-[11px] text-foreground/80 space-y-1">
@@ -513,6 +529,7 @@ function ProgressPage() {
           </div>
         </div>
       )}
+    </div>
     </div>
   );
 }

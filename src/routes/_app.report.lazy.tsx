@@ -720,6 +720,17 @@ function ReportPage() {
     }
   }
 
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("download") === "true") {
+      download();
+      const url = new URL(window.location.href);
+      url.searchParams.delete("download");
+      window.history.replaceState({}, "", url.pathname + url.search);
+    }
+  }, [resultMaybe, profileMaybe]);
+
+
   // Define static parameter values
   const labData = [
     {

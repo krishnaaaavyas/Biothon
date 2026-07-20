@@ -19,6 +19,8 @@ import {
   Sparkles,
 } from "lucide-react";
 import SplitText from "@/components/ui/split-text";
+import { ShapeGrid } from "@/components/ui/shape-grid";
+
 
 export const Route = createFileRoute("/_app/action-plan")({
   component: ActionPlanPage,
@@ -214,7 +216,7 @@ function MetricCard({
           <Icon className="h-5 w-5" />
         </div>
         <div className="min-w-0">
-          <div className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+          <div className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
             {label}
           </div>
           <div className="font-display text-base font-semibold text-foreground">{value}</div>
@@ -282,7 +284,21 @@ function ActionPlanPage() {
   const bmiVal = typeof result?.bmi === "number" ? result.bmi.toFixed(1) : "22.0";
 
   return (
-    <div className="mx-auto max-w-7xl px-6 py-10 lg:py-14 space-y-10">
+    <div className="relative w-full min-h-[calc(100vh-3.5rem)] overflow-hidden flex flex-col justify-start isolate animate-fade-in">
+      {/* Background Grid */}
+      <div className="absolute inset-0 -z-10 opacity-70">
+        <ShapeGrid
+          speed={0.2}
+          squareSize={40}
+          direction="diagonal"
+          borderColor="rgba(20, 184, 166, 0.08)"
+          hoverFillColor="rgba(20, 184, 166, 0.15)"
+          shape="square"
+          hoverTrailAmount={4}
+        />
+      </div>
+
+      <div className="mx-auto max-w-7xl px-4 sm:px-6 py-6 lg:py-8 w-full space-y-6">
       {/* Header */}
       <div>
         <Badge
@@ -332,7 +348,7 @@ function ActionPlanPage() {
                     </span>
                     <div className="min-w-0">
                       <p className="text-sm font-bold text-foreground leading-snug">{p.action}</p>
-                      <p className="text-[10px] text-teal mt-1 font-semibold uppercase tracking-wider font-mono">
+                      <p className="text-xs text-teal mt-1 font-semibold uppercase tracking-wider font-mono">
                         {tr("benefitRiskDrop", currentLang).replace(
                           "{impact}",
                           Math.abs(p.estimatedImpact).toString(),
@@ -444,7 +460,7 @@ function ActionPlanPage() {
                         key={i}
                         className="rounded-xl border border-border bg-surface-muted/65 p-3.5"
                       >
-                        <div className="text-[10px] font-bold uppercase tracking-wider text-teal font-mono">
+                        <div className="text-[11px] font-bold uppercase tracking-wider text-teal font-mono">
                           {tr(weekdays[i], currentLang)}
                         </div>
                         <div className="mt-1 text-xs font-semibold leading-relaxed text-foreground">
@@ -554,10 +570,10 @@ function ActionPlanPage() {
                             className="rounded-xl border border-border bg-surface p-3.5 flex flex-col justify-between"
                           >
                             <div className="flex items-center justify-between border-b border-border/40 pb-1.5 mb-1.5">
-                              <div className="text-[10px] font-bold uppercase tracking-wider text-teal font-mono">
+                              <div className="text-[11px] font-bold uppercase tracking-wider text-teal font-mono">
                                 {dayText}
                               </div>
-                              <div className="text-[10px] font-bold text-muted-foreground">
+                              <div className="text-[11px] font-bold text-muted-foreground">
                                 {minText}
                               </div>
                             </div>
@@ -576,6 +592,7 @@ function ActionPlanPage() {
           })}
         </Tabs>
       </div>
+    </div>
     </div>
   );
 }
