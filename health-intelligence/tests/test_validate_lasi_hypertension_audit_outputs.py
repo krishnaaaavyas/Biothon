@@ -10,19 +10,29 @@ from training import validate_lasi_hypertension_audit_outputs as validator
 
 @pytest.fixture
 def valid_output(tmp_path):
-    candidate = {
-        "canonical_name": "age", "role": "predictor",
-        "source_file": "synthetic_individual.dta", "source_column": "age_var",
-        "source_label": "Age of respondent", "data_type": "int16",
-        "code_meanings": [], "missing_and_special_codes": "requires_manual_codebook_review",
-        "proposed_transformation": "Preserve documented codes",
-        "available_from_healthguard_users": True,
-        "allowed_in_profile_model": True,
-        "leakage_rationale": "Synthetic test candidate",
-        "manual_approval_status": "requires_manual_review",
-    }
+    candidates = []
+    for name, mapping in audit.AUTHORITATIVE_MAPPING.items():
+        allowed = name in audit.APPROVED_PRODUCTION_PREDICTORS
+        candidates.append({
+            "canonical_name": name, "role": mapping["role"],
+            "source_file": "synthetic_biomarker.dta" if mapping["source_role"] == "biomarker" else "synthetic_individual.dta",
+            "source_columns": list(mapping["columns"]), "source_labels": [],
+            "data_types": ["double"] * len(mapping["columns"]),
+            "code_meanings": {}, "missing_and_special_codes": "requires_manual_codebook_review",
+            "proposed_transformation": audit.proposed_transformation(name),
+            "available_from_healthguard_users": allowed,
+            "allowed_in_profile_model": allowed,
+            "leakage_rationale": "Synthetic aggregate metadata only",
+            "manual_approval_status": "approved",
+            "derived": bool(mapping.get("derived", len(mapping["columns"]) > 1 and allowed)),
+        })
+    distributions = {"individual.age_var": {"45": 10}}
+    for name in (
+        "bm006", "bm007", "bm010", "bm011", "bm014", "bm015", "bm017", "bm018"
+    ):
+        distributions[f"biomarker.{name}"] = "not_exported_raw_bp_measurement"
     bundle = audit.build_bundle(
-        [([candidate], {"individual.age_var": {"45": 10}},
+        [(candidates, distributions,
           {"individual.age_var": {"row_count": 20, "missing_count": 0}})],
         ["synthetic_individual.dta"], ["synthetic_codebook.pdf"], 10,
     )
@@ -113,21 +123,25 @@ def test_unexpected_top_level_schema_fails(valid_output):
 
 
 def test_raw_bp_observation_lists_fail(valid_output):
-    bp_candidate = {
-        "canonical_name": "repeated_systolic_bp", "role": "target_construction",
-        "source_column": "sbp_1",
-    }
-    mutate(
-        valid_output, "lasi_hypertension_variable_candidates.json",
-        lambda payload: payload["candidates"].append(bp_candidate),
-    )
     mutate(
         valid_output, "lasi_hypertension_code_distributions.json",
         lambda payload: payload["distributions"].update(
-            {"biomarker.sbp_1": [120, 130, 140]}
+            {"biomarker.bm006": [120, 130, 140]}
         ),
     )
     with pytest.raises(ValueError, match="Raw BP observation"):
+        validator.validate_outputs(valid_output, 10)
+
+
+def test_validator_rejects_one_unexpected_official_predictor(valid_output):
+    mutate(
+        valid_output, "lasi_hypertension_predictor_candidates.json",
+        lambda payload: payload["candidates"].append({
+            **payload["candidates"][0], "canonical_name": "age_at_marriage",
+            "source_columns": ["distractor_age"],
+        }),
+    )
+    with pytest.raises(ValueError, match="exactly the eight approved"):
         validator.validate_outputs(valid_output, 10)
 
 

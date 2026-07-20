@@ -11,12 +11,14 @@ from typing import Any
 try:
     from training.lasi_hypertension_audit_utils import (
         OUTPUT_FILENAMES, contains_row_like_array, has_absolute_path,
-        suppression_marker,
+        suppression_marker, APPROVED_PRODUCTION_PREDICTORS,
+        APPROVED_TARGET_RECORDS, AUTHORITATIVE_MAPPING,
     )
 except ModuleNotFoundError:  # Direct script execution from repository root.
     from lasi_hypertension_audit_utils import (
         OUTPUT_FILENAMES, contains_row_like_array, has_absolute_path,
-        suppression_marker,
+        suppression_marker, APPROVED_PRODUCTION_PREDICTORS,
+        APPROVED_TARGET_RECORDS, AUTHORITATIVE_MAPPING,
     )
 
 
@@ -52,8 +54,8 @@ REQUIRED_FALSE = {
     "locked_test_evaluated",
 }
 CANDIDATE_FIELDS = {
-    "canonical_name", "source_file", "source_column", "source_label", "role",
-    "data_type", "code_meanings", "missing_and_special_codes",
+    "canonical_name", "source_file", "source_columns", "source_labels", "role", "derived",
+    "data_types", "code_meanings", "missing_and_special_codes",
     "proposed_transformation", "available_from_healthguard_users",
     "allowed_in_profile_model", "leakage_rationale", "manual_approval_status",
 }
@@ -125,20 +127,35 @@ def validate_outputs(output_dir: Path, min_cell_count: int = 10) -> dict[str, An
             if not isinstance(candidate, dict):
                 continue
         if candidate.get("role") == "identifier":
-            if candidate.get("source_label") is not None or candidate.get("code_meanings"):
+            if candidate.get("source_labels") or candidate.get("code_meanings"):
                 errors.append("Identifier metadata exposes unsafe label or codebook content")
-        if candidate.get("canonical_name") in {
-            "repeated_systolic_bp", "repeated_diastolic_bp"
-        }:
-            key_suffix = f".{candidate.get('source_column')}"
-            matching = [value for key, value in distributions.items() if key.endswith(key_suffix)]
-            if matching != ["not_exported_raw_bp_measurement"]:
-                errors.append("Raw BP observation distribution detected")
+        if candidate.get("role") == "target_construction":
+            for source_column in candidate.get("source_columns", []):
+                key_suffix = f".{source_column}"
+                matching = [value for key, value in distributions.items() if key.endswith(key_suffix)]
+                if matching != ["not_exported_raw_bp_measurement"]:
+                    errors.append("Raw BP observation distribution detected")
 
     target_candidates = payloads["lasi_hypertension_target_candidates.json"]["candidates"]
     predictor_candidates = payloads["lasi_hypertension_predictor_candidates.json"]["candidates"]
     if any(item not in candidates for item in target_candidates + predictor_candidates):
         errors.append("Target or predictor candidate is absent from the audited candidate set")
+    predictor_names = {item.get("canonical_name") for item in predictor_candidates}
+    if len(predictor_candidates) != 8 or predictor_names != APPROVED_PRODUCTION_PREDICTORS:
+        errors.append("Official predictor allowlist must contain exactly the eight approved features")
+    for item in predictor_candidates:
+        name = item.get("canonical_name")
+        expected = list(AUTHORITATIVE_MAPPING.get(name, {}).get("columns", ()))
+        if item.get("source_columns") != expected:
+            errors.append(f"Incorrect source mapping for approved predictor: {name}")
+        if item.get("allowed_in_profile_model") is not True or item.get("available_from_healthguard_users") is not True or item.get("manual_approval_status") != "approved" or item.get("role") != "predictor":
+            errors.append(f"Incorrect approval metadata for predictor: {name}")
+    target_names = {item.get("canonical_name") for item in target_candidates}
+    if target_names != APPROVED_TARGET_RECORDS:
+        errors.append("Official target file does not contain the exact approved target, eligibility, and BP-quality records")
+    for item in target_candidates:
+        if item.get("allowed_in_profile_model") is not False:
+            errors.append("Target, eligibility, and BP-quality records cannot be model predictors")
 
     manifest = payloads["lasi_hypertension_audit_manifest.json"]
     for field in REQUIRED_FALSE:
