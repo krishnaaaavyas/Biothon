@@ -123,11 +123,25 @@ AUTHORITATIVE_MAPPING = {
     },
 }
 
-APPROVED_PRODUCTION_PREDICTORS = {
+PRODUCTION_PREDICTOR_ORDER = (
     "age", "sex", "height_cm", "weight_kg", "bmi",
     "family_history_hypertension", "physical_activity_category",
     "smoking_category",
-}
+)
+APPROVED_PRODUCTION_PREDICTORS = frozenset(PRODUCTION_PREDICTOR_ORDER)
+
+# Only fields with an approved categorical quality-summary treatment belong
+# here. bm073 remains in the source audit registry, but its exact semantics and
+# coding are undocumented in repository-approved metadata, so it is excluded
+# from categorical distributions until separately resolved.
+CATEGORICAL_ANTHROPOMETRIC_QUALITY_FIELDS = (
+    "bm066",
+    "bm068",
+    "bm069",
+    "bm072",
+    "bm074",
+)
+UNRESOLVED_ANTHROPOMETRIC_QUALITY_FIELDS = ("bm073",)
 
 APPROVED_TARGET_RECORDS = {
     "systolic_1", "diastolic_1", "systolic_2", "diastolic_2",
