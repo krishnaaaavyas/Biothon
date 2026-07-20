@@ -14,6 +14,31 @@ const InputSchema = z.object({
   symptoms: z.string().max(1000).default(""),
   language: z.enum(["en", "hi", "gu"]).default("en"),
   labObservations: z.array(z.any()).optional(),
+  // Phase 1 Workout Personalization
+  fitnessGoal: z.string().optional(),
+  fitnessLevel: z.enum(["beginner", "intermediate", "advanced"]).optional(),
+  sittingHours: z.number().optional(),
+  medicalConditions: z.array(z.string()).optional(),
+  workoutDaysPerWeek: z.number().optional(),
+  workoutDuration: z.number().optional(),
+  exerciseLocation: z.enum(["home", "gym", "outdoor"]).optional(),
+  equipment: z.enum(["none", "bands", "dumbbells", "gym"]).optional(),
+  // Phase 1 Diet Personalization
+  dietType: z.enum(["vegetarian", "eggetarian", "non-vegetarian", "vegan", "jain", "satvik", "no-onion-garlic"]).optional(),
+  lactoseIntolerant: z.boolean().optional(),
+  foodAllergies: z.string().optional(),
+  regionalCuisine: z.string().optional(),
+  budget: z.enum(["low", "medium", "flexible"]).optional(),
+  cookingTime: z.number().optional(),
+  mealTiming: z.string().optional(),
+  weightGoal: z.enum(["lose", "gain", "maintain"]).optional(),
+  // Extra Assessment Questions
+  sleepHours: z.string().optional(),
+  stressLevel: z.enum(["low", "medium", "high"]).optional(),
+  waterIntake: z.string().optional(),
+  occupation: z.string().optional(),
+  tobaccoUse: z.string().optional(),
+  excludedFoods: z.array(z.string()).optional(),
 });
 
 const GeminiResultSchema = z.object({

@@ -147,6 +147,28 @@ function AssessmentPage() {
       familyHistory: "",
       symptoms: "",
       labObservations: [],
+      fitnessGoal: "stay-healthy",
+      fitnessLevel: "beginner",
+      sittingHours: 4,
+      medicalConditions: [],
+      workoutDaysPerWeek: 3,
+      workoutDuration: 30,
+      exerciseLocation: "home",
+      equipment: "none",
+      dietType: "vegetarian",
+      lactoseIntolerant: false,
+      foodAllergies: "",
+      regionalCuisine: "north",
+      budget: "medium",
+      cookingTime: 20,
+      weightGoal: "maintain",
+      sleepHours: "7-8",
+      stressLevel: "medium",
+      waterIntake: "2 L",
+      occupation: "office",
+      alcohol: "never",
+      tobaccoUse: "none",
+      excludedFoods: [],
     },
   });
 
@@ -184,19 +206,19 @@ function AssessmentPage() {
     }
     if (flowMode === "questionnaire") {
       return [
-        { id: 1, type: "personal" as const, labelKey: "s1Label" as const, descKey: "s1Desc" as const },
-        { id: 2, type: "lifestyle" as const, labelKey: "s2Label" as const, descKey: "s2Desc" as const },
-        { id: 3, type: "family" as const, labelKey: "s3Label" as const, descKey: "s3Desc" as const },
-        { id: 4, type: "symptoms" as const, labelKey: "s4Label" as const, descKey: "s4Desc" as const },
+        { id: 1, type: "personal" as const, label: "Basic Profile", desc: "Goals & Body" },
+        { id: 2, type: "health" as const, label: "Health Info", desc: "Conditions & History" },
+        { id: 3, type: "lifestyle" as const, label: "Lifestyle", desc: "Activity & Habits" },
+        { id: 4, type: "diet" as const, label: "Diet Prefs", desc: "Cuisine & Exclusions" },
       ];
     }
     if (flowMode === "combined") {
       return [
-        { id: 1, type: "blood" as const, label: "Blood Report", desc: "Upload & Verify" },
-        { id: 2, type: "personal" as const, labelKey: "s1Label" as const, descKey: "s1Desc" as const },
-        { id: 3, type: "lifestyle" as const, labelKey: "s2Label" as const, descKey: "s2Desc" as const },
-        { id: 4, type: "family" as const, labelKey: "s3Label" as const, descKey: "s3Desc" as const },
-        { id: 5, type: "symptoms" as const, labelKey: "s4Label" as const, descKey: "s4Desc" as const },
+        { id: 1, type: "personal" as const, label: "Basic Profile", desc: "Goals & Body" },
+        { id: 2, type: "health" as const, label: "Health Info", desc: "Conditions & History" },
+        { id: 3, type: "lifestyle" as const, label: "Lifestyle", desc: "Activity & Habits" },
+        { id: 4, type: "diet" as const, label: "Diet Prefs", desc: "Cuisine & Exclusions" },
+        { id: 5, type: "blood" as const, label: "Blood Report", desc: "Upload & Verify" },
       ];
     }
     return [];
@@ -502,9 +524,11 @@ function AssessmentPage() {
   async function next() {
     let fieldsToValidate: Array<keyof Profile> = [];
     if (currentStepType === "personal") {
-      fieldsToValidate = ["age", "gender", "heightCm", "weightKg"];
+      fieldsToValidate = ["age", "gender", "heightCm", "weightKg", "fitnessGoal"];
     } else if (currentStepType === "lifestyle") {
-      fieldsToValidate = ["smoking", "exercise"];
+      fieldsToValidate = ["exercise", "exerciseLocation"];
+    } else if (currentStepType === "diet") {
+      fieldsToValidate = ["dietType", "regionalCuisine", "weightGoal"];
     }
 
     if (fieldsToValidate.length > 0) {
@@ -714,7 +738,7 @@ function AssessmentPage() {
             variant="secondary"
             className="rounded-full bg-teal/10 text-teal border border-teal/20 hover:bg-teal/20"
           >
-            {flowMode === "blood" ? "Blood Report Analysis" : flowMode === "questionnaire" ? "Health Questionnaire" : "Combined Health Analysis"}
+            {flowMode === "questionnaire" ? "Health Questionnaire" : "Combined Health Analysis"}
           </Badge>
         )}
         <SplitText
@@ -753,8 +777,8 @@ function AssessmentPage() {
               const stepNum = index + 1;
               const active = stepNum === step;
               const done = stepNum < step;
-              const label = s.label || tr(s.labelKey!, lang);
-              const desc = s.desc || tr(s.descKey!, lang);
+              const label = s.label || ("labelKey" in s ? tr((s as any).labelKey, lang) : "");
+              const desc = s.desc || ("descKey" in s ? tr((s as any).descKey, lang) : "");
               return (
                 <div
                   key={s.type}
@@ -802,194 +826,547 @@ function AssessmentPage() {
           <form onSubmit={form.handleSubmit(submit, onInvalid)} className="space-y-4">
             
             {currentStepType === "personal" && (
-              <div className="grid gap-4 sm:grid-cols-2">
+              <div className="space-y-6 text-left animate-fade-in">
+                {/* Fitness Goal Selection Card Grid */}
                 <Field
-                  label={tr("age", lang)}
-                  helperText={tr("helperDemographic", lang)}
-                  error={form.formState.errors.age?.message}
+                  label={lang === "hi" ? "आपका मुख्य स्वास्थ्य लक्ष्य क्या है?" : lang === "gu" ? "તમારો મુખ્ય સ્વાસ્થ્ય ધ્યેય શું છે?" : "What is your primary fitness goal?"}
+                  helperText="Everything will be customized around this choice."
+                  error={form.formState.errors.fitnessGoal?.message}
                 >
-                  <div className="relative">
-                    <Input
-                      type="number"
-                      min={1}
-                      max={120}
-                      className={`h-10 border-border/80 bg-surface/50 pr-10 transition-all duration-200 focus:border-teal focus:ring-teal ${
-                        form.formState.errors.age
-                          ? "border-red-500 focus-visible:ring-red-500 bg-red-500/5"
-                          : ""
-                      }`}
-                      {...form.register("age", {
-                        valueAsNumber: true,
-                        required: "Age is required",
-                        min: { value: 1, message: "Age must be at least 1" },
-                        max: { value: 120, message: "Age cannot exceed 120" },
-                      })}
-                    />
-                    <span className="absolute right-3 top-2.5 text-xs text-muted-foreground font-mono">
-                      {tr("yrs", lang)}
-                    </span>
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                    {[
+                      { id: "lose-weight", label: "Lose Weight", labelHi: "वजन घटाएं", labelGu: "વજન ઘટાડવું", desc: "Reduce fat mass" },
+                      { id: "gain-muscle", label: "Gain Muscle", labelHi: "मांसपेशियों का विकास", labelGu: "સ્નાયુબદ્ધ બનવું", desc: "Hypertrophy focus" },
+                      { id: "stay-healthy", label: "Stay Healthy", labelHi: "स्वस्थ रहें", labelGu: "સ્વસ્થ રહેવું", desc: "General wellbeing" },
+                      { id: "improve-heart", label: "Heart Health", labelHi: "हृदय स्वास्थ्य", labelGu: "હૃદયની તંદુરસ્તી", desc: "Aerobic recovery" },
+                      { id: "diabetes", label: "Manage Diabetes", labelHi: "मधुमेह नियंत्रण", labelGu: "ડાયાબિટીસ નિયંત્રણ", desc: "Low-GI target" },
+                      { id: "hypertension", label: "Reduce BP", labelHi: "रक्तचाप कम करें", labelGu: "બીપી ઘટાડવું", desc: "Low sodium target" },
+                      { id: "increase-energy", label: "Increase Energy", labelHi: "ऊर्जा बढ़ाएं", labelGu: "ઉર્જા વધારવી", desc: "Combat fatigue" },
+                      { id: "better-sleep", label: "Better Sleep", labelHi: "बेहतर नींद", labelGu: "સારી ઊંઘ", desc: "Stress recovery" },
+                    ].map((g) => {
+                      const active = form.watch("fitnessGoal") === g.id;
+                      return (
+                        <button
+                          key={g.id}
+                          type="button"
+                          onClick={() => form.setValue("fitnessGoal", g.id)}
+                          className={`rounded-xl border p-3 text-left transition-all duration-200 cursor-pointer flex flex-col justify-between ${
+                            active
+                              ? "border-teal bg-teal/5 ring-1 ring-teal shadow-sm"
+                              : "border-border bg-surface hover:border-teal/40 hover:bg-surface-muted/50"
+                          }`}
+                        >
+                          <div>
+                            <div className="text-xs font-bold text-foreground">
+                              {lang === "hi" ? g.labelHi : lang === "gu" ? g.labelGu : g.label}
+                            </div>
+                            <div className="text-[10px] text-muted-foreground mt-0.5 leading-snug">{g.desc}</div>
+                          </div>
+                        </button>
+                      );
+                    })}
                   </div>
                 </Field>
 
-                <Field
-                  label={tr("gender", lang)}
-                  helperText={tr("helperMetabolic", lang)}
-                  error={form.formState.errors.gender?.message}
-                >
-                  <Select
-                    value={form.watch("gender")}
-                    onValueChange={(v) => form.setValue("gender", v as Profile["gender"])}
+                <div className="grid gap-4 sm:grid-cols-2 border-t border-border/40 pt-4">
+                  <Field
+                    label={tr("age", lang)}
+                    helperText={tr("helperDemographic", lang)}
+                    error={form.formState.errors.age?.message}
                   >
-                    <SelectTrigger
-                      className={`h-10 border-border/80 bg-surface/50 transition-all duration-200 focus:border-teal focus:ring-teal ${
-                        form.formState.errors.gender ? "border-red-500 focus:ring-red-500" : ""
-                      }`}
+                    <div className="relative">
+                      <Input
+                        type="number"
+                        min={1}
+                        max={120}
+                        className="h-10 border-border/80 bg-surface/50 pr-10 focus:border-teal focus:ring-teal"
+                        {...form.register("age", { valueAsNumber: true, required: "Age is required" })}
+                      />
+                      <span className="absolute right-3 top-2.5 text-xs text-muted-foreground font-mono">
+                        {tr("yrs", lang)}
+                      </span>
+                    </div>
+                  </Field>
+
+                  <Field
+                    label={tr("gender", lang)}
+                    helperText={tr("helperMetabolic", lang)}
+                    error={form.formState.errors.gender?.message}
+                  >
+                    <Select
+                      value={form.watch("gender")}
+                      onValueChange={(v) => form.setValue("gender", v as any)}
                     >
+                      <SelectTrigger className="h-10 border-border/80 bg-surface/50 focus:border-teal focus:ring-teal">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="male">{tr("male", lang)}</SelectItem>
+                        <SelectItem value="female">{tr("female", lang)}</SelectItem>
+                        <SelectItem value="other">{tr("other", lang)}</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </Field>
+
+                  <Field
+                    label={tr("height", lang)}
+                    helperText={tr("helperHeight", lang)}
+                    error={form.formState.errors.heightCm?.message}
+                  >
+                    <div className="relative">
+                      <Input
+                        type="number"
+                        min={50}
+                        max={260}
+                        className="h-10 border-border/80 bg-surface/50 pr-10 focus:border-teal focus:ring-teal"
+                        {...form.register("heightCm", { valueAsNumber: true, required: "Height is required" })}
+                      />
+                      <span className="absolute right-3 top-2.5 text-xs text-muted-foreground font-mono">
+                        {tr("cm", lang)}
+                      </span>
+                    </div>
+                  </Field>
+
+                  <Field
+                    label={tr("weight", lang)}
+                    helperText={tr("helperWeight", lang)}
+                    error={form.formState.errors.weightKg?.message}
+                  >
+                    <div className="relative">
+                      <Input
+                        type="number"
+                        min={10}
+                        max={400}
+                        className="h-10 border-border/80 bg-surface/50 pr-10 focus:border-teal focus:ring-teal"
+                        {...form.register("weightKg", { valueAsNumber: true, required: "Weight is required" })}
+                      />
+                      <span className="absolute right-3 top-2.5 text-xs text-muted-foreground font-mono">
+                        {tr("kg", lang)}
+                      </span>
+                    </div>
+                  </Field>
+
+                  <Field
+                    label={lang === "hi" ? "व्यवसाय" : lang === "gu" ? "વ્યવસાય" : "Occupation"}
+                    helperText="Helps determine baseline movement requirements"
+                    error={form.formState.errors.occupation?.message}
+                  >
+                    <Select
+                      value={form.watch("occupation") || "office"}
+                      onValueChange={(v) => form.setValue("occupation", v)}
+                    >
+                      <SelectTrigger className="h-10 border-border/80 bg-surface/50 focus:border-teal focus:ring-teal">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="office">Office worker (Sitting)</SelectItem>
+                        <SelectItem value="student">Student (Mostly Sitting)</SelectItem>
+                        <SelectItem value="labour">Heavy Labour (Active)</SelectItem>
+                        <SelectItem value="healthcare">Healthcare worker (Active)</SelectItem>
+                        <SelectItem value="retired">Retired / Senior</SelectItem>
+                        <SelectItem value="other">Other</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </Field>
+                </div>
+              </div>
+            )}
+
+            {currentStepType === "health" && (
+              <div className="space-y-5 text-left animate-fade-in">
+                {/* Conditional Medical Conditions */}
+                <div className="space-y-3">
+                  <Label className="text-xs font-bold text-foreground">Do you have any medical conditions?</Label>
+                  <div className="flex gap-4">
+                    {[
+                      { val: false, label: "No medical conditions" },
+                      { val: true, label: "Yes, I have conditions" },
+                    ].map((opt) => {
+                      const list = form.watch("medicalConditions") || [];
+                      const active = opt.val ? list.length > 0 : list.length === 0;
+                      return (
+                        <button
+                          key={opt.label}
+                          type="button"
+                          onClick={() => {
+                            if (!opt.val) form.setValue("medicalConditions", []);
+                            else if (list.length === 0) form.setValue("medicalConditions", ["diabetes"]);
+                          }}
+                          className={`rounded-xl border px-4 py-2 text-xs font-semibold cursor-pointer transition-all duration-200 ${
+                            active
+                              ? "border-teal bg-teal/5 text-teal"
+                              : "border-border bg-surface text-muted-foreground hover:bg-surface-muted/50"
+                          }`}
+                        >
+                          {opt.label}
+                        </button>
+                      );
+                    })}
+                  </div>
+
+                  {/* Progressive Checklist of Conditions */}
+                  {(form.watch("medicalConditions") || []).length > 0 && (
+                    <div className="rounded-xl border border-border/80 bg-surface-muted/30 p-4 mt-2 grid grid-cols-2 gap-3 animate-fade-in">
+                      {[
+                        { id: "diabetes", label: "Diabetes" },
+                        { id: "hypertension", label: "Hypertension" },
+                        { id: "heart-disease", label: "Heart Disease" },
+                        { id: "arthritis", label: "Arthritis" },
+                        { id: "knee-pain", label: "Knee Pain" },
+                        { id: "back-pain", label: "Back Pain" },
+                        { id: "asthma", label: "Asthma" },
+                        { id: "thyroid", label: "Thyroid" },
+                      ].map((item) => (
+                        <label key={item.id} className="flex items-center gap-2.5 text-xs font-medium text-foreground cursor-pointer">
+                          <input
+                            type="checkbox"
+                            value={item.id}
+                            {...form.register("medicalConditions")}
+                            className="rounded border-border text-teal focus:ring-teal h-4 w-4 cursor-pointer"
+                          />
+                          {item.label}
+                        </label>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                {/* Tobacco use */}
+                <div className="space-y-2 border-t border-border/40 pt-4">
+                  <Label className="text-xs font-bold text-foreground">Tobacco Consumption (Optional)</Label>
+                  <Select
+                    value={form.watch("tobaccoUse") || "none"}
+                    onValueChange={(v) => form.setValue("tobaccoUse", v)}
+                  >
+                    <SelectTrigger className="h-10 border-border/80 bg-surface/50 focus:border-teal focus:ring-teal">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="male">{tr("male", lang)}</SelectItem>
-                      <SelectItem value="female">{tr("female", lang)}</SelectItem>
-                      <SelectItem value="other">{tr("other", lang)}</SelectItem>
+                      <SelectItem value="none">None</SelectItem>
+                      <SelectItem value="gutka">Gutka / Chewing Tobacco</SelectItem>
+                      <SelectItem value="pan">Pan Masala</SelectItem>
+                      <SelectItem value="chewing">Tobacco Chewing</SelectItem>
                     </SelectContent>
                   </Select>
-                </Field>
+                </div>
 
-                <Field
-                  label={tr("height", lang)}
-                  tooltip={tr("tooltipHeight", lang)}
-                  helperText={tr("helperHeight", lang)}
-                  error={form.formState.errors.heightCm?.message}
-                >
-                  <div className="relative">
-                    <Input
-                      type="number"
-                      min={50}
-                      max={260}
-                      className={`h-10 border-border/80 bg-surface/50 pr-10 transition-all duration-200 focus:border-teal focus:ring-teal ${
-                        form.formState.errors.heightCm
-                          ? "border-red-500 focus-visible:ring-red-500 bg-red-500/5"
-                          : ""
-                      }`}
-                      {...form.register("heightCm", {
-                        valueAsNumber: true,
-                        required: "Height is required",
-                        min: { value: 50, message: "Height must be at least 50 cm" },
-                        max: { value: 260, message: "Height cannot exceed 260 cm" },
-                      })}
+                <div className="grid gap-4 sm:grid-cols-2 border-t border-border/40 pt-4">
+                  <Field
+                    label={tr("familyHistory", lang)}
+                    helperText={tr("helperFamilyHistory", lang)}
+                    error={form.formState.errors.familyHistory?.message}
+                  >
+                    <Textarea
+                      rows={3}
+                      placeholder={tr("familyHistoryPlaceholder", lang)}
+                      className="border-border/80 bg-surface/50 transition-all duration-200 focus:border-teal focus:ring-teal focus-visible:ring-teal text-xs"
+                      {...form.register("familyHistory")}
                     />
-                    <span className="absolute right-3 top-2.5 text-xs text-muted-foreground font-mono">
-                      {tr("cm", lang)}
-                    </span>
-                  </div>
-                </Field>
+                  </Field>
 
-                <Field
-                  label={tr("weight", lang)}
-                  tooltip={tr("tooltipWeight", lang)}
-                  helperText={tr("helperWeight", lang)}
-                  error={form.formState.errors.weightKg?.message}
-                >
-                  <div className="relative">
-                    <Input
-                      type="number"
-                      min={10}
-                      max={400}
-                      className={`h-10 border-border/80 bg-surface/50 pr-10 transition-all duration-200 focus:border-teal focus:ring-teal ${
-                        form.formState.errors.weightKg
-                          ? "border-red-500 focus-visible:ring-red-500 bg-red-500/5"
-                          : ""
-                      }`}
-                      {...form.register("weightKg", {
-                        valueAsNumber: true,
-                        required: "Weight is required",
-                        min: { value: 10, message: "Weight must be at least 10 kg" },
-                        max: { value: 400, message: "Weight cannot exceed 400 kg" },
-                      })}
+                  <Field
+                    label={tr("symptoms", lang)}
+                    helperText={tr("symptomsHelper", lang)}
+                    error={form.formState.errors.symptoms?.message}
+                  >
+                    <Textarea
+                      rows={3}
+                      placeholder={tr("symptomsPlaceholder", lang)}
+                      className="border-border/80 bg-surface/50 transition-all duration-200 focus:border-teal focus:ring-teal focus-visible:ring-teal text-xs"
+                      {...form.register("symptoms")}
                     />
-                    <span className="absolute right-3 top-2.5 text-xs text-muted-foreground font-mono">
-                      {tr("kg", lang)}
-                    </span>
-                  </div>
-                </Field>
+                  </Field>
+                </div>
               </div>
             )}
 
             {currentStepType === "lifestyle" && (
-              <div className="grid gap-4 sm:grid-cols-2">
-                <Field
-                  label={tr("smoking", lang)}
-                  helperText={tr("helperSmoking", lang)}
-                  error={form.formState.errors.smoking?.message}
-                >
-                  <Select
-                    value={form.watch("smoking")}
-                    onValueChange={(v) => form.setValue("smoking", v as Profile["smoking"])}
+              <div className="space-y-5 text-left animate-fade-in">
+                <div className="grid gap-4 sm:grid-cols-2">
+                  {/* How active are you */}
+                  <Field
+                    label="How active are you?"
+                    helperText="Decides your physical baseline profile"
+                    error={form.formState.errors.exercise?.message}
                   >
-                    <SelectTrigger className="h-10 border-border/80 bg-surface/50 transition-all duration-200 focus:border-teal focus:ring-teal">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="never">{tr("neverSmoked", lang)}</SelectItem>
-                      <SelectItem value="former">{tr("formerSmoker", lang)}</SelectItem>
-                      <SelectItem value="current">{tr("currentSmoker", lang)}</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </Field>
+                    <Select
+                      value={form.watch("exercise")}
+                      onValueChange={(v) => form.setValue("exercise", v as any)}
+                    >
+                      <SelectTrigger className="h-10 border-border/80 bg-surface/50 focus:border-teal focus:ring-teal">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="none">Sedentary (Mostly sitting)</SelectItem>
+                        <SelectItem value="light">Lightly Active (Light walks)</SelectItem>
+                        <SelectItem value="moderate">Moderately Active (Workout 3-5x/wk)</SelectItem>
+                        <SelectItem value="active">Very Active (Heavy sports/gym daily)</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </Field>
 
-                <Field
-                  label={tr("exercise", lang)}
-                  helperText={tr("helperExercise", lang)}
-                  error={form.formState.errors.exercise?.message}
-                >
-                  <Select
-                    value={form.watch("exercise")}
-                    onValueChange={(v) => form.setValue("exercise", v as Profile["exercise"])}
+                  {/* Workout Location */}
+                  <Field
+                    label="Exercise Preference"
+                    helperText="Where do you prefer to workout?"
                   >
-                    <SelectTrigger className="h-10 border-border/80 bg-surface/50 transition-all duration-200 focus:border-teal focus:ring-teal">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="none">{tr("exerciseNone", lang)}</SelectItem>
-                      <SelectItem value="light">{tr("exerciseLight", lang)}</SelectItem>
-                      <SelectItem value="moderate">{tr("exerciseModerate", lang)}</SelectItem>
-                      <SelectItem value="active">{tr("exerciseActive", lang)}</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </Field>
+                    <Select
+                      value={form.watch("exerciseLocation") || "home"}
+                      onValueChange={(v) => form.setValue("exerciseLocation", v as any)}
+                    >
+                      <SelectTrigger className="h-10 border-border/80 bg-surface/50 focus:border-teal focus:ring-teal">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="home">Home Workouts</SelectItem>
+                        <SelectItem value="gym">Gym Center</SelectItem>
+                        <SelectItem value="outdoor">Outdoor / Parks</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </Field>
+                </div>
+
+                {/* Progressive disclosure: show equipment only if Gym/Home is selected */}
+                {(form.watch("exerciseLocation") === "home" || form.watch("exerciseLocation") === "gym") && (
+                  <div className="space-y-2 border-t border-border/40 pt-4 animate-fade-in">
+                    <Label className="text-xs font-bold text-foreground">Available Equipment</Label>
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mt-1.5">
+                      {[
+                        { id: "none", label: "No Equipment" },
+                        { id: "bands", label: "Resistance Bands" },
+                        { id: "dumbbells", label: "Dumbbells" },
+                        { id: "gym", label: "Full Gym Machines" },
+                      ].map((eq) => {
+                        const active = form.watch("equipment") === eq.id;
+                        return (
+                          <button
+                            key={eq.id}
+                            type="button"
+                            onClick={() => form.setValue("equipment", eq.id as any)}
+                            className={`rounded-xl border p-3 text-center transition-all duration-200 cursor-pointer ${
+                              active
+                                ? "border-teal bg-teal/5 text-teal font-semibold shadow-sm"
+                                : "border-border bg-surface text-muted-foreground hover:bg-surface-muted/50"
+                            }`}
+                          >
+                            <span className="text-xs">{eq.label}</span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+
+                <div className="grid gap-4 sm:grid-cols-2 border-t border-border/40 pt-4">
+                  <Field
+                    label="Workout Days per Week"
+                    helperText="Preferred schedule target"
+                  >
+                    <Input
+                      type="number"
+                      min={1}
+                      max={7}
+                      className="h-10 border-border/80 bg-surface/50 focus:border-teal focus:ring-teal"
+                      {...form.register("workoutDaysPerWeek", { valueAsNumber: true })}
+                    />
+                  </Field>
+
+                  <Field
+                    label="Preferred Session Duration"
+                    helperText="Duration per workout session"
+                  >
+                    <div className="relative">
+                      <Input
+                        type="number"
+                        min={10}
+                        max={180}
+                        className="h-10 border-border/80 bg-surface/50 pr-10 focus:border-teal focus:ring-teal"
+                        {...form.register("workoutDuration", { valueAsNumber: true })}
+                      />
+                      <span className="absolute right-3 top-2.5 text-xs text-muted-foreground font-mono">
+                        min
+                      </span>
+                    </div>
+                  </Field>
+                </div>
+
+                <div className="grid gap-4 sm:grid-cols-3 border-t border-border/40 pt-4">
+                  <Field label="Average Sleep">
+                    <Select
+                      value={form.watch("sleepHours") || "7-8"}
+                      onValueChange={(v) => form.setValue("sleepHours", v)}
+                    >
+                      <SelectTrigger className="h-10 border-border/80 bg-surface/50 focus:border-teal focus:ring-teal">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="<5">&lt; 5 hours</SelectItem>
+                        <SelectItem value="5-6">5 - 6 hours</SelectItem>
+                        <SelectItem value="7-8">7 - 8 hours</SelectItem>
+                        <SelectItem value="9+">9+ hours</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </Field>
+
+                  <Field label="Stress Level">
+                    <Select
+                      value={form.watch("stressLevel") || "medium"}
+                      onValueChange={(v) => form.setValue("stressLevel", v as any)}
+                    >
+                      <SelectTrigger className="h-10 border-border/80 bg-surface/50 focus:border-teal focus:ring-teal">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="low">Low</SelectItem>
+                        <SelectItem value="medium">Medium</SelectItem>
+                        <SelectItem value="high">High</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </Field>
+
+                  <Field label="Water Intake">
+                    <Select
+                      value={form.watch("waterIntake") || "2 L"}
+                      onValueChange={(v) => form.setValue("waterIntake", v)}
+                    >
+                      <SelectTrigger className="h-10 border-border/80 bg-surface/50 focus:border-teal focus:ring-teal">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="1 L">1 Litre</SelectItem>
+                        <SelectItem value="2 L">2 Litres</SelectItem>
+                        <SelectItem value="3 L">3 Litres</SelectItem>
+                        <SelectItem value="4+ L">4+ Litres</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </Field>
+                </div>
               </div>
             )}
 
-            {currentStepType === "family" && (
-              <Field
-                label={tr("familyHistory", lang)}
-                tooltip={tr("tooltipFamilyHistory", lang)}
-                helperText={tr("helperFamilyHistory", lang)}
-                error={form.formState.errors.familyHistory?.message}
-              >
-                <Textarea
-                  rows={4}
-                  placeholder={tr("familyHistoryPlaceholder", lang)}
-                  className="border-border/80 bg-surface/50 transition-all duration-200 focus:border-teal focus:ring-teal focus-visible:ring-teal text-xs"
-                  {...form.register("familyHistory")}
-                />
-              </Field>
-            )}
+            {currentStepType === "diet" && (
+              <div className="space-y-5 text-left animate-fade-in">
+                <div className="grid gap-4 sm:grid-cols-2">
+                  {/* Diet Type */}
+                  <Field label="Diet Type">
+                    <Select
+                      value={form.watch("dietType") || "vegetarian"}
+                      onValueChange={(v) => form.setValue("dietType", v as any)}
+                    >
+                      <SelectTrigger className="h-10 border-border/80 bg-surface/50 focus:border-teal focus:ring-teal">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="vegetarian">Vegetarian</SelectItem>
+                        <SelectItem value="eggetarian">Eggetarian</SelectItem>
+                        <SelectItem value="non-vegetarian">Non-Vegetarian</SelectItem>
+                        <SelectItem value="vegan">Vegan</SelectItem>
+                        <SelectItem value="jain">Jain</SelectItem>
+                        <SelectItem value="satvik">Satvik</SelectItem>
+                        <SelectItem value="no-onion-garlic">No Onion & Garlic</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </Field>
 
-            {currentStepType === "symptoms" && (
-              <Field
-                label={tr("symptoms", lang)}
-                tooltip={tr("symptomsTooltip", lang)}
-                helperText={tr("symptomsHelper", lang)}
-                error={form.formState.errors.symptoms?.message}
-              >
-                <Textarea
-                  rows={4}
-                  placeholder={tr("symptomsPlaceholder", lang)}
-                  className="border-border/80 bg-surface/50 transition-all duration-200 focus:border-teal focus:ring-teal focus-visible:ring-teal text-xs"
-                  {...form.register("symptoms")}
-                />
-              </Field>
+                  {/* Regional Cuisine */}
+                  <Field label="Preferred Regional Cuisine">
+                    <Select
+                      value={form.watch("regionalCuisine") || "north"}
+                      onValueChange={(v) => form.setValue("regionalCuisine", v)}
+                    >
+                      <SelectTrigger className="h-10 border-border/80 bg-surface/50 focus:border-teal focus:ring-teal">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="north">North Indian</SelectItem>
+                        <SelectItem value="south">South Indian</SelectItem>
+                        <SelectItem value="gujarati">Gujarati</SelectItem>
+                        <SelectItem value="punjabi">Punjabi</SelectItem>
+                        <SelectItem value="maharashtrian">Maharashtrian</SelectItem>
+                        <SelectItem value="bengali">Bengali</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </Field>
+                </div>
+
+                {/* Foods you DON'T eat */}
+                <div className="space-y-2 border-t border-border/40 pt-4">
+                  <Label className="text-xs font-bold text-foreground">Foods you DON'T eat (Exclusions)</Label>
+                  <div className="grid grid-cols-2 sm:grid-cols-5 gap-3 mt-1.5 rounded-xl border border-border/80 bg-surface-muted/30 p-4">
+                    {[
+                      { id: "paneer", label: "Paneer" },
+                      { id: "milk", label: "Milk / Dairy" },
+                      { id: "eggs", label: "Eggs" },
+                      { id: "fish", label: "Fish" },
+                      { id: "chicken", label: "Chicken" },
+                      { id: "soy", label: "Soy Products" },
+                      { id: "peanuts", label: "Peanuts" },
+                      { id: "gluten", label: "Gluten" },
+                      { id: "onion", label: "Onion" },
+                      { id: "garlic", label: "Garlic" },
+                    ].map((item) => (
+                      <label key={item.id} className="flex items-center gap-2.5 text-xs font-medium text-foreground cursor-pointer">
+                        <input
+                          type="checkbox"
+                          value={item.id}
+                          {...form.register("excludedFoods")}
+                          className="rounded border-border text-teal focus:ring-teal h-4 w-4 cursor-pointer"
+                        />
+                        {item.label}
+                      </label>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="grid gap-4 sm:grid-cols-3 border-t border-border/40 pt-4">
+                  <Field label="Lactose Intolerant?">
+                    <Select
+                      value={form.watch("lactoseIntolerant") ? "yes" : "no"}
+                      onValueChange={(v) => form.setValue("lactoseIntolerant", v === "yes")}
+                    >
+                      <SelectTrigger className="h-10 border-border/80 bg-surface/50 focus:border-teal focus:ring-teal">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="no">No</SelectItem>
+                        <SelectItem value="yes">Yes</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </Field>
+
+                  <Field label="Monthly Budget">
+                    <Select
+                      value={form.watch("budget") || "medium"}
+                      onValueChange={(v) => form.setValue("budget", v as any)}
+                    >
+                      <SelectTrigger className="h-10 border-border/80 bg-surface/50 focus:border-teal focus:ring-teal">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="low">Low Cost (Affordable)</SelectItem>
+                        <SelectItem value="medium">Medium Cost</SelectItem>
+                        <SelectItem value="flexible">Flexible / Premium</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </Field>
+
+                  <Field label="Weight Goal">
+                    <Select
+                      value={form.watch("weightGoal") || "maintain"}
+                      onValueChange={(v) => form.setValue("weightGoal", v as any)}
+                    >
+                      <SelectTrigger className="h-10 border-border/80 bg-surface/50 focus:border-teal focus:ring-teal">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="lose">Weight Loss (Deficit)</SelectItem>
+                        <SelectItem value="maintain">Maintain weight</SelectItem>
+                        <SelectItem value="gain">Weight Gain (Surplus)</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </Field>
+                </div>
+              </div>
             )}
 
             {currentStepType === "blood" && (
@@ -1560,7 +1937,7 @@ function AssessmentPage() {
                     </span>
                   </div>
                   
-                  {flowMode !== "blood" && (
+                  {flowMode !== null && (
                     <>
                       <div className="flex items-center justify-between border-b border-border/40 pb-1.5">
                         <span className="text-muted-foreground text-xs font-mono uppercase tracking-wider">
@@ -1639,26 +2016,42 @@ function AssessmentPage() {
                   >
                     <ArrowLeft className="h-4 w-4" /> {tr("back", lang)}
                   </Button>
-                  <Button
-                    type="button"
-                    onClick={next}
-                    disabled={loading}
-                    className="gap-2 bg-primary text-primary-foreground hover:bg-primary/95 shadow-sm hover:shadow transition-all font-semibold h-9 cursor-pointer"
-                  >
-                    {loading ? (
-                      <>
-                        <Loader2 className="h-4 w-4 animate-spin" /> {tr("analyzing", lang)}
-                      </>
-                    ) : step === total ? (
-                      <>
-                        <Sparkles className="h-4 w-4" /> {tr("generatePlan", lang)}
-                      </>
-                    ) : (
-                      <>
-                        {tr("continueWord", lang)} <ArrowRight className="h-4 w-4" />
-                      </>
+                  <div className="flex items-center gap-2">
+                    {flowMode === "combined" && currentStepType === "diet" && (
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={() => {
+                          form.setValue("bloodReportOnly", false);
+                          form.handleSubmit(submit, onInvalid)();
+                        }}
+                        disabled={loading}
+                        className="gap-2 border-teal/40 text-teal hover:bg-teal/5 font-semibold h-9 cursor-pointer"
+                      >
+                        Skip & Generate Plan <Sparkles className="h-4 w-4" />
+                      </Button>
                     )}
-                  </Button>
+                    <Button
+                      type="button"
+                      onClick={next}
+                      disabled={loading}
+                      className="gap-2 bg-primary text-primary-foreground hover:bg-primary/95 shadow-sm hover:shadow transition-all font-semibold h-9 cursor-pointer"
+                    >
+                      {loading ? (
+                        <>
+                          <Loader2 className="h-4 w-4 animate-spin" /> {tr("analyzing", lang)}
+                        </>
+                      ) : step === total ? (
+                        <>
+                          <Sparkles className="h-4 w-4" /> {tr("generatePlan", lang)}
+                        </>
+                      ) : (
+                        <>
+                          {tr("continueWord", lang)} <ArrowRight className="h-4 w-4" />
+                        </>
+                      )}
+                    </Button>
+                  </div>
                 </div>
               </>
             )}
