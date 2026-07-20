@@ -333,9 +333,32 @@ class TestSanityRangeCheck:
 # ---------------------------------------------------------------------------
 # [LAB-5] screeningProbability is unaffected by labObservations (no leakage)
 # ---------------------------------------------------------------------------
+
 class TestNoScoreLeak:
     """[LAB-5] Model output must be identical regardless of lab observations
     submitted — lab values must never affect the screening probability."""
+
+    @pytest.fixture(autouse=True)
+    def _installed_test_model(self, monkeypatch):
+        import numpy as np
+        from unittest.mock import MagicMock
+        import app.main as main_module
+
+        mock_model = MagicMock()
+        mock_model.predict_proba.return_value = np.array([[0.75, 0.25]])
+
+        mock_metadata = {
+            "lifecycle_status": "RESEARCH_ONLY",
+            "training_date": "synthetic-test-fixture",
+            "active_threshold": {
+                "mean_cutoff": 0.5,
+            },
+        }
+
+        monkeypatch.setattr(main_module, "_model", mock_model)
+        monkeypatch.setattr(main_module, "_model_installed", True)
+        monkeypatch.setattr(main_module, "_model_metadata", mock_metadata)
+        monkeypatch.setattr(main_module, "_model_active_cutoff", 0.5)
 
     def _get_prob(self, lab_observations: list) -> float:
         payload = _make_payload(lab_observations)
