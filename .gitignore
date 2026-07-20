@@ -49,6 +49,10 @@ health-intelligence/.venv/
 health-intelligence/__pycache__/
 health-intelligence/**/*.pyc
 health-intelligence/models/*.json
+# Python generated files
+__pycache__/
+*.py[cod]
+.pytest_cache/
 
 # Research and Raw Datasets
 data/raw/
