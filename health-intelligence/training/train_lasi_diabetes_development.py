@@ -53,7 +53,7 @@ FEATURE_SETS = {
 EXPECTED_COUNTS = {"total": 50_865, "positive": 4_635, "negative": 46_230}
 ALGORITHM_CONFIGS = {
     "logistic_regression": {
-        "penalty": "l2", "solver": "lbfgs", "C": 1.0, "max_iter": 2000,
+        "l1_ratio": 0.0, "solver": "lbfgs", "C": 1.0, "max_iter": 2000,
         "class_weight": None,
     },
     "shallow_decision_tree": {
