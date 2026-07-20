@@ -21,6 +21,8 @@ def cohort():
         "age": [45 + i % 45 for i in range(rows)],
         "sex": [1 + i % 2 for i in range(rows)],
         "bmi": [None if i % 19 == 0 else 18 + i % 20 for i in range(rows)],
+        "family_history_diabetes_parent_sibling": [int(i % 3 == 0) for i in range(rows)],
+        "physical_activity_frequency": [1 + i % 7 for i in range(rows)],
         "waist_cm": [70 + i % 30 for i in range(rows)],
         "systolic_bp": [110 + i % 40 for i in range(rows)],
         "diastolic_bp": [65 + i % 25 for i in range(rows)],
@@ -135,19 +137,35 @@ def test_no_ssu_crosses_development_folds(cohort):
 def test_primary_and_challenger_feature_allowlists():
     primary, primary_raw = selection.build_model("primary_A", 42)
     challenger, challenger_raw = selection.build_model("challenger_C", 42)
+    challenger_d, challenger_d_raw = selection.build_model("challenger_D", 42)
     assert selection.PRIMARY_FEATURES == ["age", "bmi"]
     assert primary_raw == ["age", "bmi"]
     assert challenger_raw == ["age", "bmi", "sex"]
+    assert challenger_d_raw == selection.CHALLENGER_D_FEATURES
     assert selection.CHALLENGER_FEATURES == [
         "age", "bmi", "sex", "age_squared", "bmi_squared", "age_bmi_interaction"
     ]
     assert isinstance(primary.named_steps["preprocessing"], ColumnTransformer)
     numeric = challenger.named_steps["preprocessing"].transformers[0][1]
     assert "engineered_age_bmi" in numeric.named_steps
+    d_transformers = challenger_d.named_steps["preprocessing"].transformers
+    activity = next(
+        transformer for name, transformer, _ in d_transformers
+        if name == "physical_activity_categorical"
+    )
+    assert "one_hot" in activity.named_steps
+    family = next(
+        transformer for name, transformer, _ in d_transformers
+        if name == "family_history_binary"
+    )
+    assert "one_hot" not in family.named_steps
 
 
 def test_forbidden_variables_are_never_predictors():
-    used = set(selection.PRIMARY_FEATURES) | set(selection.CHALLENGER_FEATURES)
+    used = (
+        set(selection.PRIMARY_FEATURES) | set(selection.CHALLENGER_FEATURES)
+        | set(selection.CHALLENGER_D_FEATURES)
+    )
     assert not used & {
         "waist_cm", "systolic_bp", "diastolic_bp", selection.GROUP,
         "state", "india_dbs_weight", selection.TARGET,
@@ -216,13 +234,21 @@ def test_sensitivity_experiments_do_not_alter_primary_data(cohort):
 
 
 def test_preprocessing_stays_inside_pipelines():
-    for model in ("primary_A", "challenger_C"):
+    for model in ("primary_A", "challenger_C", "challenger_D"):
         pipeline, _ = selection.build_model(model, 42)
         assert isinstance(pipeline, Pipeline)
         preprocessing = pipeline.named_steps["preprocessing"]
         for _, transformer, _ in preprocessing.transformers:
             assert isinstance(transformer, Pipeline)
             assert isinstance(transformer.named_steps["imputer"], SimpleImputer)
+
+
+def test_unknown_activity_category_does_not_crash_threshold_challenger(cohort):
+    pipeline, features = selection.build_model("challenger_D", 42)
+    pipeline.fit(cohort[features], cohort[selection.TARGET])
+    unknown = cohort.iloc[[0]][features].copy()
+    unknown["physical_activity_frequency"] = 99
+    assert pipeline.predict_proba(unknown).shape == (1, 2)
 
 
 def test_no_resampling_or_fallback_data_exists():
@@ -240,6 +266,15 @@ def test_outputs_are_aggregate_and_contain_no_group_values(
     output = tmp_path / "external"
     selection.write_outputs(output, "a" * 64, 42, candidates, comparison, stability, sensitivity)
     assert {path.name for path in output.iterdir()} == set(selection.OUTPUT_FILES)
+    assert "challenger_D" in comparison
+    assert comparison["automatic_final_selection"] is False
+    assert comparison["manual_approval_required"] is True
+    assert "challenger_D" in stability
+    manifest = json.loads(
+        (output / "lasi_threshold_run_manifest.json").read_text(encoding="utf-8")
+    )
+    assert manifest["locked_test_evaluated"] is False
+    assert manifest["additional_challenger_D_definition"]["automatically_approved"] is False
     text = "\n".join(path.read_text(encoding="utf-8") for path in output.iterdir())
     for value in cohort[selection.GROUP].unique():
         assert value not in text

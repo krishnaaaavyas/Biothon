@@ -31,7 +31,8 @@ LOCKED_FOLD_INDEX = 0
 SENSITIVITY_TARGETS = [0.80, 0.85, 0.90]
 EXPECTED_COUNTS = {"total": 50_865, "positive": 4_635, "negative": 46_230}
 EXPECTED_SCHEMA = [
-    "age", "sex", "bmi", "waist_cm", "systolic_bp", "diastolic_bp", TARGET,
+    "age", "sex", "bmi", "family_history_diabetes_parent_sibling",
+    "physical_activity_frequency", "waist_cm", "systolic_bp", "diastolic_bp", TARGET,
     "household_group_id", GROUP, "state", "india_dbs_weight",
     "flag_height_100_to_129", "flag_age_above_100", "flag_height_invalid",
     "flag_waist_invalid", "flag_bmi_invalid",
@@ -40,7 +41,15 @@ PRIMARY_FEATURES = ["age", "bmi"]
 CHALLENGER_FEATURES = [
     "age", "bmi", "sex", "age_squared", "bmi_squared", "age_bmi_interaction"
 ]
-FORBIDDEN_PREDICTORS = set(EXPECTED_SCHEMA) - {"age", "bmi", "sex"}
+CHALLENGER_D_FEATURES = [
+    "age", "bmi", "family_history_diabetes_parent_sibling",
+    "physical_activity_frequency",
+]
+ALLOWED_MODEL_PREDICTORS = {
+    "age", "bmi", "sex", "family_history_diabetes_parent_sibling",
+    "physical_activity_frequency",
+}
+FORBIDDEN_PREDICTORS = set(EXPECTED_SCHEMA) - ALLOWED_MODEL_PREDICTORS
 OUTPUT_FILES = [
     "lasi_threshold_candidates.csv", "lasi_threshold_model_comparison.json",
     "lasi_threshold_fold_stability.json", "lasi_threshold_sensitivity_analyses.json",
@@ -160,6 +169,23 @@ def build_model(model_name: str, random_seed: int) -> tuple[Pipeline, list[str]]
             ]), ["sex"],
         ))
         raw_features = ["age", "bmi", "sex"]
+    elif model_name == "challenger_D":
+        numeric_steps.append(("scaler", StandardScaler()))
+        transformers.append(("numeric", Pipeline(numeric_steps), ["age", "bmi"]))
+        transformers.append((
+            "family_history_binary",
+            Pipeline([("imputer", SimpleImputer(strategy="most_frequent"))]),
+            ["family_history_diabetes_parent_sibling"],
+        ))
+        transformers.append((
+            "physical_activity_categorical",
+            Pipeline([
+                ("imputer", SimpleImputer(strategy="most_frequent")),
+                ("one_hot", OneHotEncoder(handle_unknown="ignore", sparse_output=False)),
+            ]),
+            ["physical_activity_frequency"],
+        ))
+        raw_features = CHALLENGER_D_FEATURES.copy()
     else:
         raise ValueError(f"Unknown model definition: {model_name}")
     if set(raw_features) & FORBIDDEN_PREDICTORS:
@@ -328,17 +354,26 @@ def run_analysis(
     target = development[TARGET].to_numpy()
     primary_probability, _ = out_of_fold_probabilities(development, "primary_A", random_seed)
     challenger_probability, _ = out_of_fold_probabilities(development, "challenger_C", random_seed)
+    challenger_d_probability, _ = out_of_fold_probabilities(
+        development, "challenger_D", random_seed
+    )
     primary_candidates = candidate_results(target, primary_probability)
     challenger_candidates = candidate_results(target, challenger_probability)
+    challenger_d_candidates = candidate_results(target, challenger_d_probability)
     stability = {
         "primary_A": fold_stability(development, primary_probability, primary_candidates, random_seed),
         "challenger_C": fold_stability(development, challenger_probability, challenger_candidates, random_seed),
+        "challenger_D": fold_stability(
+            development, challenger_d_probability, challenger_d_candidates,
+            random_seed,
+        ),
     }
     comparison = {
         "automatic_final_selection": False,
         "manual_approval_required": True,
         "primary_A": primary_candidates,
         "challenger_C": challenger_candidates,
+        "challenger_D": challenger_d_candidates,
     }
 
     weighted_probability, _ = out_of_fold_probabilities(
@@ -371,7 +406,11 @@ def run_analysis(
     }
     candidate_rows = [
         {"model": model, **row}
-        for model, rows in (("primary_A", primary_candidates), ("challenger_C", challenger_candidates))
+        for model, rows in (
+            ("primary_A", primary_candidates),
+            ("challenger_C", challenger_candidates),
+            ("challenger_D", challenger_d_candidates),
+        )
         for row in rows
     ]
     return candidate_rows, comparison, stability, sensitivity
@@ -411,6 +450,12 @@ def write_outputs(
             "features": CHALLENGER_FEATURES,
             "pipeline": "fold-local imputation -> degree-2 age/BMI terms and sex encoding -> scaling -> logistic regression",
             "automatically_approved": False,
+        },
+        "additional_challenger_D_definition": {
+            "features": CHALLENGER_D_FEATURES,
+            "pipeline": "fold-local median numeric imputation and scaling; binary family-history imputation; categorical activity imputation and unknown-safe one-hot encoding; logistic regression",
+            "automatically_approved": False,
+            "final_model_selected": False,
         },
         "sensitivity_targets": SENSITIVITY_TARGETS,
         "weighted_training_policy": "india_dbs_weight used only as model sample_weight",

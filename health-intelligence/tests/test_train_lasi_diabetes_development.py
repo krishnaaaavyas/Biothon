@@ -24,6 +24,8 @@ def synthetic_cohort():
         "age": [45 + (i % 45) for i in range(rows)],
         "sex": [1 if i % 2 == 0 else 2 for i in range(rows)],
         "bmi": [None if i % 17 == 0 else 18 + (i % 20) for i in range(rows)],
+        "family_history_diabetes_parent_sibling": [int(i % 3 == 0) for i in range(rows)],
+        "physical_activity_frequency": [1 + i % 7 for i in range(rows)],
         "waist_cm": [70 + (i % 30) for i in range(rows)],
         "systolic_bp": [110 + (i % 40) for i in range(rows)],
         "diastolic_bp": [65 + (i % 25) for i in range(rows)],
@@ -118,7 +120,34 @@ def test_exact_feature_set_allowlists():
         "A": ["age", "bmi"],
         "B": ["age", "bmi", "sex"],
         "C": ["age", "bmi", "sex", "age_squared", "bmi_squared", "age_bmi_interaction"],
+        "D": [
+            "age", "bmi", "family_history_diabetes_parent_sibling",
+            "physical_activity_frequency",
+        ],
     }
+
+
+def test_enrichment_preprocessing_is_categorical_and_identifier_free():
+    pipeline = development.build_pipeline("D", "logistic_regression", 42)
+    preprocessing = pipeline.named_steps["preprocessing"]
+    family = next(
+        transformer for name, transformer, _ in preprocessing.transformers
+        if name == "family_history_binary"
+    )
+    activity = next(
+        transformer for name, transformer, _ in preprocessing.transformers
+        if name == "physical_activity_categorical"
+    )
+    activity_columns = next(
+        columns for name, _, columns in preprocessing.transformers
+        if name == "physical_activity_categorical"
+    )
+    assert activity_columns == ["physical_activity_frequency"]
+    assert "one_hot" in activity.named_steps
+    assert "one_hot" not in family.named_steps
+    assert not {"prim_key", "household_group_id", "ssu_group_id"} & set(
+        development.FEATURE_SETS["D"]
+    )
 
 
 def test_waist_bp_state_weight_target_and_groups_are_never_predictors():
@@ -187,15 +216,34 @@ def test_all_algorithms_and_feature_sets_are_evaluated(experiment_results):
     observed = {(row["feature_set"], row["algorithm"]) for row in fold_rows}
     expected = {("baseline", "dummy_prior")} | {
         (feature_set, algorithm)
-        for feature_set in "ABC"
+        for feature_set in "ABCD"
         for algorithm in (
             "logistic_regression", "shallow_decision_tree",
             "restricted_hist_gradient_boosting",
         )
     }
     assert observed == expected
-    assert len(comparison["configurations"]) == 10
-    assert len(calibration) == 10
+    assert len(comparison["configurations"]) == 13
+    assert len(calibration) == 13
+    expected_d = {
+        "D_logistic_regression", "D_shallow_decision_tree",
+        "D_restricted_hist_gradient_boosting",
+    }
+    assert expected_d <= {
+        item["configuration_name"] for item in comparison["configurations"]
+    }
+    assert expected_d <= {row["configuration_name"] for row in fold_rows}
+    assert expected_d <= set(calibration)
+
+
+def test_unknown_physical_activity_category_does_not_crash(synthetic_cohort):
+    pipeline = development.build_pipeline("D", "logistic_regression", 42)
+    features = development.FEATURE_SETS["D"]
+    pipeline.fit(synthetic_cohort[features], synthetic_cohort[development.TARGET])
+    unknown = synthetic_cohort.iloc[[0]][features].copy()
+    unknown["physical_activity_frequency"] = 99
+    probability = pipeline.predict_proba(unknown)
+    assert probability.shape == (1, 2)
 
 
 def test_no_smote_sampling_or_fallback_dataset_exists():

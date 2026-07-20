@@ -25,6 +25,8 @@ def fixture_files(tmp_path):
         "age": [45, 55, 60, 70, 80, 101],
         "sex": [1, 2, 1, 2, 1, 2],
         "bmi": [20.0, 25.0, None, 30.0, 10.0, 80.0],
+        "family_history_diabetes_parent_sibling": [0, 1, None, 0, 1, 0],
+        "physical_activity_frequency": [1, 2, 3, 4, 5, 7],
         "waist_cm": [40.0, 80.0, 90.0, None, 150.0, 200.0],
         "systolic_bp": [120, 125, None, 140, 150, 160],
         "diastolic_bp": [70, 75, 80, None, 90, 95],
