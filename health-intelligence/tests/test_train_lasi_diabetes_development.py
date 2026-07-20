@@ -233,7 +233,11 @@ def test_outputs_contain_no_group_values_or_predictions(
         output, "a" * 64, {"total": 100, "positive": 20, "negative": 80},
         42, split_summary, fold_rows, comparison, calibration,
     )
+    
     assert {path.name for path in output.iterdir()} == set(development.OUTPUT_FILES)
+    manifest = json.loads(
+    (output / "lasi_development_run_manifest.json").read_text(encoding="utf-8"))
+    assert manifest["locked_test_evaluated"] is False
     text = "\n".join(path.read_text(encoding="utf-8") for path in output.iterdir())
     assert "row_level_predictions" in text  # false manifest declaration only
     assert "probabilities" not in text.lower()

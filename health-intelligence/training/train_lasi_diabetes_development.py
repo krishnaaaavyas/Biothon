@@ -381,6 +381,7 @@ def write_outputs(
         "random_seed": random_seed,
         "split_method": "StratifiedGroupKFold(n_splits=5, shuffle=True)",
         "locked_fold_index": LOCKED_FOLD_INDEX,
+        "locked_test_evaluated": False,
         "locked_test_aggregate_structure": split_summary["locked_test"],
         "development_aggregate_structure": split_summary["development"],
         "feature_set_definitions": FEATURE_SETS,
