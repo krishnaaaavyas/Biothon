@@ -11,14 +11,22 @@ from typing import Any
 try:
     from training.lasi_hypertension_audit_utils import (
         OUTPUT_FILENAMES, contains_row_like_array, has_absolute_path,
+ feat/lasi-hypertension-model-foundation
         suppression_marker, APPROVED_PRODUCTION_PREDICTORS,
         APPROVED_TARGET_RECORDS, AUTHORITATIVE_MAPPING,
+
+        suppression_marker,
+ main
     )
 except ModuleNotFoundError:  # Direct script execution from repository root.
     from lasi_hypertension_audit_utils import (
         OUTPUT_FILENAMES, contains_row_like_array, has_absolute_path,
+ feat/lasi-hypertension-model-foundation
         suppression_marker, APPROVED_PRODUCTION_PREDICTORS,
         APPROVED_TARGET_RECORDS, AUTHORITATIVE_MAPPING,
+
+        suppression_marker,
+ main
     )
 
 
@@ -54,8 +62,13 @@ REQUIRED_FALSE = {
     "locked_test_evaluated",
 }
 CANDIDATE_FIELDS = {
+ feat/lasi-hypertension-model-foundation
     "canonical_name", "source_file", "source_columns", "source_labels", "role", "derived",
     "data_types", "code_meanings", "missing_and_special_codes",
+
+    "canonical_name", "source_file", "source_column", "source_label", "role",
+    "data_type", "code_meanings", "missing_and_special_codes",
+ main
     "proposed_transformation", "available_from_healthguard_users",
     "allowed_in_profile_model", "leakage_rationale", "manual_approval_status",
 }
@@ -127,6 +140,7 @@ def validate_outputs(output_dir: Path, min_cell_count: int = 10) -> dict[str, An
             if not isinstance(candidate, dict):
                 continue
         if candidate.get("role") == "identifier":
+ feat/lasi-hypertension-model-foundation
             if candidate.get("source_labels") or candidate.get("code_meanings"):
                 errors.append("Identifier metadata exposes unsafe label or codebook content")
         if candidate.get("role") == "target_construction":
@@ -136,10 +150,22 @@ def validate_outputs(output_dir: Path, min_cell_count: int = 10) -> dict[str, An
                 if matching != ["not_exported_raw_bp_measurement"]:
                     errors.append("Raw BP observation distribution detected")
 
+            if candidate.get("source_label") is not None or candidate.get("code_meanings"):
+                errors.append("Identifier metadata exposes unsafe label or codebook content")
+        if candidate.get("canonical_name") in {
+            "repeated_systolic_bp", "repeated_diastolic_bp"
+        }:
+            key_suffix = f".{candidate.get('source_column')}"
+            matching = [value for key, value in distributions.items() if key.endswith(key_suffix)]
+            if matching != ["not_exported_raw_bp_measurement"]:
+                errors.append("Raw BP observation distribution detected")
+ main
+
     target_candidates = payloads["lasi_hypertension_target_candidates.json"]["candidates"]
     predictor_candidates = payloads["lasi_hypertension_predictor_candidates.json"]["candidates"]
     if any(item not in candidates for item in target_candidates + predictor_candidates):
         errors.append("Target or predictor candidate is absent from the audited candidate set")
+ feat/lasi-hypertension-model-foundation
     predictor_names = {item.get("canonical_name") for item in predictor_candidates}
     if len(predictor_candidates) != 8 or predictor_names != APPROVED_PRODUCTION_PREDICTORS:
         errors.append("Official predictor allowlist must contain exactly the eight approved features")
@@ -156,6 +182,8 @@ def validate_outputs(output_dir: Path, min_cell_count: int = 10) -> dict[str, An
     for item in target_candidates:
         if item.get("allowed_in_profile_model") is not False:
             errors.append("Target, eligibility, and BP-quality records cannot be model predictors")
+
+ main
 
     manifest = payloads["lasi_hypertension_audit_manifest.json"]
     for field in REQUIRED_FALSE:

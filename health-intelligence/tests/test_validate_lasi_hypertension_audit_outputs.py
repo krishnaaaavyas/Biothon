@@ -10,6 +10,7 @@ from training import validate_lasi_hypertension_audit_outputs as validator
 
 @pytest.fixture
 def valid_output(tmp_path):
+feat/lasi-hypertension-model-foundation
     candidates = []
     for name, mapping in audit.AUTHORITATIVE_MAPPING.items():
         allowed = name in audit.APPROVED_PRODUCTION_PREDICTORS
@@ -33,6 +34,21 @@ def valid_output(tmp_path):
         distributions[f"biomarker.{name}"] = "not_exported_raw_bp_measurement"
     bundle = audit.build_bundle(
         [(candidates, distributions,
+
+    candidate = {
+        "canonical_name": "age", "role": "predictor",
+        "source_file": "synthetic_individual.dta", "source_column": "age_var",
+        "source_label": "Age of respondent", "data_type": "int16",
+        "code_meanings": [], "missing_and_special_codes": "requires_manual_codebook_review",
+        "proposed_transformation": "Preserve documented codes",
+        "available_from_healthguard_users": True,
+        "allowed_in_profile_model": True,
+        "leakage_rationale": "Synthetic test candidate",
+        "manual_approval_status": "requires_manual_review",
+    }
+    bundle = audit.build_bundle(
+        [([candidate], {"individual.age_var": {"45": 10}},
+ main
           {"individual.age_var": {"row_count": 20, "missing_count": 0}})],
         ["synthetic_individual.dta"], ["synthetic_codebook.pdf"], 10,
     )
@@ -123,16 +139,32 @@ def test_unexpected_top_level_schema_fails(valid_output):
 
 
 def test_raw_bp_observation_lists_fail(valid_output):
+ feat/lasi-hypertension-model-foundation
     mutate(
         valid_output, "lasi_hypertension_code_distributions.json",
         lambda payload: payload["distributions"].update(
             {"biomarker.bm006": [120, 130, 140]}
+
+    bp_candidate = {
+        "canonical_name": "repeated_systolic_bp", "role": "target_construction",
+        "source_column": "sbp_1",
+    }
+    mutate(
+        valid_output, "lasi_hypertension_variable_candidates.json",
+        lambda payload: payload["candidates"].append(bp_candidate),
+    )
+    mutate(
+        valid_output, "lasi_hypertension_code_distributions.json",
+        lambda payload: payload["distributions"].update(
+            {"biomarker.sbp_1": [120, 130, 140]}
+ main
         ),
     )
     with pytest.raises(ValueError, match="Raw BP observation"):
         validator.validate_outputs(valid_output, 10)
 
 
+ feat/lasi-hypertension-model-foundation
 def test_validator_rejects_one_unexpected_official_predictor(valid_output):
     mutate(
         valid_output, "lasi_hypertension_predictor_candidates.json",
@@ -145,6 +177,8 @@ def test_validator_rejects_one_unexpected_official_predictor(valid_output):
         validator.validate_outputs(valid_output, 10)
 
 
+
+ main
 def test_validator_cli_defaults_and_requires_output(monkeypatch):
     monkeypatch.setattr("sys.argv", ["validator", "--output-dir", "out"])
     assert validator.parse_args().min_cell_count == 10

@@ -55,6 +55,7 @@ ALLOWED_PROFILE_CANONICAL = {
 }
 FORBIDDEN_PROFILE_ROLES = {"target_construction", "eligibility", "survey_design", "identifier"}
 
+ feat/lasi-hypertension-model-foundation
 # Authoritative, manually approved registry. Broad keyword discovery below is
 # exploratory only and must never mutate or extend this mapping.
 AUTHORITATIVE_MAPPING = {
@@ -220,6 +221,7 @@ def diagnosis_eligibility(series: pd.Series) -> pd.Series:
     result.loc[diagnosis.eq(2)] = True
     return result
 
+ main
 
 def is_within(path: Path, parent: Path) -> bool:
     try:
@@ -259,8 +261,10 @@ def resolve_sources(data_root: Path, codebook_root: Path) -> tuple[dict[str, Pat
 
 def classify_metadata(name: str, label: str) -> dict[str, Any] | None:
     text = f"{name.replace('_', ' ')} {label}".strip()
+ feat/lasi-hypertension-model-foundation
     if re.search(r"\bage at marriage\b", text, re.I):
         return None
+  main
     if DIRECT_IDENTIFIER.search(text):
         return {
             "canonical_name": "direct_identifier_candidate", "role": "identifier",
@@ -334,6 +338,7 @@ def discover_file(
     _, metadata = reader(str(source), metadataonly=True)
     labels = getattr(metadata, "column_names_to_labels", {}) or {}
     types = getattr(metadata, "readstat_variable_types", {}) or {}
+  feat/lasi-hypertension-model-foundation
     available = set(getattr(metadata, "column_names", []) or [])
     candidates = []
     safe_columns: list[str] = []
@@ -375,12 +380,41 @@ def discover_file(
                 if name not in safe_columns:
                     safe_columns.append(name)
                 canonical_by_column[name] = canonical
+
+    candidates = []
+    safe_columns = []
+    canonical_by_column = {}
+    for name in getattr(metadata, "column_names", []) or []:
+        classification = classify_metadata(name, labels.get(name, "") or "")
+        if classification is None:
+            continue
+        record = {
+            **classification,
+            "source_file": source.name,
+            "source_column": str(name),
+            "source_label": None if classification["role"] == "identifier" else str(labels.get(name, "") or ""),
+            "data_type": str(types.get(name, "unknown")),
+            "code_meanings": [] if classification["role"] == "identifier" else _code_meanings(metadata, name),
+            "missing_and_special_codes": "requires_manual_codebook_review",
+            "proposed_transformation": proposed_transformation(classification["canonical_name"]),
+        }
+        candidates.append(record)
+        if classification["role"] != "identifier":
+            safe_columns.append(name)
+            canonical_by_column[name] = classification["canonical_name"]
+  main
     distributions: dict[str, Any] = {}
     missingness: dict[str, Any] = {}
     if safe_columns:
         frame, _ = reader(str(source), usecols=safe_columns, apply_value_formats=False)
         for name in sorted(safe_columns):
+ feat/lasi-hypertension-model-foundation
             if AUTHORITATIVE_MAPPING[canonical_by_column[name]]["role"] == "target_construction":
+
+            if canonical_by_column[name] in {
+                "repeated_systolic_bp", "repeated_diastolic_bp"
+            }:
+    main
                 distributions[f"{role}.{name}"] = "not_exported_raw_bp_measurement"
             else:
                 distributions[f"{role}.{name}"] = aggregate_distribution(
@@ -390,12 +424,17 @@ def discover_file(
                 "row_count": int(len(frame)),
                 "missing_count": suppress_count(int(frame[name].isna().sum()), min_cell_count),
             }
+ feat/lasi-hypertension-model-foundation
     return sorted(candidates, key=lambda item: (item["role"], item["canonical_name"])), distributions, missingness
+
+    return sorted(candidates, key=lambda item: (item["role"], item["source_column"])), distributions, missingness
+  main
 
 
 def proposed_transformation(canonical: str) -> str:
     if canonical == "bmi":
         return "Use an approved BMI field or deterministically calculate from approved height and weight; do not guess units."
+ feat/lasi-hypertension-model-foundation
     if canonical in {"height_cm", "weight_kg"}:
         return "Confirm units and validity metadata; inputs may support deterministic BMI calculation."
     if canonical.startswith("systolic_") or canonical.startswith("diastolic_") or canonical.startswith("provided_last_two_"):
@@ -424,6 +463,15 @@ def _canonical_records(candidates: list[dict[str, Any]]) -> dict[str, dict[str, 
     return records
 
 
+
+    if canonical in {"height", "weight"}:
+        return "Confirm units and validity metadata; inputs may support deterministic BMI calculation."
+    if canonical in {"repeated_systolic_bp", "repeated_diastolic_bp"}:
+        return "Target evidence only; representative-reading aggregation intentionally unresolved."
+    return "Preserve documented codes; transformation requires manual semantic and codebook approval."
+
+
+ main
 def build_bundle(
     source_results: list[tuple[list[dict[str, Any]], dict[str, Any], dict[str, Any]]],
     source_basenames: list[str],
@@ -433,9 +481,14 @@ def build_bundle(
     candidates = [record for result, _, _ in source_results for record in result]
     distributions = {key: value for _, values, _ in source_results for key, value in values.items()}
     missingness = {key: value for _, _, values in source_results for key, value in values.items()}
+ feat/lasi-hypertension-model-foundation
     records = _canonical_records(candidates)
     predictors = [records[name] for name in sorted(APPROVED_PRODUCTION_PREDICTORS) if name in records]
     target = [records[name] for name in sorted(APPROVED_TARGET_RECORDS) if name in records]
+
+    target = [item for item in candidates if item["role"] in {"target_construction", "eligibility"}]
+    predictors = [item for item in candidates if item["role"] == "predictor"]
+ main
     return {
         "lasi_hypertension_variable_candidates.json": {
             "aggregate_metadata_only": True, "candidates": candidates,
@@ -485,7 +538,7 @@ def write_bundle(bundle: dict[str, Any], output_dir: Path) -> None:
             json.dumps(bundle[filename], indent=2, sort_keys=True), encoding="utf-8"
         )
 
-
+ feat/lasi-hypertension-model-foundation
 def validate_official_candidate_sets(bundle: dict[str, Any]) -> None:
     predictors = bundle["lasi_hypertension_predictor_candidates.json"]["candidates"]
     targets = bundle["lasi_hypertension_target_candidates.json"]["candidates"]
@@ -497,6 +550,8 @@ def validate_official_candidate_sets(bundle: dict[str, Any]) -> None:
         raise RuntimeError("Approved target/eligibility/quality metadata is incomplete; no audit output written")
 
 
+
+ main
 def contains_row_like_array(value: Any) -> bool:
     if isinstance(value, dict):
         return any(contains_row_like_array(item) for item in value.values())
@@ -539,6 +594,9 @@ def execute_audit(
         results, [path.name for path in sources.values()], codebooks,
         min_cell_count,
     )
+ feat/lasi-hypertension-model-foundation
     validate_official_candidate_sets(bundle)
+
+ main
     write_bundle(bundle, output_dir)
     return bundle

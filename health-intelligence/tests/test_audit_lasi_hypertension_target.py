@@ -1,6 +1,9 @@
 """Synthetic-only tests for LASI hypertension target auditing."""
 
-import pandas as pd
+feat/lasi-hypertension-model-foundation
+  import pandas as pd
+
+main
 import pytest
 
 from training import audit_lasi_hypertension_target as target_cli
@@ -8,6 +11,7 @@ from training import lasi_hypertension_audit_utils as audit
 
 
 def test_target_and_predictor_candidates_remain_separated():
+  <<<<<<< feat/lasi-hypertension-model-foundation
     candidates = []
     for canonical, mapping in audit.AUTHORITATIVE_MAPPING.items():
         candidates.append({
@@ -20,6 +24,18 @@ def test_target_and_predictor_candidates_remain_separated():
     predictors = bundle["lasi_hypertension_predictor_candidates.json"]
     assert {item["canonical_name"] for item in target["candidates"]} == audit.APPROVED_TARGET_RECORDS
     assert {item["canonical_name"] for item in predictors["candidates"]} == audit.APPROVED_PRODUCTION_PREDICTORS
+
+    candidates = [
+        {**audit.classify_metadata("sbp", "Systolic blood pressure reading 1"), "source_column": "sbp"},
+        {**audit.classify_metadata("dx", "Doctor diagnosed hypertension"), "source_column": "dx"},
+        {**audit.classify_metadata("age", "Age of respondent"), "source_column": "age"},
+    ]
+    bundle = audit.build_bundle([(candidates, {}, {})], ["synthetic.dta"], ["codes.pdf"], 10)
+    target = bundle["lasi_hypertension_target_candidates.json"]
+    predictors = bundle["lasi_hypertension_predictor_candidates.json"]
+    assert {item["source_column"] for item in target["candidates"]} == {"sbp", "dx"}
+    assert {item["source_column"] for item in predictors["candidates"]} == {"age"}
+      main
     assert target["target_constructed"] is False
     assert target["representative_bp_aggregation_approved"] is False
 
@@ -56,6 +72,7 @@ def test_no_model_or_cohort_pipeline_is_created():
     assert manifest["cohort_created"] is False
     assert manifest["locked_test_created"] is False
     assert manifest["locked_test_evaluated"] is False
+ feat/lasi-hypertension-model-foundation
 
 
 def test_family_history_derivation_excludes_grandchildren():
@@ -101,3 +118,5 @@ def test_diagnosis_eligibility_does_not_require_medication_for_ht002_no():
     assert diagnosis.iloc[:2].tolist() == [False, True]
     assert diagnosis.iloc[2:].isna().all()
     assert audit.AUTHORITATIVE_MAPPING["current_hypertension_medication"]["role"] == "eligibility"
+
+  main

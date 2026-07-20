@@ -1,15 +1,21 @@
 """Synthetic-only tests for the LASI hypertension variable audit."""
 
 import json
+feat/lasi-hypertension-model-foundation
 import sys
+
+main
 from types import SimpleNamespace
 
 import pandas as pd
 import pytest
 
 from training import audit_lasi_hypertension_variables as cli
+ feat/lasi-hypertension-model-foundation
 from training import audit_lasi_hypertension_target as target_cli
 from training.validate_lasi_hypertension_audit_outputs import validate_outputs
+
+main
 from training import lasi_hypertension_audit_utils as audit
 
 
@@ -17,6 +23,7 @@ from training import lasi_hypertension_audit_utils as audit
 def synthetic_metadata():
     return SimpleNamespace(
         column_names=[
+   feat/lasi-hypertension-model-foundation
             *sorted(audit.authoritative_columns()), "unrelated",
         ],
         column_names_to_labels={
@@ -25,6 +32,31 @@ def synthetic_metadata():
         },
         readstat_variable_types={},
         variable_value_labels={"dm003": {1: "Male", 2: "Female"}},
+
+            "age_var", "sex_var", "height_var", "weight_var", "bmi_var",
+            "family_bp", "activity", "smoking", "sbp_reading_1",
+            "dbp_reading_1", "bp_complete", "diagnosis", "medication",
+            "survey_weight", "cluster", "prim_key", "unrelated",
+        ],
+        column_names_to_labels={
+            "age_var": "Age of respondent", "sex_var": "Respondent sex",
+            "height_var": "Measured height", "weight_var": "Measured weight",
+            "bmi_var": "Body mass index", "family_bp": "Family history of hypertension",
+            "activity": "Physical activity category", "smoking": "Current smoking category",
+            "sbp_reading_1": "Systolic blood pressure reading 1",
+            "dbp_reading_1": "Diastolic blood pressure reading 1",
+            "bp_complete": "Blood pressure measurement complete",
+            "diagnosis": "Doctor diagnosed hypertension",
+            "medication": "Medication for high blood pressure",
+            "survey_weight": "Survey weight", "cluster": "Primary sampling cluster",
+            "prim_key": "Respondent identifier", "unrelated": "Housing roof material",
+        },
+        readstat_variable_types={},
+        variable_value_labels={
+            "sex_var": {1: "Male", 2: "Female"},
+            "activity": {1: "Active", 2: "Inactive"},
+        },
+ main
     )
 
 
@@ -35,9 +67,15 @@ def synthetic_reader(metadata, rows=20):
         columns = kwargs["usecols"]
         data = {}
         for column in columns:
+ feat/lasi-hypertension-model-foundation
             if column in {"bm006", "bm007", "bm010", "bm011", "bm014", "bm015", "bm017", "bm018"}:
                 data[column] = list(range(100, 100 + rows))
             elif column == "hb211":
+
+            if column in {"sbp_reading_1", "dbp_reading_1"}:
+                data[column] = list(range(100, 100 + rows))
+            elif column == "activity":
+ main
                 data[column] = [1] * 15 + [2] * 5
             else:
                 data[column] = [1] * rows
@@ -56,12 +94,30 @@ def test_real_data_is_not_required_for_metadata_discovery(tmp_path, synthetic_me
 
 
 def test_approved_profile_fields_and_bmi_requirements_are_represented():
+  feat/lasi-hypertension-model-foundation
     assert audit.APPROVED_PRODUCTION_PREDICTORS == {
         "age", "sex", "height_cm", "weight_kg", "bmi",
         "family_history_hypertension", "physical_activity_category",
         "smoking_category",
     }
     assert audit.AUTHORITATIVE_MAPPING["bmi"]["columns"] == ("bm067", "bm071")
+
+    expected = {
+        "age", "sex", "height", "weight", "bmi",
+        "family_history_hypertension", "physical_activity_category",
+        "smoking_category",
+    }
+    observed = {
+        audit.classify_metadata(name, label)["canonical_name"]
+        for name, label in [
+            ("a", "Age of respondent"), ("s", "Respondent sex"),
+            ("h", "Measured height"), ("w", "Measured weight"),
+            ("b", "Body mass index"), ("f", "Family history of hypertension"),
+            ("p", "Physical activity category"), ("t", "Current smoking category"),
+        ]
+    }
+    assert observed == expected
+ main
     assert "deterministically calculate" in audit.proposed_transformation("bmi")
 
 
@@ -87,6 +143,7 @@ def test_direct_identifiers_are_prohibited_and_never_loaded(
         tmp_path / "synthetic.dta", "individual", 10,
         reader=synthetic_reader(synthetic_metadata),
     )
+  feat/lasi-hypertension-model-foundation
     identifier = next(item for item in candidates if item["canonical_name"] == "private_join_key")
     assert identifier["allowed_in_profile_model"] is False
     assert identifier["source_labels"] == []
@@ -153,6 +210,23 @@ def test_broad_discovery_cannot_extend_authoritative_allowlist():
     assert set(audit.APPROVED_PRODUCTION_PREDICTORS) == before
     assert "walking_safety" not in audit.authoritative_columns()
 
+    identifier = next(item for item in candidates if item["role"] == "identifier")
+    assert identifier["allowed_in_profile_model"] is False
+    assert identifier["source_label"] is None
+    assert identifier["code_meanings"] == []
+
+
+def test_small_cells_suppressed_and_bp_values_not_exported(tmp_path, synthetic_metadata):
+    _, distributions, _ = audit.discover_file(
+        tmp_path / "synthetic.dta", "individual", 10,
+        reader=synthetic_reader(synthetic_metadata),
+    )
+    assert distributions["individual.activity"]["2"] == "SUPPRESSED_BELOW_10"
+    assert distributions["individual.activity"]["1"] == 15
+    assert distributions["individual.sbp_reading_1"] == "not_exported_raw_bp_measurement"
+    assert distributions["individual.dbp_reading_1"] == "not_exported_raw_bp_measurement"
+  >>>>>>> main
+
 
 def test_paths_inside_repository_and_raw_output_nesting_are_rejected(
     tmp_path, monkeypatch
@@ -182,6 +256,7 @@ def test_output_generation_is_deterministic_and_aggregate_only(tmp_path):
     assert first["lasi_hypertension_audit_manifest.json"]["model_trained"] is False
 
 
+  <<<<<<< feat/lasi-hypertension-model-foundation
 def test_both_cli_paths_generate_exact_authoritative_outputs(
     tmp_path, monkeypatch, synthetic_metadata
 ):
@@ -226,6 +301,8 @@ def test_broad_distractors_never_enter_official_allowlist(name, label):
     assert discovered is None or discovered["canonical_name"] not in audit.APPROVED_PRODUCTION_PREDICTORS
 
 
+
+  >>>>>>> main
 def test_cli_defaults_to_ten_and_requires_roots(monkeypatch):
     monkeypatch.setattr("sys.argv", [
         "audit", "--data-root", "data", "--codebook-root", "codes",
