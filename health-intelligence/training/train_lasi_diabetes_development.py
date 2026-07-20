@@ -34,7 +34,8 @@ TARGET = "target_undiagnosed_diabetes"
 GROUP_COLUMN = "ssu_group_id"
 LOCKED_FOLD_INDEX = 0
 EXPECTED_SCHEMA = [
-    "age", "sex", "bmi", "waist_cm", "systolic_bp", "diastolic_bp",
+    "age", "sex", "bmi", "family_history_diabetes_parent_sibling",
+    "physical_activity_frequency", "waist_cm", "systolic_bp", "diastolic_bp",
     TARGET, "household_group_id", GROUP_COLUMN, "state", "india_dbs_weight",
     "flag_height_100_to_129", "flag_age_above_100", "flag_height_invalid",
     "flag_waist_invalid", "flag_bmi_invalid",
@@ -44,11 +45,19 @@ FORBIDDEN_COLUMNS = {
     "stateindividualweight", "statedbsweight", "target_any_diabetes",
     "five_category_outcome",
 }
-FORBIDDEN_PREDICTORS = set(EXPECTED_SCHEMA) - {"age", "bmi", "sex"}
+MODEL_PREDICTORS = {
+    "age", "bmi", "sex", "family_history_diabetes_parent_sibling",
+    "physical_activity_frequency",
+}
+FORBIDDEN_PREDICTORS = set(EXPECTED_SCHEMA) - MODEL_PREDICTORS
 FEATURE_SETS = {
     "A": ["age", "bmi"],
     "B": ["age", "bmi", "sex"],
     "C": ["age", "bmi", "sex", "age_squared", "bmi_squared", "age_bmi_interaction"],
+    "D": [
+        "age", "bmi", "family_history_diabetes_parent_sibling",
+        "physical_activity_frequency",
+    ],
 }
 EXPECTED_COUNTS = {"total": 50_865, "positive": 4_635, "negative": 46_230}
 ALGORITHM_CONFIGS = {
@@ -158,7 +167,7 @@ def validate_prerequisites(
 def validate_feature_policy(feature_set: str) -> None:
     if feature_set not in FEATURE_SETS:
         raise ValueError(f"Unknown feature set: {feature_set}")
-    allowed_raw = {name for name in FEATURE_SETS[feature_set] if name in {"age", "bmi", "sex"}}
+    allowed_raw = {name for name in FEATURE_SETS[feature_set] if name in MODEL_PREDICTORS}
     if allowed_raw & FORBIDDEN_PREDICTORS:
         raise ValueError("Forbidden diabetes predictor requested")
     if feature_set == "C" and set(FEATURE_SETS[feature_set][3:]) != {
@@ -191,6 +200,22 @@ def build_pipeline(feature_set: str, algorithm: str, random_seed: int) -> Pipeli
                 ("one_hot", OneHotEncoder(handle_unknown="ignore", sparse_output=False)),
             ]),
             ["sex"],
+        ))
+    if feature_set == "D":
+        transformers.append((
+            "family_history_binary",
+            Pipeline([
+                ("imputer", SimpleImputer(strategy="most_frequent")),
+            ]),
+            ["family_history_diabetes_parent_sibling"],
+        ))
+        transformers.append((
+            "physical_activity_categorical",
+            Pipeline([
+                ("imputer", SimpleImputer(strategy="most_frequent")),
+                ("one_hot", OneHotEncoder(handle_unknown="ignore", sparse_output=False)),
+            ]),
+            ["physical_activity_frequency"],
         ))
     preprocessing = ColumnTransformer(transformers, remainder="drop")
     if algorithm == "logistic_regression":
@@ -271,7 +296,7 @@ def _calibration_bins(
 def _configuration_specs() -> list[tuple[str, str]]:
     return [("baseline", "dummy_prior")] + [
         (feature_set, algorithm)
-        for feature_set in ("A", "B", "C")
+        for feature_set in ("A", "B", "C", "D")
         for algorithm in (
             "logistic_regression", "shallow_decision_tree",
             "restricted_hist_gradient_boosting",
@@ -303,7 +328,7 @@ def run_development_experiments(
                 validation_x = np.zeros((len(validation), 1))
             else:
                 pipeline = build_pipeline(feature_set, algorithm, random_seed)
-                raw_features = [name for name in FEATURE_SETS[feature_set] if name in {"age", "bmi", "sex"}]
+                raw_features = [name for name in FEATURE_SETS[feature_set] if name in MODEL_PREDICTORS]
                 train_x = train[raw_features]
                 validation_x = validation[raw_features]
             train_y = train[TARGET].to_numpy()

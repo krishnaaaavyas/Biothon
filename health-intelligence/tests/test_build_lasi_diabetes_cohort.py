@@ -21,6 +21,11 @@ def synthetic_frames():
         "dm005": [45, 55, 60, 44, 70, 80, 101, 50],
         "ht003": [2, 2, 1, 2, 2, 2, None, 2],
         "stateindividualweight": [1.0] * 8,
+        "fm304s1": [0, 1, 0, 0, 0, 0, 1, 0],
+        "fm304s2": [0, None, 0, 0, None, 0, 0, 0],
+        "fm304s3": [0, 0, 0, 0, 0, 0, 0, 0],
+        "fm304s4": [0, None, 0, 0, 0, 0, 0, 0],
+        "fs507": [1, 7, 2, 3, 99, 4, 5, 6],
     })
     biomarker = pd.DataFrame({
         "prim_key": keys,
@@ -50,6 +55,48 @@ def test_target_boundary_and_eligibility(synthetic_frames):
     cohort, counts = build(synthetic_frames)
     assert counts == {"total": 3, "positive": 1, "negative": 2}
     assert cohort["target_undiagnosed_diabetes"].tolist() == [0, 1, 0]
+
+
+def test_enrichment_derivations_preserve_rows_and_target(synthetic_frames):
+    cohort, counts = build(synthetic_frames)
+
+    assert len(cohort) == 3
+    assert counts == {"total": 3, "positive": 1, "negative": 2}
+    assert cohort["target_undiagnosed_diabetes"].tolist() == [0, 1, 0]
+    assert cohort["family_history_diabetes_parent_sibling"].iloc[:2].tolist() == [0, 1]
+    assert pd.isna(cohort["family_history_diabetes_parent_sibling"].iloc[2])
+    assert cohort["physical_activity_frequency"].iloc[:2].tolist() == [1, 7]
+    assert pd.isna(cohort["physical_activity_frequency"].iloc[2])
+
+
+@pytest.mark.parametrize(
+    ("values", "expected"),
+    [
+        ([0, 0, 0, 0], 0),
+        ([1, 0, 0, 0], 1),
+        ([0, 1, 0, 0], 1),
+        ([0, 0, 1, 0], 1),
+        ([0, 0, 0, 1], 1),
+        ([1, None, None, 0], 1),
+        ([0, None, 0, 0], pd.NA),
+        ([0, 2, 0, 0], pd.NA),
+    ],
+)
+def test_family_history_derivation_cases(values, expected):
+    frame = pd.DataFrame([values], columns=["fm304s1", "fm304s2", "fm304s3", "fm304s4"])
+    actual = builder.derive_family_history(frame).iloc[0]
+    if pd.isna(expected):
+        assert pd.isna(actual)
+    else:
+        assert actual == expected
+
+
+def test_physical_activity_valid_categories_and_invalid_to_missing():
+    cleaned = builder.clean_physical_activity_frequency(
+        pd.Series([1, 2, 3, 4, 5, 6, 7, 0, 8, None, "bad"])
+    )
+    assert cleaned.iloc[:7].tolist() == list(range(1, 8))
+    assert cleaned.iloc[7:].isna().all()
 
 
 def test_known_underage_and_missing_target_evidence_are_excluded(synthetic_frames):
@@ -180,6 +227,17 @@ def test_only_approved_columns_are_read(tmp_path):
     assert list(frame) == builder.APPROVED_COLUMNS["dbs"]
 
 
+def test_individual_source_allowlist_contains_only_required_enrichment_columns():
+    assert builder.APPROVED_COLUMNS["individual"] == [
+        "prim_key", "hhid", "ssuid", "dm003", "dm005", "ht003",
+        "stateindividualweight", "fm304s1", "fm304s2", "fm304s3",
+        "fm304s4", "fs507",
+    ]
+    assert not {"fm304", "hb212", "hb214", "tu020", "ht229s7"} & set(
+        builder.APPROVED_COLUMNS["individual"]
+    )
+
+
 def test_outputs_are_secure_and_manifests_have_no_absolute_paths(
     tmp_path, synthetic_frames
 ):
@@ -199,11 +257,26 @@ def test_outputs_are_secure_and_manifests_have_no_absolute_paths(
     assert list(exported) == builder.OUTPUT_SCHEMA
     manifest_text = (output / builder.OUTPUT_FILES["manifest"]).read_text()
     manifest = json.loads(manifest_text)
+    summary = json.loads(
+        (output / builder.OUTPUT_FILES["summary"]).read_text(encoding="utf-8")
+    )
     assert manifest["contains_raw_identifiers"] is False
     assert manifest["contains_target_defining_variables"] is False
     assert manifest["contains_synthetic_training_records"] is False
     assert str(tmp_path.resolve()) not in manifest_text
     assert set(manifest["source_files"].values()) == set(builder.EXPECTED_FILENAMES.values())
+    enrichment = summary["enrichment_feature_audit"]
+    assert enrichment["final_cohort_row_count"] == 3
+    assert enrichment["family_history_counts"] == {
+        "positive": "suppressed", "negative": "suppressed"
+    }
+    assert enrichment["physical_activity_frequency_code_counts"]["1"] == "suppressed"
+    assert enrichment["physical_activity_frequency_code_counts"]["2"] == 0
+    assert enrichment["unexpected_source_code_counts"][
+        "physical_activity_frequency"
+    ] == "suppressed"
+    assert enrichment["contains_participant_rows"] is False
+    assert enrichment["contains_identifier_values"] is False
 
 
 def test_production_cli_requires_all_real_paths_and_has_no_fallback(monkeypatch):

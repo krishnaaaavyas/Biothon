@@ -20,7 +20,8 @@ import pandas as pd
 
 
 EXPECTED_SCHEMA = [
-    "age", "sex", "bmi", "waist_cm", "systolic_bp", "diastolic_bp",
+    "age", "sex", "bmi", "family_history_diabetes_parent_sibling",
+    "physical_activity_frequency", "waist_cm", "systolic_bp", "diastolic_bp",
     "target_undiagnosed_diabetes", "household_group_id", "ssu_group_id",
     "state", "india_dbs_weight", "flag_height_100_to_129",
     "flag_age_above_100", "flag_height_invalid", "flag_waist_invalid",
@@ -139,12 +140,24 @@ def _distribution(series: pd.Series) -> dict[str, int]:
 
 def _calculated_summary(cohort: pd.DataFrame, counts: dict[str, int]) -> dict[str, Any]:
     age = pd.to_numeric(cohort["age"], errors="coerce")
+    suppress = lambda count: 0 if count == 0 else ("suppressed" if count < 10 else count)
     return {
         "row_count": counts["total"],
         "target_counts": counts,
         "predictor_missingness": {
-            column: int(cohort[column].isna().sum())
-            for column in ["age", "sex", "bmi", "waist_cm", "systolic_bp", "diastolic_bp"]
+            column: (
+                suppress(int(cohort[column].isna().sum()))
+                if column in {
+                    "family_history_diabetes_parent_sibling",
+                    "physical_activity_frequency",
+                }
+                else int(cohort[column].isna().sum())
+            )
+            for column in [
+                "age", "sex", "bmi", "family_history_diabetes_parent_sibling",
+                "physical_activity_frequency", "waist_cm", "systolic_bp",
+                "diastolic_bp",
+            ]
         },
         "sex_distribution": _distribution(cohort["sex"]),
         "age_band_counts": {
@@ -229,12 +242,24 @@ def validate_cohort(
         bmi = pd.to_numeric(cohort["bmi"], errors="coerce")
         waist = pd.to_numeric(cohort["waist_cm"], errors="coerce")
         weight = pd.to_numeric(cohort["india_dbs_weight"], errors="coerce")
+        family_history = pd.to_numeric(
+            cohort["family_history_diabetes_parent_sibling"], errors="coerce"
+        )
+        physical_activity = pd.to_numeric(
+            cohort["physical_activity_frequency"], errors="coerce"
+        )
         range_checks = {
             "age_below_45_or_missing": int((age.lt(45) | age.isna()).sum()),
             "invalid_sex_code_or_missing": int((~sex.isin([1, 2])).sum()),
             "bmi_outside_10_to_80": int((bmi.notna() & ~bmi.between(10, 80)).sum()),
             "waist_outside_40_to_200": int((waist.notna() & ~waist.between(40, 200)).sum()),
             "nonfinite_or_nonpositive_weight": int((~np.isfinite(weight) | weight.le(0)).sum()),
+            "invalid_family_history_code": int(
+                family_history.notna().mul(~family_history.isin([0, 1])).sum()
+            ),
+            "invalid_physical_activity_code": int(
+                physical_activity.notna().mul(~physical_activity.isin(range(1, 8))).sum()
+            ),
         }
         for name, count in range_checks.items():
             _add(count == 0, f"Range validation failed: {name}", errors)

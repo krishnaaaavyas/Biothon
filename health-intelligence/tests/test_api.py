@@ -117,6 +117,7 @@ class TestModelInstalled(unittest.TestCase):
         mock_model.predict_proba.return_value = np.array([[0.75, 0.25]])
 
         mock_metadata = {
+            "active_threshold": {"mean_cutoff": 0.5,},
             "lifecycle_status": "RESEARCH_ONLY",
             "model_type": "LogisticRegression(C=1.0, solver=lbfgs)",
             "training_date": "2026-01-01T00:00:00Z",
@@ -140,12 +141,13 @@ class TestModelInstalled(unittest.TestCase):
 
         cls._mock_model    = mock_model
         cls._mock_metadata = mock_metadata
-        cls._patches       = unittest.mock.patch.multiple(
-            main_module,
-            _model=mock_model,
-            _model_installed=True,
-            _model_metadata=mock_metadata,
-        )
+        cls._patches = unittest.mock.patch.multiple(
+    main_module,
+    _model=mock_model,
+    _model_installed=True,
+    _model_metadata=mock_metadata,
+    _model_active_cutoff=0.5,
+)
         cls._patches.start()
 
     @classmethod

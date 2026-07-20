@@ -31,7 +31,8 @@ EXPECTED_FILENAMES = {
 APPROVED_COLUMNS = {
     "individual": [
         "prim_key", "hhid", "ssuid", "dm003", "dm005", "ht003",
-        "stateindividualweight",
+        "stateindividualweight", "fm304s1", "fm304s2", "fm304s3",
+        "fm304s4", "fs507",
     ],
     "biomarker": [
         "prim_key", "state", "bm017", "bm018", "bm067", "bm071",
@@ -40,7 +41,8 @@ APPROVED_COLUMNS = {
     "dbs": ["prim_key", "hba1c", "indiadbsweight", "statedbsweight"],
 }
 OUTPUT_SCHEMA = [
-    "age", "sex", "bmi", "waist_cm", "systolic_bp", "diastolic_bp",
+    "age", "sex", "bmi", "family_history_diabetes_parent_sibling",
+    "physical_activity_frequency", "waist_cm", "systolic_bp", "diastolic_bp",
     "target_undiagnosed_diabetes", "household_group_id", "ssu_group_id",
     "state", "india_dbs_weight", "flag_height_100_to_129",
     "flag_age_above_100", "flag_height_invalid", "flag_waist_invalid",
@@ -48,7 +50,8 @@ OUTPUT_SCHEMA = [
 ]
 EXCLUDED_COLUMNS = [
     "prim_key", "hhid", "ssuid", "hba1c", "ht003", "ht003c", "ht003d",
-    "stateindividualweight", "statedbsweight",
+    "stateindividualweight", "statedbsweight", "fm304s1", "fm304s2",
+    "fm304s3", "fm304s4", "fs507",
 ]
 EXPECTED_COUNTS = {"total": 50_865, "positive": 4_635, "negative": 46_230}
 OUTPUT_FILES = {
@@ -173,6 +176,22 @@ def _numeric(series: pd.Series) -> pd.Series:
     return pd.to_numeric(series, errors="coerce").replace([np.inf, -np.inf], np.nan)
 
 
+def derive_family_history(frame: pd.DataFrame) -> pd.Series:
+    values = pd.DataFrame({
+        column: _numeric(frame[column])
+        for column in ("fm304s1", "fm304s2", "fm304s3", "fm304s4")
+    })
+    derived = pd.Series(pd.NA, index=frame.index, dtype="Int8")
+    derived.loc[values.eq(1).any(axis=1)] = 1
+    derived.loc[values.eq(0).all(axis=1)] = 0
+    return derived
+
+
+def clean_physical_activity_frequency(series: pd.Series) -> pd.Series:
+    numeric = _numeric(series)
+    return numeric.where(numeric.isin(range(1, 8))).astype("Int8")
+
+
 def construct_cohort(
     individual: pd.DataFrame,
     biomarker: pd.DataFrame,
@@ -199,6 +218,25 @@ def construct_cohort(
     selected = merged.loc[eligible].copy()
     selected_age = age.loc[eligible]
     selected_hba1c = hba1c.loc[eligible]
+    family_history = derive_family_history(selected[
+        ["individual__fm304s1", "individual__fm304s2", "individual__fm304s3",
+         "individual__fm304s4"]
+    ].rename(columns=lambda name: name.removeprefix("individual__")))
+    physical_activity = clean_physical_activity_frequency(
+        selected["individual__fs507"]
+    )
+    family_unexpected = sum(
+        int(
+            selected[f"individual__{column}"].notna().sum()
+            - _numeric(selected[f"individual__{column}"]).isin([0, 1]).sum()
+        )
+        for column in ("fm304s1", "fm304s2", "fm304s3", "fm304s4")
+    )
+    activity_raw = _numeric(selected["individual__fs507"])
+    activity_unexpected = int(
+        selected["individual__fs507"].notna().sum()
+        - activity_raw.isin(range(1, 8)).sum()
+    )
 
     height = _numeric(selected["biomarker__bm067"])
     weight = _numeric(selected["biomarker__bm071"])
@@ -228,6 +266,8 @@ def construct_cohort(
         "age": selected_age,
         "sex": selected["individual__dm003"],
         "bmi": bmi,
+        "family_history_diabetes_parent_sibling": family_history,
+        "physical_activity_frequency": physical_activity,
         "waist_cm": clean_waist,
         "systolic_bp": _numeric(selected["biomarker__bm017"]),
         "diastolic_bp": _numeric(selected["biomarker__bm018"]),
@@ -243,6 +283,10 @@ def construct_cohort(
         "flag_bmi_invalid": bmi_invalid.fillna(False),
     }).reset_index(drop=True)
     cohort = cohort[OUTPUT_SCHEMA]
+    cohort.attrs["enrichment_unexpected_code_counts"] = {
+        "family_history_components": family_unexpected,
+        "physical_activity_frequency": activity_unexpected,
+    }
     counts = {
         "total": int(len(cohort)),
         "positive": int(cohort["target_undiagnosed_diabetes"].eq(1).sum()),
@@ -273,13 +317,52 @@ def _sha256(path: Path) -> str:
 
 def _summary(cohort: pd.DataFrame, counts: dict[str, int]) -> dict[str, Any]:
     age = cohort["age"]
+    suppress = lambda count: 0 if count == 0 else ("suppressed" if count < 10 else count)
+    family = cohort["family_history_diabetes_parent_sibling"]
+    activity = cohort["physical_activity_frequency"]
     return {
         "aggregate_only": True,
         "row_count": counts["total"],
         "target_counts": counts,
         "predictor_missingness": {
-            column: int(cohort[column].isna().sum())
-            for column in ["age", "sex", "bmi", "waist_cm", "systolic_bp", "diastolic_bp"]
+            column: (
+                suppress(int(cohort[column].isna().sum()))
+                if column in {
+                    "family_history_diabetes_parent_sibling",
+                    "physical_activity_frequency",
+                }
+                else int(cohort[column].isna().sum())
+            )
+            for column in [
+                "age", "sex", "bmi", "family_history_diabetes_parent_sibling",
+                "physical_activity_frequency", "waist_cm", "systolic_bp",
+                "diastolic_bp",
+            ]
+        },
+        "enrichment_feature_audit": {
+            "final_cohort_row_count": counts["total"],
+            "missingness": {
+                "family_history_diabetes_parent_sibling": suppress(int(family.isna().sum())),
+                "physical_activity_frequency": suppress(int(activity.isna().sum())),
+            },
+            "family_history_counts": {
+                "positive": suppress(int(family.eq(1).sum())),
+                "negative": suppress(int(family.eq(0).sum())),
+            },
+            "physical_activity_frequency_code_counts": {
+                str(code): suppress(int(activity.eq(code).sum()))
+                for code in range(1, 8)
+            },
+            "unexpected_source_code_counts": {
+                name: suppress(int(count))
+                for name, count in cohort.attrs.get(
+                    "enrichment_unexpected_code_counts",
+                    {"family_history_components": 0, "physical_activity_frequency": 0},
+                ).items()
+            },
+            "suppression_policy": "only nonzero counts below 10 are suppressed",
+            "contains_participant_rows": False,
+            "contains_identifier_values": False,
         },
         "sex_distribution": {
             str(code): int(count) for code, count in cohort["sex"].value_counts(dropna=False).items()
@@ -326,6 +409,8 @@ def write_outputs(
         },
         "predictor_definitions": {
             "age": "dm005", "sex": "dm003", "bmi": "bm071 / (bm067 / 100)^2",
+            "family_history_diabetes_parent_sibling": "derived from fm304s1-fm304s4",
+            "physical_activity_frequency": "fs507 categories 1 through 7",
             "waist_cm": "bm076", "systolic_bp": "bm017", "diastolic_bp": "bm018",
         },
         "cleaning_rules": {
@@ -333,6 +418,8 @@ def write_outputs(
             "waist_cm": "values <40 or >200 become missing",
             "bmi": "calculated values <10 or >80 become missing",
             "age": "values >100 retained and flagged",
+            "family_history": "1 if any component is 1; 0 only if all are 0; otherwise missing",
+            "physical_activity_frequency": "categories 1-7 retained; invalid codes become missing",
             "imputation": "none", "clipping": "none",
         },
         "excluded_column_list": EXCLUDED_COLUMNS,
