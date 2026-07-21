@@ -23,6 +23,7 @@ import { ShapeGrid } from "@/components/ui/shape-grid";
 import { generatePersonalizedPlans } from "@/lib/personalization-engine";
 import { generateHealthPriorities, type HealthPriority } from "@/lib/priority-engine";
 import { generateDietPlan } from "@/lib/diet-engine";
+import { generateWorkoutPlan } from "@/lib/workout-engine";
 
 export const Route = createFileRoute("/_app/action-plan")({
   component: ActionPlanPage,
@@ -366,54 +367,83 @@ function ActionPlanPage() {
           </Tabs>
         </div>
 
-        {/* Simple Exercise Plan */}
+        {/* Progressive 4-Week Exercise Plan */}
         <div className="space-y-4 border-t border-border/40 pt-6">
-          <div>
-            <Badge variant="secondary" className="rounded-full">
-              {tr("exercisePlan", currentLang)}
-            </Badge>
-            <h3 className="mt-2 font-display text-2xl font-bold tracking-tight">
-              {tr("weeklyWorkoutPlan", currentLang)}
-            </h3>
-            <p className="text-xs text-muted-foreground mt-1">
-              Custom-tailored exercise schedule based on your profile inputs.
-            </p>
-          </div>
+          {(() => {
+            const engineInput = {
+              ...(profile || {}),
+              priorities: generateHealthPriorities(profile || {}),
+              diabetesRiskCategory: result?.risk?.diabetes ? (result.risk.diabetes > 50 ? "high" : result.risk.diabetes > 25 ? "moderate" : "low") : undefined,
+              hypertensionRiskCategory: result?.risk?.hypertension ? (result.risk.hypertension > 50 ? "high" : result.risk.hypertension > 25 ? "moderate" : "low") : undefined,
+            };
+            const workoutOutput = generateWorkoutPlan(engineInput);
+            const weeksList = [
+              { label: "Week 1", data: workoutOutput.weeks.week1 },
+              { label: "Week 2", data: workoutOutput.weeks.week2 },
+              { label: "Week 3", data: workoutOutput.weeks.week3 },
+              { label: "Week 4", data: workoutOutput.weeks.week4 },
+            ];
 
-          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-7">
-            {weekdays.map((day) => {
-              const w = personalized?.workoutPlan[day];
-              return (
-                <Card key={day} className="border-border bg-surface shadow-card-soft flex flex-col justify-between p-3.5">
+            return (
+              <>
+                <div className="flex flex-wrap items-end justify-between gap-4">
                   <div>
-                    <div className="flex items-center justify-between border-b border-border/40 pb-1.5 mb-2">
-                      <div className="text-[11px] font-bold uppercase tracking-wider text-teal font-mono">
-                        {tr(day, currentLang)}
-                      </div>
-                      <Badge className="text-[10px] py-0 bg-teal/10 text-teal border-none font-bold">
-                        {w?.focus || "Rest"}
-                      </Badge>
-                    </div>
-                    <div className="space-y-3">
-                      {w?.exercises.map((ex, idx) => (
-                        <div key={idx} className="space-y-0.5 text-left">
-                          <div className="text-xs font-bold text-foreground leading-snug">{ex.name}</div>
-                          <div className="text-[10px] font-mono text-muted-foreground">{ex.sets}</div>
-                          <div className="text-[10px] text-muted-foreground/80 leading-normal">{ex.explanation}</div>
-                        </div>
-                      ))}
-                    </div>
+                    <Badge variant="secondary" className="rounded-full">
+                      {tr("exercisePlan", currentLang)}
+                    </Badge>
+                    <h3 className="mt-2 font-display text-2xl font-bold tracking-tight">
+                      Progressive 4-Week Workout Plan
+                    </h3>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      {workoutOutput.summary}
+                    </p>
                   </div>
-                  {w && (
-                    <div className="mt-3 border-t border-border/40 pt-2 text-[10px] text-muted-foreground flex justify-between items-center font-mono">
-                      <span>Duration</span>
-                      <span>{w.min} min</span>
-                    </div>
+                  {workoutOutput.status === "contraindicated" && (
+                    <Badge variant="destructive" className="bg-rose-500/10 text-rose-600 border border-rose-500/20 px-3 py-1 font-bold">
+                      Safety Alert: Medical Clearance Required
+                    </Badge>
                   )}
-                </Card>
-              );
-            })}
-          </div>
+                </div>
+
+                <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4 mt-4">
+                  {weeksList.map((w, idx) => (
+                    <Card key={idx} className="border-border bg-surface shadow-card-soft p-4 flex flex-col justify-between">
+                      <div>
+                        <div className="flex items-center justify-between border-b border-border/40 pb-2 mb-3">
+                          <span className="font-display text-sm font-bold text-teal font-mono">
+                            {w.label}
+                          </span>
+                          <Badge variant="outline" className="text-[10px] uppercase font-bold">
+                            {w.data[0]?.frequency || "Adaptation"}
+                          </Badge>
+                        </div>
+                        <div className="space-y-3">
+                          {w.data.map((ex, exIdx) => (
+                            <div key={exIdx} className="space-y-1 text-left">
+                              <div className="text-xs font-bold text-foreground leading-snug">
+                                {ex.exercise}
+                              </div>
+                              <div className="flex items-center gap-2 text-[10px] font-mono text-teal font-semibold">
+                                <span>Duration: {ex.duration}</span>
+                                <span>•</span>
+                                <span>Freq: {ex.frequency}</span>
+                              </div>
+                              <div className="text-[11px] text-muted-foreground leading-normal italic">
+                                Reason: {ex.reason}
+                              </div>
+                              <div className="text-[10px] text-teal font-medium">
+                                Benefit: {ex.expectedBenefit}
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    </Card>
+                  ))}
+                </div>
+              </>
+            );
+          })()}
         </div>
       </div>
     </div>
