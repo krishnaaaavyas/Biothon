@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { auth } from "./firebase";
 
-const API_URL = import.meta.env.VITE_API_URL || "http://localhost:5000";
+const API_URL = (import.meta.env.VITE_API_URL || "http://localhost:5000").replace(/\/+$/, "");
 
 const InputSchema = z.object({
   age: z.number().min(1).max(120),
@@ -420,6 +420,24 @@ export async function assessIngredientsImage({
   base64Image: string;
   mimeType: string;
 }): Promise<IngredientReport> {
+  const normMime = (mimeType || "").toLowerCase();
+  if (normMime.includes("heic") || normMime.includes("heif")) {
+    return {
+      name: "Unsupported File Format",
+      score: 0,
+      goodIngredients: [],
+      watchOut: [],
+      diabetesImpact: "",
+      bloodPressureImpact: "",
+      heartHealthImpact: "",
+      recommendation: "",
+      status: "extraction-unavailable",
+      reasonCode: "SCANNER_FILE_UNSUPPORTED",
+      manualEntryAllowed: true,
+      message: "HEIC/HEIF image format is not supported. Please upload a JPEG, PNG, or WebP image.",
+    };
+  }
+
   const contents = [
     {
       role: "user",
@@ -430,36 +448,86 @@ export async function assessIngredientsImage({
             data: base64Image,
           },
         },
-        { text: SCANNER_PROMPT },
       ],
     },
   ];
 
-  let idToken = "mock-uid-guest";
+  let authHeader: Record<string, string> = {};
   try {
     if (auth.currentUser) {
-      idToken = await auth.currentUser.getIdToken();
+      const idToken = await auth.currentUser.getIdToken();
+      authHeader = { Authorization: `Bearer ${idToken}` };
     }
   } catch (err) {
-    console.warn("Failed to retrieve ID token", err);
+    console.warn("Failed to retrieve ID token for scanner request", err);
   }
 
   const response = await fetch(`${API_URL}/api/scanner/analyze`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
-      Authorization: `Bearer ${idToken}`,
+      ...authHeader,
     },
-    body: JSON.stringify({ contents }),
+    body: JSON.stringify({ mode: "image", contents }),
   });
 
+  const data = await response.json().catch(() => null);
+
   if (!response.ok) {
-    const errorText = await response.text();
-    throw new Error(errorText || "Scanner API request failed");
+    if (response.status === 401) {
+      return {
+        name: "Authentication Required",
+        score: 0,
+        goodIngredients: [],
+        watchOut: [],
+        diabetesImpact: "",
+        bloodPressureImpact: "",
+        heartHealthImpact: "",
+        recommendation: "",
+        status: "unauthorized",
+        reasonCode: "SCANNER_AUTH_REQUIRED",
+        message: "Please sign in to analyze food labels.",
+      };
+    }
+
+    return {
+      name: "Image Analysis Failed",
+      score: 0,
+      goodIngredients: [],
+      watchOut: [],
+      diabetesImpact: "",
+      bloodPressureImpact: "",
+      heartHealthImpact: "",
+      recommendation: "",
+      status: data?.status || "extraction-unavailable",
+      reasonCode: data?.reasonCode || "SCANNER_IMAGE_EXTRACTION_UNAVAILABLE",
+      manualEntryAllowed: true,
+      message: data?.message || "Could not extract ingredients from image. You can enter ingredients manually.",
+    };
   }
 
-  const result = await response.json();
-  return IngredientReportSchema.parse(result);
+  if (data && data.status === "extraction-unavailable") {
+    return {
+      name: "Image Analysis Failed",
+      score: 0,
+      goodIngredients: [],
+      watchOut: [],
+      diabetesImpact: "",
+      bloodPressureImpact: "",
+      heartHealthImpact: "",
+      recommendation: "",
+      status: "extraction-unavailable",
+      reasonCode: data.reasonCode || "SCANNER_IMAGE_EXTRACTION_UNAVAILABLE",
+      manualEntryAllowed: true,
+      message: data.message || "Could not extract ingredients from image. You can enter ingredients manually.",
+    };
+  }
+
+  return {
+    ...data,
+    source: "Uploaded image",
+    analysisMode: data.analysisMode || "ai",
+  };
 }
 
 export async function assessIngredientsText({
@@ -474,31 +542,36 @@ export async function assessIngredientsText({
     },
   ];
 
-  let idToken = "mock-uid-guest";
+  let authHeader: Record<string, string> = {};
   try {
     if (auth.currentUser) {
-      idToken = await auth.currentUser.getIdToken();
+      const idToken = await auth.currentUser.getIdToken();
+      authHeader = { Authorization: `Bearer ${idToken}` };
     }
   } catch (err) {
-    console.warn("Failed to retrieve ID token", err);
+    console.warn("Failed to retrieve ID token for scanner text request", err);
   }
 
   const response = await fetch(`${API_URL}/api/scanner/analyze`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
-      Authorization: `Bearer ${idToken}`,
+      ...authHeader,
     },
-    body: JSON.stringify({ contents }),
+    body: JSON.stringify({ mode: "text", contents, rawText }),
   });
 
   if (!response.ok) {
-    const errorText = await response.text();
-    throw new Error(errorText || "Scanner API request failed");
+    const errorData = await response.json().catch(() => null);
+    throw new Error(errorData?.message || errorData?.error || "Scanner API request failed");
   }
 
-  const result = await response.json();
-  return IngredientReportSchema.parse(result);
+  const data = await response.json();
+  return {
+    ...data,
+    source: "Manual text",
+    analysisMode: data.analysisMode || "ai",
+  };
 }
 
 export interface ExtractedLabReport {

@@ -1021,7 +1021,9 @@ const ScannerAnalyzeSchema = z.object({
 });
 
 const FoodAnalyzeSchema = z.object({
+  mode: z.enum(["image", "text"]).optional(),
   contents: z.array(z.any()).optional(),
+  rawText: z.string().optional(),
   ingredients: z.array(z.string()).optional(),
   productName: z.string().optional(),
   language: z.string().optional().default("en"),
@@ -1238,7 +1240,7 @@ app.post(
   async (req: AuthenticatedRequest, res) => {
     const uid = req.user?.uid;
     if (!uid) {
-      return res.status(400).json({ error: "Bad Request: Missing User UID" });
+      return res.status(401).json({ error: "Unauthorized: Missing authentication token", reasonCode: "SCANNER_AUTH_REQUIRED" });
     }
 
     try {
@@ -1247,41 +1249,45 @@ app.post(
         return res.status(400).json({ error: "Validation Error", details: parsed.error.format() });
       }
 
-      const { contents, ingredients, productName } = parsed.data;
+      const { mode, contents, rawText, ingredients, productName } = parsed.data;
 
       // Fetch user profile
       const profileRef = db.collection("profiles").doc(uid);
       const profileSnap = await profileRef.get();
-      if (!profileSnap.exists) {
-        return res
-          .status(404)
-          .json({ error: "Not Found: Profile is required to personalize food decision analysis" });
+
+      let profile: any = null;
+      let isPersonalized = true;
+      let profileGuidance: string | undefined = undefined;
+
+      if (profileSnap.exists) {
+        const profileData = profileSnap.data()!;
+        profile = {
+          age: profileData.age,
+          gender: profileData.gender,
+          heightCm: profileData.heightCm || profileData.height,
+          weightKg: profileData.weightKg || profileData.weight,
+          smoking: profileData.smoking,
+          exercise: profileData.exercise || profileData.exerciseLevel,
+          familyHistory: profileData.familyHistory || "",
+          symptoms: profileData.symptoms || "",
+          alcohol: profileData.alcohol || null,
+          diseases: profileData.diseases || null,
+        };
+      } else {
+        isPersonalized = false;
+        profileGuidance = "Complete your health profile to receive personalized food analysis.";
       }
 
-      const profileData = profileSnap.data()!;
-      const profile = {
-        age: profileData.age,
-        gender: profileData.gender,
-        heightCm: profileData.heightCm || profileData.height,
-        weightKg: profileData.weightKg || profileData.weight,
-        smoking: profileData.smoking,
-        exercise: profileData.exercise || profileData.exerciseLevel,
-        familyHistory: profileData.familyHistory || "",
-        symptoms: profileData.symptoms || "",
-        alcohol: profileData.alcohol || null,
-        diseases: profileData.diseases || null,
-      };
-
       // Calculate risk scores and priorities
-      const riskAnalysis = RiskService.analyze(profile);
-      const driverAnalysis = RiskDriverService.analyzeRiskDrivers(profile);
-      const topDrivers = driverAnalysis.topDrivers;
-      const actionPriorities = riskAnalysis.actionPriorities;
+      const riskAnalysis = profile ? RiskService.analyze(profile) : null;
+      const driverAnalysis = profile ? RiskDriverService.analyzeRiskDrivers(profile) : null;
+      const topDrivers = driverAnalysis?.topDrivers || [];
+      const actionPriorities = riskAnalysis?.actionPriorities || [];
 
       const risks = {
-        diabetes: riskAnalysis.diabetesRisk.risk,
-        heart: riskAnalysis.heartRisk.risk,
-        hypertension: riskAnalysis.hypertensionRisk.risk,
+        diabetes: riskAnalysis ? riskAnalysis.diabetesRisk.risk : 15,
+        heart: riskAnalysis ? riskAnalysis.heartRisk.risk : 15,
+        hypertension: riskAnalysis ? riskAnalysis.hypertensionRisk.risk : 15,
       };
 
       let result: any = null;
@@ -1311,20 +1317,21 @@ ${actionPriorities.map((p) => `- ${p.action}`).join("\n")}
 `;
 
         const personalizedPrompt = `Analyze this food ingredient label or list.
-First, extract the product name and list of ingredients.
+First, extract the product name and complete list of ingredients.
 Then, cross-reference the ingredients with the following user health profile to assess personalized impacts:
 ${userRiskText}
 
 Provide:
 1. "name": The brand/product name.
-2. "goodIngredients": Beneficial ingredients present.
-3. "watchOut": Concerning ingredients / additives.
-4. "diabetesImpact": How the ingredients impact Type 2 Diabetes (mention glycemic index, starch, sugars if applicable).
-5. "bloodPressureImpact": How the ingredients impact vascular health / blood pressure (mention sodium/salt content if applicable).
-6. "heartHealthImpact": How the ingredients impact heart health / cholesterol (mention palm oil, trans fats, saturated fats if applicable).
-7. "recommendation": A personalized clinical advice explaining the food's impact on THIS user's specific health profile. E.g. "Because your diabetes risk is elevated and sugar is one of your top drivers..." Focus on their highest risk areas. If the food contains ingredients conflicting with their action priorities, explicitly state the conflict.
-8. "alternatives": An array of 3 healthy regional Indian alternatives suitable for this user's profile.
-9. "rawText": The raw extracted ingredients text.
+2. "ingredients": Full array of extracted ingredients.
+3. "goodIngredients": Beneficial ingredients present.
+4. "watchOut": Concerning ingredients / additives.
+5. "diabetesImpact": How the ingredients impact Type 2 Diabetes (mention glycemic index, starch, sugars if applicable).
+6. "bloodPressureImpact": How the ingredients impact vascular health / blood pressure (mention sodium/salt content if applicable).
+7. "heartHealthImpact": How the ingredients impact heart health / cholesterol (mention palm oil, trans fats, saturated fats if applicable).
+8. "recommendation": A personalized clinical advice explaining the food's impact on THIS user's specific health profile. E.g. "Because your diabetes risk is elevated and sugar is one of your top drivers..." Focus on their highest risk areas. If the food contains ingredients conflicting with their action priorities, explicitly state the conflict.
+9. "alternatives": An array of 3 healthy regional Indian alternatives suitable for this user's profile.
+10. "rawText": The raw extracted ingredients text.
 `;
 
         // Construct request contents
@@ -1358,6 +1365,7 @@ Provide:
                 type: "object",
                 properties: {
                   name: { type: "string" },
+                  ingredients: { type: "array", items: { type: "string" } },
                   goodIngredients: { type: "array", items: { type: "string" } },
                   watchOut: { type: "array", items: { type: "string" } },
                   diabetesImpact: { type: "string" },
@@ -1369,6 +1377,7 @@ Provide:
                 },
                 required: [
                   "name",
+                  "ingredients",
                   "goodIngredients",
                   "watchOut",
                   "diabetesImpact",
@@ -1398,14 +1407,32 @@ Provide:
         }
       }
 
-      // Fallback or deterministic post-processing
-      const foodName = result?.name || productName || "Unknown Product";
-      const ingreds = result?.watchOut || ingredients || [];
+      // Extract full ingredients list (NOT just watchOut!)
+      const extractedIngredients: string[] =
+        result?.ingredients && Array.isArray(result.ingredients) && result.ingredients.length > 0
+          ? result.ingredients
+          : ingredients && Array.isArray(ingredients) && ingredients.length > 0
+          ? ingredients
+          : FoodImpactService.parseIngredientsFromRawText(result?.rawText || rawText || "");
 
-      // Extract and analyze nutrition facts deterministically
-      const parsedNutrition = FoodImpactService.parseNutritionFacts(ingreds, result?.rawText);
+      const requestMode = mode || (contents && contents.length > 0 ? "image" : "text");
+
+      // CRITICAL REQUIREMENT: Image failure without extracted ingredients must return structured extraction error
+      if (requestMode === "image" && extractedIngredients.length === 0) {
+        return res.status(200).json({
+          status: "extraction-unavailable",
+          reasonCode: "SCANNER_IMAGE_EXTRACTION_UNAVAILABLE",
+          manualEntryAllowed: true,
+          message: "Image ingredient extraction is currently unavailable. Please paste ingredients manually or select a preset.",
+        });
+      }
+
+      const foodName = result?.name || productName || (rawText ? "Custom ingredient list" : "Unknown Product");
+
+      // Extract and analyze nutrition facts deterministically using FULL ingredients list
+      const parsedNutrition = FoodImpactService.parseNutritionFacts(extractedIngredients, result?.rawText || rawText);
       const deterministic = FoodImpactService.analyzePersonalizedFood(
-        ingreds,
+        extractedIngredients,
         parsedNutrition,
         risks,
         topDrivers.map((d) => d.factor),
@@ -1475,8 +1502,14 @@ CRITICAL SAFETY RULES:
 
       const responsePayload = {
         name: foodName,
+        analysisMode: result ? "ai" : "deterministic",
+        source: requestMode === "image" ? "Uploaded image" : "Manual text",
+        ingredients: extractedIngredients,
         goodIngredients: result?.goodIngredients || [],
-        watchOut: ingreds,
+        watchOut: extractedIngredients.filter((ing) => {
+          const lower = ing.toLowerCase();
+          return lower.includes("sugar") || lower.includes("salt") || lower.includes("sodium") || lower.includes("palm") || lower.includes("msg");
+        }),
         foodRiskCategory: deterministic.foodRiskCategory,
         personalizedFoodScore: deterministic.personalizedFoodScore,
         diabetesImpact: deterministic.diabetesImpact,
@@ -1485,6 +1518,9 @@ CRITICAL SAFETY RULES:
         reasons: deterministic.reasons,
         betterAlternatives: deterministic.betterAlternatives,
         geminiExplanation: geminiExplanation || null,
+        rawText: result?.rawText || rawText || extractedIngredients.join(", "),
+        isPersonalized,
+        message: profileGuidance,
         // for backward compatibility
         score: deterministic.personalizedFoodScore,
         foodScore: 10,
@@ -1495,9 +1531,9 @@ CRITICAL SAFETY RULES:
             : deterministic.foodRiskCategory === "moderate"
               ? "Moderate"
               : "High",
-        recommendation: geminiExplanation || deterministic.reasons.join(" "),
-        recommendations: [geminiExplanation || deterministic.reasons.join(" ")],
-        alternatives: deterministic.betterAlternatives,
+        recommendation: result?.recommendation || geminiExplanation || deterministic.reasons.join(" "),
+        recommendations: [result?.recommendation || geminiExplanation || deterministic.reasons.join(" ")],
+        alternatives: result?.alternatives || deterministic.betterAlternatives,
         diabetesImpactPoints: deterministic.diabetesImpact,
         hypertensionImpactPoints: deterministic.hypertensionImpact,
         heartImpactPoints: deterministic.heartImpact,
@@ -1516,7 +1552,7 @@ CRITICAL SAFETY RULES:
         await scanRef.set({
           userId: uid,
           productName: foodName,
-          ingredients: ingreds,
+          ingredients: extractedIngredients,
           foodScore: 10,
           personalizedFoodScore: deterministic.personalizedFoodScore,
           foodRiskCategory: deterministic.foodRiskCategory,

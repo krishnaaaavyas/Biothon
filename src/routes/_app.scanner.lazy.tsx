@@ -12,10 +12,11 @@ import {
   FileText,
   Loader2,
   Sparkles,
-  ArrowRight,
-  RefreshCw,
-  Plus,
   Camera,
+  RefreshCw,
+  Info,
+  ChevronRight,
+  Sparkle,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -31,10 +32,19 @@ import {
 import SplitText from "@/components/ui/split-text";
 import { ShapeGrid } from "@/components/ui/shape-grid";
 
-
 export const Route = createLazyFileRoute("/_app/scanner")({
   component: ScannerPage,
 });
+
+export type ScannerState =
+  | "idle"
+  | "validating"
+  | "uploading"
+  | "extracting"
+  | "analyzing"
+  | "success"
+  | "deterministic-success"
+  | "failed";
 
 const PRESETS: Record<string, Omit<IngredientReport, "rawText">> = {
   "Maggi Noodles": {
@@ -55,7 +65,7 @@ const PRESETS: Record<string, Omit<IngredientReport, "rawText">> = {
     heartHealthImpact:
       "Palm oil contains high proportions of saturated fats, which can negatively affect LDL cholesterol levels and arterial health.",
     recommendation:
-      "Contains highly refined flour, palm oil, and high sodium content. It is recommended to limit consumption, particularly for individuals with hypertension or diabetes risk profiles.",
+      "Contains refined flour, palm oil, and high sodium content. Consume in strict moderation for metabolic wellness.",
   },
   "Coca-Cola": {
     name: "Coca-Cola (Regular Cola)",
@@ -68,13 +78,13 @@ const PRESETS: Record<string, Omit<IngredientReport, "rawText">> = {
       "Caffeine",
     ],
     diabetesImpact:
-      "Extremely high concentration of liquid sucrose/glucose leads to immediate blood sugar spikes and contributes to insulin resistance.",
+      "High concentration of simple sucrose/glucose leads to rapid blood sugar spikes and contributes to insulin resistance.",
     bloodPressureImpact:
       "Heavy glycemic load and caffeine absorption can cause temporary elevations in arterial stiffness and heart rate.",
     heartHealthImpact:
-      "High added sugar intake is metabolically linked to increased liver fat accumulation, elevated triglycerides, and cardiovascular strain.",
+      "High added sugar intake is metabolically linked to increased liver fat accumulation and elevated triglycerides.",
     recommendation:
-      "This beverage is extremely high in simple added sugars and offers no nutritional benefits. It is highly discouraged for individuals with diabetes, prediabetes, or heart disease risks.",
+      "High in simple added sugars with minimal nutritional benefit. Discouraged for individuals managing glycemic risk.",
   },
   "Lay's Chips": {
     name: "Lay's Chips (Classic Salted)",
@@ -86,13 +96,13 @@ const PRESETS: Record<string, Omit<IngredientReport, "rawText">> = {
       "Saturated Fats",
     ],
     diabetesImpact:
-      "Simple starches in fried potatoes break down rapidly into glucose. High caloric density can also impact weight management.",
+      "Simple starches in fried potatoes break down rapidly into glucose.",
     bloodPressureImpact:
-      "Significant levels of added table salt cause sodium accumulation, leading to vasoconstriction and increased blood pressure.",
+      "Added salt causes sodium accumulation, promoting fluid retention and blood pressure elevation.",
     heartHealthImpact:
-      "Frying in palmolein oil increases saturated fat intake, which can raise LDL cholesterol levels and promote plaque build-up.",
+      "Frying in palmolein oil increases saturated fat intake, affecting LDL cholesterol levels.",
     recommendation:
-      "High in sodium, calories, and saturated fats. It should be consumed strictly in moderation, and is not ideal for users managing elevated blood pressure or heart risks.",
+      "High in sodium, calories, and saturated fats. Consume sparingly as part of a balanced diet.",
   },
   "Amul Yogurt": {
     name: "Amul Masti Dahi (Plain Yogurt)",
@@ -105,13 +115,13 @@ const PRESETS: Record<string, Omit<IngredientReport, "rawText">> = {
     ],
     watchOut: [],
     diabetesImpact:
-      "Low glycemic index, rich in protein which helps slow down overall carbohydrate absorption and stabilizes insulin levels.",
+      "Low glycemic index, rich in protein which helps slow down carbohydrate absorption.",
     bloodPressureImpact:
-      "Calcium, potassium, and magnesium naturally present in dairy solids help regulate vascular tone and blood pressure.",
+      "Calcium and minerals naturally present in dairy help support vascular tone and blood pressure stability.",
     heartHealthImpact:
-      "Double toned milk utilizes lower fat content, minimizing saturated fats while supplying heart-friendly lipids and proteins.",
+      "Double toned milk provides lower fat content while supplying beneficial nutrients and proteins.",
     recommendation:
-      "An excellent, nutrient-dense probiotic food that supports gut health, vascular function, and glucose regulation. Highly recommended for daily consumption.",
+      "Nutrient-dense probiotic food supporting digestive health and vascular function. Suitable for regular consumption.",
   },
   "Roasted Chana": {
     name: "Roasted Chana (Bengal Gram)",
@@ -120,131 +130,67 @@ const PRESETS: Record<string, Omit<IngredientReport, "rawText">> = {
       "Roasted Bengal Gram (Chickpeas)",
       "Dietary Fiber",
       "Plant-based Protein",
-      "Turmeric",
+      "Magnesium & Potassium",
     ],
-    watchOut: ["Salt (Trace amounts)"],
+    watchOut: [],
     diabetesImpact:
-      "Extremely rich in complex carbohydrates, soluble fiber, and protein. Very low glycemic index, promoting prolonged satiety and steady glucose release.",
+      "Low glycemic index and high dietary fiber content slow glucose absorption, promoting steady blood sugar levels.",
     bloodPressureImpact:
-      "Naturally rich in potassium and fiber, supporting healthy blood pressure metrics. Contains negligible sodium.",
+      "Rich in natural potassium and magnesium which assist in arterial relaxation and sodium balance.",
     heartHealthImpact:
-      "High fiber profile actively binds to bile acids, helping regulate systemic cholesterol levels and support cardiac health.",
+      "High fiber content helps lower cholesterol absorption and supports cardiovascular wellness.",
     recommendation:
-      "An outstanding, clean snack choice. High in fiber and protein, and the addition of turmeric adds anti-inflammatory benefits.",
+      "Excellent whole-grain snack high in protein and fiber. Recommended for metabolic and cardiovascular support.",
   },
 };
 
-function analyzeRawText(text: string): Omit<IngredientReport, "rawText" | "name"> {
+/**
+ * Deterministic keyword evaluator for manual text input
+ */
+function analyzeRawText(text: string): Omit<IngredientReport, "rawText"> {
   const lowercaseText = text.toLowerCase();
-  const goodDetected: string[] = [];
+  let score = 7; // Base score for custom list
+
   const watchOutDetected: string[] = [];
-  let score = 8; // Default base score
+  const goodDetected: string[] = [];
 
-  // Sugars matching
-  const sugarKeywords = [
-    "sugar",
-    "sucrose",
-    "fructose",
-    "glucose",
-    "dextrose",
-    "maltose",
-    "syrup",
-    "honey",
-    "jaggery",
-    "cane",
-    "molasses",
-    "sweetener",
+  // Watchout ingredient triggers
+  const watchOutKeywords = [
+    { key: "sugar", label: "Added Sugars / Sucrose" },
+    { key: "high fructose", label: "High Fructose Corn Syrup" },
+    { key: "palm oil", label: "Palm Oil / Palmolein" },
+    { key: "hydrogenated", label: "Hydrogenated Vegetable Oils (Trans Fats)" },
+    { key: "maida", label: "Refined Wheat Flour (Maida)" },
+    { key: "salt", label: "Added Salt / Sodium" },
+    { key: "sodium", label: "Sodium Additives" },
+    { key: "msg", label: "Monosodium Glutamate (MSG)" },
+    { key: "preservative", label: "Chemical Preservatives (E211/E202)" },
+    { key: "maltodextrin", label: "Maltodextrin (High GI Carbohydrate)" },
   ];
-  const sugarsFound = sugarKeywords.filter((k) => lowercaseText.includes(k));
-  if (sugarsFound.length > 0) {
-    watchOutDetected.push("Added Sugars / Syrups");
-    score -= Math.min(3, sugarsFound.length);
-  }
 
-  // Sodium matching
-  const sodiumKeywords = [
-    "salt",
-    "sodium",
-    "msg",
-    "glutamate",
-    "guanylate",
-    "inosinate",
-    "bicarbonate",
-    "benzoate",
-    "tastemaker",
-  ];
-  const sodiumFound = sodiumKeywords.filter((k) => lowercaseText.includes(k));
-  if (sodiumFound.length > 0) {
-    watchOutDetected.push("Added Sodium / Salt / MSG");
-    score -= Math.min(3, sodiumFound.length);
-  }
+  watchOutKeywords.forEach(({ key, label }) => {
+    if (lowercaseText.includes(key)) {
+      watchOutDetected.push(label);
+      score -= 1.5;
+    }
+  });
 
-  // Fats matching
-  const fatKeywords = [
-    "palm",
-    "palmolein",
-    "hydrogenated",
-    "shortening",
-    "ghee",
-    "dalda",
-    "butter",
-    "trans fat",
-    "saturated fat",
-    "lard",
-    "oil",
-  ];
-  const fatsFound = fatKeywords.filter((k) => lowercaseText.includes(k));
-  if (fatsFound.includes("hydrogenated") || fatsFound.includes("trans fat")) {
-    watchOutDetected.push("Trans Fats / Hydrogenated Oils");
-    score -= 3;
-  } else if (fatsFound.includes("palm") || fatsFound.includes("palmolein")) {
-    watchOutDetected.push("Palm/Saturated Oils");
-    score -= 2;
-  } else if (fatsFound.length > 0) {
-    watchOutDetected.push("Refined Vegetable Oils");
-    score -= 1;
-  }
-
-  // Refined Wheat/Maida
-  if (
-    lowercaseText.includes("maida") ||
-    lowercaseText.includes("refined wheat") ||
-    lowercaseText.includes("refined flour")
-  ) {
-    watchOutDetected.push("Refined Wheat Flour (Maida)");
-    score -= 2;
-  }
-
-  // Good Ingredients
-  const healthyKeywords = [
-    { key: "chana", label: "Roasted Chana" },
-    { key: "gram", label: "Bengal Gram" },
-    { key: "chickpea", label: "Chickpeas" },
-    { key: "almond", label: "Almonds" },
-    { key: "walnut", label: "Walnuts" },
-    { key: "oat", label: "Oats" },
-    { key: "whole wheat", label: "Whole Wheat" },
-    { key: "turmeric", label: "Turmeric" },
-    { key: "haldi", label: "Turmeric" },
-    { key: "garlic", label: "Garlic" },
-    { key: "onion", label: "Onions" },
-    { key: "ginger", label: "Ginger" },
-    { key: "culture", label: "Probiotics" },
-    { key: "probiotic", label: "Probiotics" },
-    { key: "yogurt", label: "Yogurt" },
-    { key: "dahi", label: "Yogurt" },
-    { key: "milk", label: "Milk" },
-    { key: "fruit", label: "Fruits" },
-    { key: "vegetable", label: "Vegetables" },
-    { key: "lentil", label: "Lentils" },
-    { key: "pulse", label: "Pulses" },
-    { key: "fiber", label: "Fiber" },
+  // Beneficial ingredient triggers
+  const goodKeywords = [
+    { key: "oats", label: "Whole Grain Oats" },
+    { key: "almonds", label: "Almonds / Nuts" },
+    { key: "chana", label: "Bengal Gram / Chickpeas" },
+    { key: "fiber", label: "Dietary Fiber" },
     { key: "protein", label: "Protein" },
+    { key: "probiotic", label: "Probiotic Cultures" },
+    { key: "turmeric", label: "Turmeric (Curcumin)" },
+    { key: "chia", label: "Chia Seeds" },
+    { key: "flax", label: "Flaxseeds" },
   ];
 
-  healthyKeywords.forEach((h) => {
-    if (lowercaseText.includes(h.key) && !goodDetected.includes(h.label)) {
-      goodDetected.push(h.label);
+  goodKeywords.forEach(({ key, label }) => {
+    if (lowercaseText.includes(key)) {
+      goodDetected.push(label);
     }
   });
 
@@ -252,56 +198,34 @@ function analyzeRawText(text: string): Omit<IngredientReport, "rawText" | "name"
     score += Math.min(2, Math.floor(goodDetected.length / 2));
   }
 
-  // Adjust score boundaries
-  score = Math.max(1, Math.min(10, score));
+  score = Math.max(1, Math.min(10, Math.round(score)));
 
-  // Determine dynamic rationale text
-  let diabetesImpact = "No major concerning sugars detected. Safe for general glycemic health.";
-  if (
-    lowercaseText.includes("sugar") ||
-    lowercaseText.includes("syrup") ||
-    lowercaseText.includes("maida")
-  ) {
-    diabetesImpact =
-      "Refined flour or added sugars present. May trigger blood glucose fluctuations; exercise portion control.";
+  let diabetesImpact = "No high-GI sugars or refined starches detected. Favorable for glycemic balance.";
+  if (watchOutDetected.some((w) => w.toLowerCase().includes("sugar") || w.toLowerCase().includes("maida") || w.toLowerCase().includes("maltodextrin"))) {
+    diabetesImpact = "Contains refined flour or added sugars. May cause blood glucose fluctuations; exercise portion control.";
   }
 
-  let bloodPressureImpact =
-    "Negligible added sodium detected. Low impact on fluid retention and blood pressure.";
-  if (
-    lowercaseText.includes("salt") ||
-    lowercaseText.includes("sodium") ||
-    lowercaseText.includes("msg")
-  ) {
-    bloodPressureImpact =
-      "Contains added sodium/salt. May promote water retention, which increases mechanical strain on arteries.";
+  let bloodPressureImpact = "Low added sodium detected. Minimal impact on fluid retention and blood pressure.";
+  if (watchOutDetected.some((w) => w.toLowerCase().includes("salt") || w.toLowerCase().includes("sodium") || w.toLowerCase().includes("msg"))) {
+    bloodPressureImpact = "Contains added sodium/salt. May promote fluid retention and increase arterial pressure.";
   }
 
-  let heartHealthImpact =
-    "Contains low levels of saturated/trans fats. Favorable for maintaining healthy blood lipids.";
-  if (
-    lowercaseText.includes("hydrogenated") ||
-    lowercaseText.includes("palm") ||
-    lowercaseText.includes("trans fat")
-  ) {
-    heartHealthImpact =
-      "Hydrogenated oils or palm oils present. Associated with increases in LDL (bad) cholesterol and cardiovascular risk.";
+  let heartHealthImpact = "Contains low levels of saturated/trans fats. Favorable for healthy blood lipids.";
+  if (watchOutDetected.some((w) => w.toLowerCase().includes("palm") || w.toLowerCase().includes("hydrogenated"))) {
+    heartHealthImpact = "Contains palm oil or hydrogenated oils. Associated with increases in LDL cholesterol.";
   }
 
-  let recommendation =
-    "This product has a balanced nutritional profile. It is safe for routine inclusion in a healthy lifestyle.";
+  let recommendation = "This food has a balanced nutritional profile suitable for regular dietary inclusion.";
   if (score <= 4) {
-    recommendation =
-      "This product contains refined flour, high sodium, or saturated vegetable fats. We recommend avoiding this or consuming it very rarely to protect your metabolic health.";
+    recommendation = "Contains refined ingredients, sodium, or saturated fats. Consume sparingly to protect metabolic health.";
   } else if (score <= 7) {
-    recommendation =
-      "This product has a moderate health profile. It contains some added preservatives, fats, or sugars. Consume in moderation and watch your portion sizes.";
+    recommendation = "Moderate nutritional profile. Enjoy in moderation as part of a balanced diet.";
   } else {
-    recommendation =
-      "This is a clean, heart-healthy and metabolic-friendly food. Highly suitable for regular dietary inclusion.";
+    recommendation = "Nutrient-dense food supporting metabolic and heart health. Suitable for regular inclusion.";
   }
 
   return {
+    name: "Custom ingredient list",
     score,
     goodIngredients: goodDetected,
     watchOut: watchOutDetected,
@@ -323,14 +247,28 @@ function ScannerPage() {
 
   const [rawText, setRawText] = useState("");
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [filePreviewUrl, setFilePreviewUrl] = useState<string | null>(null);
   const [isScanning, setIsScanning] = useState(false);
+  const [scannerState, setScannerState] = useState<ScannerState>("idle");
   const [report, setReport] = useState<IngredientReport | null>(null);
 
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const presetsRef = useRef<HTMLDivElement | null>(null);
+
   useEffect(() => {
-    if (report) {
+    if (report && report.status !== "extraction-unavailable") {
       localStorage.setItem("hg.hasScannedFood", "true");
     }
   }, [report]);
+
+  // Clean up object URLs to prevent leaks
+  useEffect(() => {
+    return () => {
+      if (filePreviewUrl) {
+        URL.revokeObjectURL(filePreviewUrl);
+      }
+    };
+  }, [filePreviewUrl]);
 
   // Webcam States
   const [isCameraActive, setIsCameraActive] = useState(false);
@@ -339,6 +277,10 @@ function ScannerPage() {
 
   const startCamera = async () => {
     setSelectedFile(null);
+    if (filePreviewUrl) {
+      URL.revokeObjectURL(filePreviewUrl);
+      setFilePreviewUrl(null);
+    }
     setReport(null);
     setRawText("");
     try {
@@ -368,6 +310,7 @@ function ScannerPage() {
   const captureFrame = async () => {
     if (!videoRef.current) return;
     setIsScanning(true);
+    setScannerState("extracting");
 
     try {
       const video = videoRef.current;
@@ -383,32 +326,44 @@ function ScannerPage() {
 
       stopCamera();
 
-      // Trigger Gemini Multimodal API Call
       const result = await assessIngredientsImage({
         base64Image: base64Data,
         mimeType: "image/jpeg",
       });
 
-      setReport(result);
-      toast.success(tr("fit_ingredients_analysed_toast", currentLang));
+      if (result.status === "extraction-unavailable" || result.status === "unauthorized" || result.status === "failed") {
+        setScannerState("failed");
+        setReport({
+          ...result,
+          name: "Camera Snapshot Analysis",
+          source: "Camera",
+        });
+      } else {
+        setScannerState("success");
+        setReport({
+          ...result,
+          source: "Camera",
+        });
+        toast.success(tr("fit_ingredients_analysed_toast", currentLang));
+      }
     } catch (err: unknown) {
-      console.error("Vision API error, falling back to simulator:", err);
+      console.error("Vision API error during camera scan:", err);
       toast.error(tr("fit_vision_failed_toast", currentLang));
-
-      // Local fallback simulator
-      const customReport = analyzeRawText(
-        "Ingredients: Potato, Palm Oil, Iodised Salt, Sugar, Preservatives, MSG, Wheat Gluten",
-      );
+      setScannerState("failed");
       setReport({
-        ...customReport,
-        name:
-          currentLang === "hi"
-            ? "कैमरा स्नैपशॉट (स्थानीय विश्लेषण)"
-            : currentLang === "gu"
-              ? "કેમેરા સ્નેપશોટ (સ્થાનિક વિશ્લેષણ)"
-              : "Camera Snapshot (Local Analysis)",
-        rawText:
-          "Ingredients: Potato, Palm Oil, Iodised Salt, Sugar, Preservatives, MSG, Wheat Gluten",
+        name: "Camera Snapshot Failed",
+        score: 0,
+        goodIngredients: [],
+        watchOut: [],
+        diabetesImpact: "",
+        bloodPressureImpact: "",
+        heartHealthImpact: "",
+        recommendation: "",
+        status: "extraction-unavailable",
+        reasonCode: "SCANNER_IMAGE_EXTRACTION_UNAVAILABLE",
+        manualEntryAllowed: true,
+        message: "Could not extract text from camera snapshot. Please try again, paste ingredients manually, or choose a preset.",
+        source: "Camera",
       });
     } finally {
       setIsScanning(false);
@@ -419,111 +374,125 @@ function ScannerPage() {
     const data = PRESETS[key];
     setRawText("");
     setSelectedFile(null);
+    if (filePreviewUrl) {
+      URL.revokeObjectURL(filePreviewUrl);
+      setFilePreviewUrl(null);
+    }
     stopCamera();
     setIsScanning(true);
+    setScannerState("analyzing");
 
-    // Simulated scan using presets
     setTimeout(() => {
       setReport({
         ...data,
+        source: "Preset",
+        analysisMode: "deterministic",
         rawText: `Preset Ingredients for ${data.name}: ${data.goodIngredients.join(", ")}, ${data.watchOut.join(", ")}`,
       });
       setIsScanning(false);
-      const matchedMsg =
-        currentLang === "hi"
-          ? "प्रीसेट सफलतापूर्वक मिलान किया गया!"
-          : currentLang === "gu"
-            ? "પ્રીસેટ્સ સફળતાપૂર્વક મેળ ખાતા!"
-            : "presets matched successfully!";
-      toast.success(`${key} ${matchedMsg}`);
-    }, 1200);
+      setScannerState("success");
+      toast.success(`${key} loaded successfully!`);
+    }, 600);
   };
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (file) {
-      setSelectedFile(file);
-      setRawText("");
-      setReport(null);
-      stopCamera();
-      setIsScanning(true);
+    if (!file) return;
 
-      const reader = new FileReader();
-      reader.onload = async () => {
-        try {
-          const resultStr = reader.result as string;
-          const base64Data = resultStr.split(",")[1];
-
-          // Trigger Gemini Multimodal call
-          const result = await assessIngredientsImage({
-            base64Image: base64Data,
-            mimeType: file.type,
-          });
-          setReport(result);
-          toast.success(tr("fit_ingredients_analysed_toast", currentLang));
-        } catch (err: unknown) {
-          console.error("Vision API error, using simulation match:", err);
-          toast.error(tr("fit_vision_failed_toast", currentLang));
-
-          const fileNameLower = file.name.toLowerCase();
-          let matchedPresetKey = "";
-
-          if (fileNameLower.includes("maggi") || fileNameLower.includes("noodle")) {
-            matchedPresetKey = "Maggi Noodles";
-          } else if (
-            fileNameLower.includes("coke") ||
-            fileNameLower.includes("cola") ||
-            fileNameLower.includes("coca")
-          ) {
-            matchedPresetKey = "Coca-Cola";
-          } else if (
-            fileNameLower.includes("lay") ||
-            fileNameLower.includes("chip") ||
-            fileNameLower.includes("potato")
-          ) {
-            matchedPresetKey = "Lay's Chips";
-          } else if (
-            fileNameLower.includes("amul") ||
-            fileNameLower.includes("yogurt") ||
-            fileNameLower.includes("dahi")
-          ) {
-            matchedPresetKey = "Amul Yogurt";
-          } else if (
-            fileNameLower.includes("chana") ||
-            fileNameLower.includes("chickpea") ||
-            fileNameLower.includes("roasted")
-          ) {
-            matchedPresetKey = "Roasted Chana";
-          }
-
-          if (matchedPresetKey) {
-            const data = PRESETS[matchedPresetKey];
-            setReport({
-              ...data,
-              rawText: `Ingredients scanned from file "${file.name}" (Local match): ${data.goodIngredients.join(", ")}, ${data.watchOut.join(", ")}`,
-            });
-          } else {
-            const customReport = analyzeRawText(
-              "Ingredients: Potato, Palm Oil, Iodised Salt, Sugar, Preservatives, Maltodextrin",
-            );
-            setReport({
-              ...customReport,
-              name: file.name.replace(/\.[^/.]+$/, ""),
-              rawText:
-                "Ingredients: Potato, Palm Oil, Iodised Salt, Sugar, Preservatives, Maltodextrin",
-            });
-          }
-        } finally {
-          setIsScanning(false);
-        }
-      };
-
-      reader.onerror = () => {
-        toast.error(tr("fit_file_read_failed_toast", currentLang));
-        setIsScanning(false);
-      };
-      reader.readAsDataURL(file);
+    // Reset input so same file can be selected again
+    if (fileInputRef.current) {
+      fileInputRef.current.value = "";
     }
+
+    const mime = file.type.toLowerCase();
+    const isSupported = mime.includes("jpeg") || mime.includes("jpg") || mime.includes("png") || mime.includes("webp");
+    if (!isSupported || mime.includes("heic") || mime.includes("heif")) {
+      toast.error("Unsupported file format. Please upload a JPEG, PNG, or WebP image.");
+      return;
+    }
+
+    const MAX_SIZE = 5 * 1024 * 1024; // 5 MB
+    if (file.size > MAX_SIZE) {
+      toast.error("File size exceeds 5 MB limit. Please upload a smaller image.");
+      return;
+    }
+
+    if (file.size === 0) {
+      toast.error("File is empty. Please select a valid image.");
+      return;
+    }
+
+    if (filePreviewUrl) {
+      URL.revokeObjectURL(filePreviewUrl);
+    }
+    const previewUrl = URL.createObjectURL(file);
+    setFilePreviewUrl(previewUrl);
+
+    setSelectedFile(file);
+    setRawText("");
+    setReport(null);
+    stopCamera();
+    setIsScanning(true);
+    setScannerState("uploading");
+
+    const reader = new FileReader();
+    reader.onload = async () => {
+      try {
+        setScannerState("extracting");
+        const resultStr = reader.result as string;
+        const base64Data = resultStr.split(",")[1];
+
+        const result = await assessIngredientsImage({
+          base64Image: base64Data,
+          mimeType: file.type,
+        });
+
+        if (result.status === "extraction-unavailable" || result.status === "unauthorized" || result.status === "failed") {
+          setScannerState("failed");
+          setReport({
+            ...result,
+            name: file.name.replace(/\.[^/.]+$/, ""),
+            source: "Uploaded image",
+          });
+        } else {
+          setScannerState("success");
+          setReport({
+            ...result,
+            name: result.name || file.name.replace(/\.[^/.]+$/, ""),
+            source: "Uploaded image",
+          });
+          toast.success(tr("fit_ingredients_analysed_toast", currentLang));
+        }
+      } catch (err: unknown) {
+        console.error("Vision API error on file upload:", err);
+        toast.error(tr("fit_vision_failed_toast", currentLang));
+        setScannerState("failed");
+        setReport({
+          name: file.name.replace(/\.[^/.]+$/, ""),
+          score: 0,
+          goodIngredients: [],
+          watchOut: [],
+          diabetesImpact: "",
+          bloodPressureImpact: "",
+          heartHealthImpact: "",
+          recommendation: "",
+          status: "extraction-unavailable",
+          reasonCode: "SCANNER_IMAGE_EXTRACTION_UNAVAILABLE",
+          manualEntryAllowed: true,
+          message: "Could not extract ingredients from image. You can try again, paste ingredients manually, or select a preset.",
+          source: "Uploaded image",
+        });
+      } finally {
+        setIsScanning(false);
+      }
+    };
+
+    reader.onerror = () => {
+      toast.error(tr("fit_file_read_failed_toast", currentLang));
+      setIsScanning(false);
+      setScannerState("failed");
+    };
+    reader.readAsDataURL(file);
   };
 
   const handleTextSubmit = async (e: React.FormEvent) => {
@@ -534,28 +503,34 @@ function ScannerPage() {
     }
 
     setIsScanning(true);
+    setScannerState("analyzing");
     setReport(null);
     stopCamera();
 
     try {
       const result = await assessIngredientsText({ rawText });
-      setReport(result);
+      setReport({
+        ...result,
+        name: result.name || "Custom ingredient list",
+        source: "Manual text",
+        analysisMode: result.analysisMode || "ai",
+      });
+      setScannerState("success");
       toast.success(tr("fit_ingredients_analysed_toast", currentLang));
     } catch (err: unknown) {
-      console.error("Gemini text call failed, using offline engine:", err);
-      toast.error(tr("fit_direct_connection_failed_toast", currentLang));
+      console.warn("AI text call failed, using rule-based local evaluator:", err);
+      toast.info("Generated rule-based ingredient analysis.");
 
       const parsed = analyzeRawText(rawText);
       setReport({
         ...parsed,
-        name:
-          currentLang === "hi"
-            ? "कस्टम प्रविष्टि (ऑफ़लाइन मूल्यांकन)"
-            : currentLang === "gu"
-              ? "કસ્ટમ એન્ટ્રી (ઑફલાઇન મૂલ્યાંકન)"
-              : "Custom Entry (Offline Evaluated)",
+        name: "Custom ingredient list",
         rawText,
+        source: "Manual text",
+        analysisMode: "deterministic",
+        message: "AI analysis is temporarily unavailable. Results were generated from the ingredient text using HealthGuard's rule-based evaluator.",
       });
+      setScannerState("deterministic-success");
     } finally {
       setIsScanning(false);
     }
@@ -565,7 +540,36 @@ function ScannerPage() {
     setReport(null);
     setRawText("");
     setSelectedFile(null);
+    if (filePreviewUrl) {
+      URL.revokeObjectURL(filePreviewUrl);
+      setFilePreviewUrl(null);
+    }
     stopCamera();
+    setScannerState("idle");
+  };
+
+  const retryImageAnalysis = () => {
+    if (selectedFile) {
+      const event = {
+        target: { files: [selectedFile] },
+      } as unknown as React.ChangeEvent<HTMLInputElement>;
+      handleFileUpload(event);
+    } else if (isCameraActive) {
+      captureFrame();
+    }
+  };
+
+  const focusManualText = () => {
+    const textElement = document.getElementById("manual-ingredient-textarea");
+    if (textElement) {
+      textElement.focus();
+    }
+  };
+
+  const focusPresets = () => {
+    if (presetsRef.current) {
+      presetsRef.current.scrollIntoView({ behavior: "smooth" });
+    }
   };
 
   const getScoreColor = (score: number) => {
@@ -601,516 +605,422 @@ function ScannerPage() {
         />
       </div>
 
-      <div className="mx-auto max-w-7xl px-4 sm:px-6 py-6 lg:py-8 w-full">
-      {/* Header */}
-      <div className="mb-6">
-        <Badge
-          variant="secondary"
-          className="rounded-full bg-teal/10 text-teal border border-teal/20 hover:bg-teal/20"
-        >
-          {tr("wellnessTool", currentLang)}
-        </Badge>
-        <SplitText
-          text={tr("ingredientsScanner", currentLang)}
-          className="mt-2 font-display text-2xl sm:text-3xl font-bold tracking-tight"
-          delay={35}
-          duration={0.6}
-          ease="power3.out"
-          splitType="chars"
-          tag="h1"
-          textAlign="left"
-        />
-        <p className="mt-1.5 max-w-2xl text-muted-foreground text-sm leading-relaxed">
-          {tr("scannerSubtitle", currentLang)}
-        </p>
-      </div>
+      <div className="mx-auto max-w-7xl px-4 sm:px-6 py-6 lg:py-8 w-full space-y-6">
+        {/* Header */}
+        <div>
+          <Badge
+            variant="secondary"
+            className="rounded-full bg-teal/10 text-teal border border-teal/20 hover:bg-teal/20"
+          >
+            {tr("wellnessTool", currentLang)}
+          </Badge>
+          <SplitText
+            text={tr("ingredientsScanner", currentLang)}
+            className="mt-2 font-display text-2xl sm:text-3xl font-bold tracking-tight"
+            delay={35}
+            duration={0.6}
+            ease="power3.out"
+            splitType="chars"
+            tag="h1"
+            textAlign="left"
+          />
+          <p className="mt-1.5 max-w-2xl text-muted-foreground text-sm leading-relaxed">
+            {tr("scannerSubtitle", currentLang)}
+          </p>
+        </div>
 
-      {/* 2×2 aligned grid — each row shares the same height across both columns */}
-      <div className="grid gap-5 lg:grid-cols-2 lg:grid-rows-[auto_auto] items-stretch">
+        {/* Desktop 3-Row Grid Architecture (Fixes Defect 1: No card height stretching!) */}
+        <div className="grid gap-5 lg:grid-cols-2">
 
-        {/* Row 1, Col 1 — Scan Ingredient Label */}
-        <Card className="border-border bg-surface shadow-card-soft overflow-hidden flex flex-col min-h-[280px]">
-          <CardHeader className="py-3 px-4 border-b border-border/40 flex flex-row items-center justify-between gap-4 shrink-0">
-            <CardTitle className="text-sm font-semibold text-foreground flex items-center gap-2">
-              <Upload className="h-4 w-4 text-teal" />
-              {tr("scanPhoto", currentLang)}
-            </CardTitle>
-            {!isCameraActive ? (
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={startCamera}
-                disabled={isScanning}
-                className="h-8 gap-1.5 text-xs border-teal/20 text-teal hover:bg-teal/5 cursor-pointer font-semibold rounded-full"
-              >
-                <Camera className="h-3.5 w-3.5" /> {tr("cameraScan", currentLang)}
-              </Button>
-            ) : (
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={stopCamera}
-                className="h-8 text-xs text-red-500 hover:bg-red-50 cursor-pointer font-semibold"
-              >
-                {tr("closeCamera", currentLang)}
-              </Button>
-            )}
-          </CardHeader>
-          <CardContent className="p-4 flex-1 flex flex-col">
-            {isCameraActive ? (
-              <div className="space-y-4">
-                <div className="relative overflow-hidden rounded-xl bg-black aspect-video border border-border">
-                  <video
-                    ref={videoRef}
-                    autoPlay
-                    playsInline
-                    className="w-full h-full object-cover"
-                  />
-                  <div className="absolute inset-0 border-2 border-dashed border-teal/40 pointer-events-none rounded-xl m-4" />
-                </div>
+          {/* ROW 1, COL 1 — Scan Ingredient Label (Image / Camera) */}
+          <Card className="border-border bg-surface shadow-card-soft flex flex-col min-h-[280px]">
+            <CardHeader className="py-3 px-4 border-b border-border/40 flex flex-row items-center justify-between gap-4 shrink-0">
+              <CardTitle className="text-sm font-semibold text-foreground flex items-center gap-2">
+                <Upload className="h-4 w-4 text-teal" />
+                {tr("scanPhoto", currentLang)}
+              </CardTitle>
+              {!isCameraActive ? (
                 <Button
-                  onClick={captureFrame}
-                  disabled={isScanning}
-                  className="w-full h-10 bg-teal text-white hover:bg-teal/90 gap-2 font-semibold text-xs rounded-lg cursor-pointer"
-                >
-                  <Camera className="h-4 w-4" /> {tr("captureScanIngredients", currentLang)}
-                </Button>
-              </div>
-            ) : (
-              <div className="flex-1 flex flex-col items-center justify-center border-2 border-dashed border-border/80 rounded-xl p-6 bg-surface-muted/10 hover:bg-surface-muted/20 transition-colors relative group cursor-pointer">
-                <input
-                  type="file"
-                  accept="image/*"
-                  onChange={handleFileUpload}
-                  className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
-                  disabled={isScanning}
-                />
-                <div className="h-12 w-12 rounded-full bg-teal/10 text-teal flex items-center justify-center mb-3 group-hover:scale-105 transition-transform duration-300">
-                  <ScanLine className="h-6 w-6" />
-                </div>
-                <p className="text-xs font-semibold text-foreground text-center">
-                  {selectedFile ? selectedFile.name : tr("clickOrDragPhoto", currentLang)}
-                </p>
-                <p className="text-[10px] text-muted-foreground mt-1 text-center">
-                  {tr("supportsFormats", currentLang)}
-                </p>
-              </div>
-            )}
-          </CardContent>
-        </Card>
-
-        {/* Row 1, Col 2 — Paste Ingredient List */}
-        <Card className="border-border bg-surface shadow-card-soft flex flex-col min-h-[280px]">
-          <CardHeader className="py-3 px-4 border-b border-border/40 shrink-0">
-            <CardTitle className="text-sm font-semibold text-foreground flex items-center gap-2">
-              <FileText className="h-4 w-4 text-teal" />
-              {tr("textInput", currentLang)}
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="p-4 pt-3 flex-1 flex flex-col">
-            <form onSubmit={handleTextSubmit} className="flex flex-col flex-1 gap-3">
-              <Textarea
-                value={rawText}
-                onChange={(e) => setRawText(e.target.value)}
-                placeholder={tr("ingredientsPlaceholder", currentLang)}
-                className="flex-1 resize-none text-xs border-border/80 bg-surface/50 transition-all duration-200 focus:border-teal focus:ring-teal focus-visible:ring-teal"
-                disabled={isScanning}
-              />
-              <Button
-                type="submit"
-                disabled={isScanning || !rawText.trim()}
-                className="w-full h-10 bg-primary text-primary-foreground hover:bg-primary/95 shadow-sm font-semibold text-xs rounded-lg transition-all duration-200 shrink-0"
-              >
-                {tr("analyzeIngredients", currentLang)}
-              </Button>
-            </form>
-          </CardContent>
-        </Card>
-
-        {/* Row 2, Col 1 — Indian Food Presets */}
-        <Card className="border-border bg-surface shadow-card-soft h-full">
-          <CardHeader className="py-3 px-4 border-b border-border/40">
-            <CardTitle className="text-sm font-semibold text-foreground flex items-center gap-2">
-              <Sparkles className="h-4 w-4 text-teal" />
-              {tr("indianFoodPresets", currentLang)}
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="p-4 pt-3">
-            <div className="flex flex-wrap gap-2">
-              {Object.keys(PRESETS).map((presetKey) => (
-                <Button
-                  key={presetKey}
                   variant="outline"
                   size="sm"
-                  onClick={() => handlePresetSelect(presetKey)}
+                  onClick={startCamera}
                   disabled={isScanning}
-                  className="text-xs border-border/80 hover:bg-accent/40 hover:text-teal font-medium rounded-full transition-all duration-200"
+                  className="h-8 gap-1.5 text-xs border-teal/20 text-teal hover:bg-teal/5 cursor-pointer font-semibold rounded-full"
                 >
-                  {presetKey}
+                  <Camera className="h-3.5 w-3.5" /> {tr("cameraScan", currentLang)}
                 </Button>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Row 2, Col 2 — Scan Results / Empty State */}
-        <div className="h-full">
-          {isScanning && (
-            <Card className="border-border bg-surface shadow-card-soft w-full h-full min-h-[140px] flex items-center justify-center p-8">
-              <div className="flex flex-col items-center gap-4 text-center">
-                <Loader2 className="h-10 w-10 animate-spin text-teal" />
-                <div>
-                  <h3 className="font-display text-base font-bold text-foreground">
-                    {tr("aiScanningInProgress", currentLang)}
-                  </h3>
-                  <p className="text-xs text-muted-foreground mt-1 max-w-xs">
-                    {tr("extractingIngredients", currentLang)}
+              ) : (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={stopCamera}
+                  className="h-8 text-xs text-red-500 hover:bg-red-50 cursor-pointer font-semibold"
+                >
+                  {tr("closeCamera", currentLang)}
+                </Button>
+              )}
+            </CardHeader>
+            <CardContent className="p-4 flex-1 flex flex-col justify-center">
+              {isCameraActive ? (
+                <div className="space-y-4">
+                  <div className="relative overflow-hidden rounded-xl bg-black aspect-video border border-border">
+                    <video
+                      ref={videoRef}
+                      autoPlay
+                      playsInline
+                      className="w-full h-full object-cover"
+                    />
+                    <div className="absolute inset-0 border-2 border-dashed border-teal/40 pointer-events-none rounded-xl m-4" />
+                  </div>
+                  <Button
+                    onClick={captureFrame}
+                    disabled={isScanning}
+                    className="w-full h-10 bg-teal text-white hover:bg-teal/90 gap-2 font-semibold text-xs rounded-lg cursor-pointer"
+                  >
+                    {isScanning ? (
+                      <>
+                        <Loader2 className="h-4 w-4 animate-spin" /> Extracting Ingredients...
+                      </>
+                    ) : (
+                      <>
+                        <Camera className="h-4 w-4" /> {tr("captureScanIngredients", currentLang)}
+                      </>
+                    )}
+                  </Button>
+                </div>
+              ) : (
+                <div className="flex-1 flex flex-col items-center justify-center border-2 border-dashed border-border/80 rounded-xl p-6 bg-surface-muted/10 hover:bg-surface-muted/20 transition-colors relative group cursor-pointer">
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept="image/jpeg,image/png,image/webp"
+                    onChange={handleFileUpload}
+                    className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                    disabled={isScanning}
+                  />
+                  <div className="h-12 w-12 rounded-full bg-teal/10 text-teal flex items-center justify-center mb-3 group-hover:scale-105 transition-transform duration-300">
+                    {isScanning ? <Loader2 className="h-6 w-6 animate-spin" /> : <ScanLine className="h-6 w-6" />}
+                  </div>
+                  <p className="text-xs font-semibold text-foreground text-center">
+                    {selectedFile ? selectedFile.name : tr("clickOrDragPhoto", currentLang)}
+                  </p>
+                  <p className="text-[10px] text-muted-foreground mt-1 text-center">
+                    Supports JPEG, PNG, WebP (Max 5 MB)
                   </p>
                 </div>
-              </div>
-            </Card>
-          )}
+              )}
+            </CardContent>
+          </Card>
 
-          {!isScanning && !report && (
-            <Card className="border-border bg-surface shadow-card-soft border-dashed w-full h-full min-h-[140px] flex items-center justify-center p-6">
-              <div className="flex flex-col items-center gap-2 text-center">
-                <div className="h-10 w-10 rounded-full bg-teal/10 text-teal flex items-center justify-center">
-                  <ScanLine className="h-5 w-5" />
-                </div>
-                <h3 className="font-display text-sm font-bold text-foreground">
-                  {tr("noFoodsScanned", currentLang)}
-                </h3>
-                <p className="text-xs text-muted-foreground max-w-[200px] leading-relaxed">
-                  {tr("uploadFoodLabel", currentLang)}
-                </p>
-              </div>
-            </Card>
-          )}
+          {/* ROW 1, COL 2 — Paste Ingredient List */}
+          <Card className="border-border bg-surface shadow-card-soft flex flex-col min-h-[280px]">
+            <CardHeader className="py-3 px-4 border-b border-border/40 shrink-0">
+              <CardTitle className="text-sm font-semibold text-foreground flex items-center gap-2">
+                <FileText className="h-4 w-4 text-teal" />
+                {tr("textInput", currentLang)}
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="p-4 pt-3 flex-1 flex flex-col">
+              <form onSubmit={handleTextSubmit} className="flex flex-col flex-1 gap-3">
+                <Textarea
+                  id="manual-ingredient-textarea"
+                  value={rawText}
+                  onChange={(e) => setRawText(e.target.value)}
+                  placeholder={tr("ingredientsPlaceholder", currentLang)}
+                  className="flex-1 resize-none text-xs border-border/80 bg-surface/50 transition-all duration-200 focus:border-teal focus:ring-teal focus-visible:ring-teal"
+                  disabled={isScanning}
+                />
+                <Button
+                  type="submit"
+                  disabled={isScanning || !rawText.trim()}
+                  className="w-full h-10 bg-primary text-primary-foreground hover:bg-primary/95 shadow-sm font-semibold text-xs rounded-lg transition-all duration-200 shrink-0 gap-2"
+                >
+                  {isScanning ? (
+                    <>
+                      <Loader2 className="h-4 w-4 animate-spin" /> Analyzing Ingredients...
+                    </>
+                  ) : (
+                    <>
+                      <Sparkle className="h-4 w-4 text-teal" /> {tr("analyzeIngredients", currentLang)}
+                    </>
+                  )}
+                </Button>
+              </form>
+            </CardContent>
+          </Card>
 
-          {!isScanning && report && (
-            <div className="space-y-6 w-full animate-fade-in">
-              {/* Score and Header Card */}
+          {/* ROW 2 — Indian Food Presets (Spans full width lg:col-span-2, compact height, no h-full stretch!) */}
+          <Card ref={presetsRef} className="border-border bg-surface shadow-card-soft lg:col-span-2">
+            <CardHeader className="py-3 px-4 border-b border-border/40">
+              <CardTitle className="text-sm font-semibold text-foreground flex items-center gap-2">
+                <Sparkles className="h-4 w-4 text-teal" />
+                {tr("indianFoodPresets", currentLang)}
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="p-4 pt-3">
+              <div className="flex flex-wrap gap-2">
+                {Object.keys(PRESETS).map((presetKey) => (
+                  <Button
+                    key={presetKey}
+                    variant="outline"
+                    size="sm"
+                    onClick={() => handlePresetSelect(presetKey)}
+                    disabled={isScanning}
+                    className="text-xs border-border/80 hover:bg-accent/40 hover:text-teal font-medium rounded-full transition-all duration-200"
+                  >
+                    {presetKey}
+                  </Button>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* ROW 3 — Output Section / Error State / Empty State (Spans full width lg:col-span-2) */}
+          <div className="lg:col-span-2">
+
+            {/* A. Honest Image Extraction Error State (Defect 2 requirement: NO fabricated reports!) */}
+            {report && report.status === "extraction-unavailable" && (
+              <Card className="border-rose-500/30 bg-rose-500/5 shadow-card-soft overflow-hidden">
+                <CardHeader className="py-3 px-5 border-b border-rose-500/20 bg-rose-500/10">
+                  <CardTitle className="text-sm font-bold text-rose-600 dark:text-rose-400 flex items-center gap-2">
+                    <AlertTriangle className="h-4 w-4 shrink-0 text-rose-600" />
+                    Image Ingredient Extraction Failed
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="p-5 space-y-4">
+                  <p className="text-xs text-foreground leading-relaxed">
+                    {report.message || "Could not read or extract ingredient text from the image. Please ensure the label is clear, or use manual entry below."}
+                  </p>
+                  {report.reasonCode && (
+                    <Badge variant="outline" className="text-[10px] font-mono bg-rose-500/10 text-rose-600 border-rose-500/20">
+                      Reason: {report.reasonCode}
+                    </Badge>
+                  )}
+
+                  <div className="pt-2 border-t border-rose-500/20">
+                    <p className="text-xs font-semibold text-foreground mb-2">What would you like to do?</p>
+                    <div className="flex flex-wrap gap-2.5">
+                      <Button
+                        size="sm"
+                        onClick={retryImageAnalysis}
+                        disabled={isScanning}
+                        className="bg-teal text-white hover:bg-teal/90 text-xs font-semibold gap-1.5"
+                      >
+                        <RefreshCw className="h-3.5 w-3.5" /> 1. Retry Image Analysis
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={focusManualText}
+                        className="text-xs font-semibold gap-1.5"
+                      >
+                        <FileText className="h-3.5 w-3.5 text-teal" /> 2. Paste Ingredients Manually
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={focusPresets}
+                        className="text-xs font-semibold gap-1.5"
+                      >
+                        <Sparkles className="h-3.5 w-3.5 text-amber-500" /> 3. Select a Preset
+                      </Button>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+
+            {/* B. Valid Scan Result Report Card */}
+            {report && report.status !== "extraction-unavailable" && (
               <Card className="border-border bg-surface shadow-card-soft overflow-hidden">
-                <CardContent className="p-6 sm:p-8">
-                  {/* Goal Conflict Banner */}
-                  {report.conflict?.conflicts && (
-                    <div className="mb-6 rounded-xl border border-red-500/20 bg-red-500/5 p-4 flex items-start gap-3">
-                      <AlertTriangle className="h-5 w-5 text-red-500 shrink-0 mt-0.5" />
-                      <div>
-                        <div className="text-xs font-bold text-red-600">
-                          {tr("goalConflictDetected", currentLang)}
-                        </div>
-                        <p className="text-[11px] text-red-600/90 mt-0.5 font-semibold">
-                          {report.conflict.message}
-                        </p>
+                <CardHeader className="py-4 px-6 border-b border-border/40 bg-surface-muted/30">
+                  <div className="flex flex-wrap items-center justify-between gap-3">
+                    <div className="space-y-1">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <Badge variant="outline" className="text-[10px] uppercase font-bold tracking-wider bg-teal/10 text-teal border-teal/20">
+                          {report.source || "Manual text"}
+                        </Badge>
+                        <Badge
+                          variant="outline"
+                          className={`text-[10px] uppercase font-bold tracking-wider ${
+                            report.analysisMode === "ai"
+                              ? "bg-emerald-500/10 text-emerald-600 border-emerald-500/20"
+                              : "bg-amber-500/10 text-amber-600 border-amber-500/20"
+                          }`}
+                        >
+                          {report.analysisMode === "ai" ? "AI-Assisted Analysis" : "Rule-Based Analysis"}
+                        </Badge>
+                        {report.isPersonalized === false && (
+                          <Badge variant="secondary" className="text-[10px]">
+                            Non-Personalized Baseline
+                          </Badge>
+                        )}
                       </div>
+                      <CardTitle className="text-lg font-bold text-foreground">
+                        {report.name || "Custom ingredient list"}
+                      </CardTitle>
+                    </div>
+
+                    <div className="flex items-center gap-3">
+                      <div className="text-right">
+                        <span className="text-[10px] uppercase font-bold text-muted-foreground block">
+                          Nutrition Score
+                        </span>
+                        <span className={`text-xl font-black ${getScoreTextColor(report.score)}`}>
+                          {report.score} / 10
+                        </span>
+                      </div>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={resetScanner}
+                        className="h-8 text-xs text-muted-foreground hover:text-foreground"
+                      >
+                        Clear
+                      </Button>
+                    </div>
+                  </div>
+                </CardHeader>
+
+                <CardContent className="p-6 space-y-6">
+                  {/* Informational notice for deterministic text analysis */}
+                  {report.analysisMode === "deterministic" && (
+                    <div className="rounded-lg bg-amber-500/10 p-3 border border-amber-500/20 flex items-start gap-2.5">
+                      <Info className="h-4 w-4 text-amber-600 shrink-0 mt-0.5" />
+                      <p className="text-xs text-amber-800 dark:text-amber-300 leading-relaxed">
+                        {report.message || "AI analysis is temporarily unavailable. Results were generated from the ingredient text using HealthGuard's rule-based evaluator."}
+                      </p>
                     </div>
                   )}
 
-                  <div className="flex flex-col sm:flex-row items-center gap-6 justify-between border-b border-border/40 pb-6 mb-6">
-                    <div className="text-center sm:text-left space-y-1">
-                      <span className="text-[10px] font-bold uppercase tracking-widest text-teal">
-                        {tr("nutritionAudit", currentLang)}
+                  {/* Profile required notice */}
+                  {report.message && report.isPersonalized === false && report.analysisMode !== "deterministic" && (
+                    <div className="rounded-lg bg-teal/10 p-3 border border-teal/20 flex items-start gap-2.5">
+                      <Info className="h-4 w-4 text-teal shrink-0 mt-0.5" />
+                      <p className="text-xs text-teal-800 dark:text-teal-300 leading-relaxed font-medium">
+                        {report.message}
+                      </p>
+                    </div>
+                  )}
+
+                  {/* Score Progress Bar */}
+                  <div className="space-y-1.5">
+                    <div className="flex justify-between text-xs font-semibold text-foreground">
+                      <span>Overall Wellness Rating</span>
+                      <span>{report.score >= 7 ? "Favorable" : report.score >= 5 ? "Moderate" : "Caution Recommended"}</span>
+                    </div>
+                    <Progress value={report.score * 10} className={`h-2.5 ${getScoreProgressColor(report.score)}`} />
+                  </div>
+
+                  {/* Extracted Ingredients Raw Text */}
+                  {report.rawText && (
+                    <div className="rounded-lg bg-surface-muted/40 p-3 border border-border/30 space-y-1">
+                      <span className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">
+                        Analyzed Ingredient Text
                       </span>
-                      <h2 className="font-display text-xl font-extrabold text-foreground leading-tight">
-                        {report.name}
-                      </h2>
-                      {report.foodRiskCategory && (
-                        <div className="mt-1.5 flex items-center justify-center sm:justify-start gap-2">
-                          <span className="text-[10px] text-muted-foreground uppercase font-bold tracking-wider font-mono">
-                            Estimated Suitability:
-                          </span>
-                          <Badge
-                            className={`text-[10px] font-bold px-2 py-0.5 rounded font-mono ${
-                              report.foodRiskCategory === "avoid"
-                                ? "bg-red-500/10 text-red-600 border border-red-500/20"
-                                : report.foodRiskCategory === "moderate"
-                                  ? "bg-amber-500/10 text-amber-600 border border-amber-500/20"
-                                  : "bg-green-500/10 text-green-600 border border-green-500/20"
-                            }`}
-                            variant="outline"
-                          >
-                            {report.foodRiskCategory.toUpperCase()}
-                          </Badge>
-                        </div>
+                      <p className="text-xs text-foreground font-mono leading-relaxed">
+                        {report.rawText}
+                      </p>
+                    </div>
+                  )}
+
+                  {/* Good & Watchout Ingredients */}
+                  <div className="grid gap-4 sm:grid-cols-2">
+                    <div className="rounded-xl border border-emerald-500/20 bg-emerald-500/5 p-4 space-y-2">
+                      <span className="text-xs font-bold text-emerald-600 dark:text-emerald-400 uppercase tracking-wider flex items-center gap-1.5">
+                        <CheckCircle className="h-4 w-4" /> Beneficial Ingredients
+                      </span>
+                      {report.goodIngredients.length > 0 ? (
+                        <ul className="space-y-1 pl-4 list-disc text-xs text-foreground">
+                          {report.goodIngredients.map((ing, idx) => (
+                            <li key={idx}>{ing}</li>
+                          ))}
+                        </ul>
+                      ) : (
+                        <p className="text-xs text-muted-foreground italic">No specific high-benefit ingredients flagged.</p>
                       )}
                     </div>
 
-                    {/* Dual Score Gauge */}
-                    <div className="flex flex-wrap items-center gap-4 bg-surface-muted/20 border border-border/40 p-3.5 rounded-2xl">
-                      <div className="text-right">
-                        <div className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
-                          {tr("baseFoodScore", currentLang)}
-                        </div>
-                        <div className="text-xs font-bold text-foreground">
-                          {report.foodScore ?? report.score}/10
-                        </div>
-                      </div>
-                      <div className="h-8 w-[1px] bg-border/60" />
-                      <div className="text-right">
-                        <div className="text-[10px] font-bold uppercase tracking-wider text-teal font-mono">
-                          {tr("personalized", currentLang)}
-                        </div>
-                        <div
-                          className={`text-base font-extrabold ${getScoreTextColor(report.personalizedFoodScore ?? report.personalizedScore ?? report.score)}`}
-                        >
-                          {report.personalizedFoodScore ?? report.personalizedScore ?? report.score}
-                          /10
-                        </div>
-                      </div>
-                      <div
-                        className={`h-11 w-11 rounded-xl flex items-center justify-center font-display text-lg font-black ${getScoreColor(report.personalizedFoodScore ?? report.personalizedScore ?? report.score)}`}
-                      >
-                        {report.personalizedFoodScore ?? report.personalizedScore ?? report.score}
-                      </div>
+                    <div className="rounded-xl border border-rose-500/20 bg-rose-500/5 p-4 space-y-2">
+                      <span className="text-xs font-bold text-rose-600 dark:text-rose-400 uppercase tracking-wider flex items-center gap-1.5">
+                        <AlertTriangle className="h-4 w-4" /> Ingredients to Watch
+                      </span>
+                      {report.watchOut.length > 0 ? (
+                        <ul className="space-y-1 pl-4 list-disc text-xs text-foreground">
+                          {report.watchOut.map((ing, idx) => (
+                            <li key={idx} className="font-medium text-rose-600/90 dark:text-rose-400">{ing}</li>
+                          ))}
+                        </ul>
+                      ) : (
+                        <p className="text-xs text-muted-foreground italic">No major concerning additives or high-risk sugars flagged.</p>
+                      )}
                     </div>
                   </div>
 
-                  {/* Reasons Breakdown */}
-                  {report.reasons && report.reasons.length > 0 && (
-                    <div className="mb-4 rounded-xl border border-border bg-accent/10 p-4 space-y-1.5 text-left">
-                      <div className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground font-mono">
-                        Deduction Analysis & Drivers
-                      </div>
-                      <ul className="list-disc pl-4 text-xs text-foreground/80 space-y-1">
-                        {report.reasons.map((reason, idx) => (
-                          <li key={idx}>{reason}</li>
-                        ))}
-                      </ul>
-                    </div>
-                  )}
-
-                  {/* Recommendation Card / Gemini Explanation */}
-                  {report.geminiExplanation ? (
-                    <div className="rounded-xl border border-teal/20 bg-teal/5 p-5 shadow-sm space-y-2 text-left relative overflow-hidden">
-                      <div className="absolute top-0 right-0 p-1.5 text-teal/10">
-                        <Sparkles className="h-24 w-24 -mr-6 -mt-6" />
-                      </div>
-                      <div className="text-[10px] font-bold uppercase tracking-wider text-teal flex items-center gap-1.5">
-                        <Sparkles className="h-4 w-4 text-teal" />
-                        AI Clinical Analysis & Explanation
-                      </div>
-                      <p className="text-xs leading-relaxed text-foreground/90 font-medium relative z-10">
-                        "{report.geminiExplanation}"
-                      </p>
-                    </div>
-                  ) : (
-                    <div className="rounded-xl border border-border bg-surface-muted/30 p-5 shadow-sm space-y-2 text-left">
-                      <div className="text-[10px] font-bold uppercase tracking-wider text-teal">
-                        {tr("personalizedImpactRec", currentLang)}
-                      </div>
-                      <p className="text-xs leading-relaxed text-foreground/90 font-medium">
-                        "{report.recommendation}"
-                      </p>
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
-
-              {/* Diagnosis Grid */}
-              {/* Diagnosis Grid */}
-              <div className="grid gap-4 sm:grid-cols-3">
-                {/* Diabetes */}
-                <Card className="border-border bg-surface shadow-card-soft">
-                  <CardContent className="p-5 space-y-3">
-                    <div className="flex items-center justify-between gap-2">
-                      <div className="flex items-center gap-1.5 text-red-500">
-                        <Brain className="h-4.5 w-4.5 shrink-0" />
-                        <h4 className="font-display text-xs font-bold text-foreground">
-                          {tr("glycemicImpact", currentLang)}
-                        </h4>
-                      </div>
-                      {report.diabetesImpactPoints !== undefined ? (
-                        report.diabetesImpactPoints >= 8 ? (
-                          <Badge className="bg-red-500/10 text-red-600 border border-red-500/20 text-[9px] font-bold py-0 px-1.5">
-                            ↑ {tr("highRisk", currentLang)}
-                          </Badge>
-                        ) : report.diabetesImpactPoints > 0 ? (
-                          <Badge className="bg-amber-500/10 text-amber-600 border border-amber-500/20 text-[9px] font-bold py-0 px-1.5">
-                            → {tr("modRisk", currentLang)}
-                          </Badge>
-                        ) : (
-                          <Badge className="bg-green-500/10 text-green-600 border border-green-500/20 text-[9px] font-bold py-0 px-1.5">
-                            ✓ {tr("low", currentLang)}
-                          </Badge>
-                        )
-                      ) : null}
-                    </div>
-                    <p className="text-[11px] leading-relaxed text-muted-foreground">
-                      {report.diabetesImpact}
-                    </p>
-                  </CardContent>
-                </Card>
-
-                {/* Blood Pressure */}
-                <Card className="border-border bg-surface shadow-card-soft">
-                  <CardContent className="p-5 space-y-3">
-                    <div className="flex items-center justify-between gap-2">
-                      <div className="flex items-center gap-1.5 text-teal">
-                        <Activity className="h-4.5 w-4.5 shrink-0" />
-                        <h4 className="font-display text-xs font-bold text-foreground">
-                          {tr("vascularImpact", currentLang)}
-                        </h4>
-                      </div>
-                      {report.hypertensionImpactPoints !== undefined ? (
-                        report.hypertensionImpactPoints >= 8 ? (
-                          <Badge className="bg-red-500/10 text-red-600 border border-red-500/20 text-[9px] font-bold py-0 px-1.5">
-                            ↑ {tr("highRisk", currentLang)}
-                          </Badge>
-                        ) : report.hypertensionImpactPoints > 0 ? (
-                          <Badge className="bg-amber-500/10 text-amber-600 border border-amber-500/20 text-[9px] font-bold py-0 px-1.5">
-                            → {tr("modRisk", currentLang)}
-                          </Badge>
-                        ) : (
-                          <Badge className="bg-green-500/10 text-green-600 border border-green-500/20 text-[9px] font-bold py-0 px-1.5">
-                            ✓ {tr("low", currentLang)}
-                          </Badge>
-                        )
-                      ) : null}
-                    </div>
-                    <p className="text-[11px] leading-relaxed text-muted-foreground">
-                      {report.bloodPressureImpact}
-                    </p>
-                  </CardContent>
-                </Card>
-
-                {/* Heart Health */}
-                <Card className="border-border bg-surface shadow-card-soft">
-                  <CardContent className="p-5 space-y-3">
-                    <div className="flex items-center justify-between gap-2">
-                      <div className="flex items-center gap-1.5 text-primary">
-                        <Heart className="h-4.5 w-4.5 shrink-0" />
-                        <h4 className="font-display text-xs font-bold text-foreground">
-                          {tr("cardiacImpact", currentLang)}
-                        </h4>
-                      </div>
-                      {report.heartImpactPoints !== undefined ? (
-                        report.heartImpactPoints >= 8 ? (
-                          <Badge className="bg-red-500/10 text-red-600 border border-red-500/20 text-[9px] font-bold py-0 px-1.5">
-                            ↑ {tr("highRisk", currentLang)}
-                          </Badge>
-                        ) : report.heartImpactPoints > 0 ? (
-                          <Badge className="bg-amber-500/10 text-amber-600 border border-amber-500/20 text-[9px] font-bold py-0 px-1.5">
-                            → {tr("modRisk", currentLang)}
-                          </Badge>
-                        ) : (
-                          <Badge className="bg-green-500/10 text-green-600 border border-green-500/20 text-[9px] font-bold py-0 px-1.5">
-                            ✓ {tr("low", currentLang)}
-                          </Badge>
-                        )
-                      ) : null}
-                    </div>
-                    <p className="text-[11px] leading-relaxed text-muted-foreground">
-                      {report.heartHealthImpact}
-                    </p>
-                  </CardContent>
-                </Card>
-              </div>
-
-              {/* Recommended Healthy Alternatives */}
-              {(((report as any).betterAlternatives && (report as any).betterAlternatives.length > 0) ||
-                ((report as any).alternatives && (report as any).alternatives.length > 0)) && (
-                <Card className="border-border bg-surface shadow-card-soft">
-                  <CardHeader className="pb-3 border-b border-border/40">
-                    <CardTitle className="text-sm font-semibold text-foreground flex items-center gap-2">
-                      <Sparkles className="h-4 w-4 text-teal animate-pulse-slow" />{" "}
-                      {tr("recommendedAlternatives", currentLang)}
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent className="p-5">
-                    <p className="text-xs text-muted-foreground mb-4">
-                      {tr("alternativesSub", currentLang)}
-                    </p>
-                    <div className="grid gap-3 sm:grid-cols-3">
-                      {((report as any).betterAlternatives && (report as any).betterAlternatives.length > 0
-                        ? (report as any).betterAlternatives
-                        : (report as any).alternatives
-                      ).map((alt: any, idx: number) => (
-                        <div
-                          key={idx}
-                          className="flex items-center gap-2.5 rounded-xl border border-border bg-surface-muted/30 p-3 hover:bg-accent/10 transition-all cursor-default"
-                        >
-                          <span className="text-base">🥗</span>
-                          <span className="text-xs font-semibold text-foreground">{alt}</span>
-                        </div>
-                      ))}
-                    </div>
-                  </CardContent>
-                </Card>
-              )}
-
-              {/* Ingredients Details Card */}
-              <Card className="border-border bg-surface shadow-card-soft">
-                <CardContent className="p-6 space-y-6">
-                  {/* Good Ingredients */}
+                  {/* Physiological Impacts */}
                   <div className="space-y-3">
-                    <h3 className="font-display text-sm font-bold text-foreground flex items-center gap-2">
-                      <CheckCircle className="h-4.5 w-4.5 text-green-500" />
-                      {tr("beneficialIngredients", currentLang)} ({report.goodIngredients.length})
-                    </h3>
-                    {report.goodIngredients.length > 0 ? (
-                      <div className="flex flex-wrap gap-1.5">
-                        {report.goodIngredients.map((item) => (
-                          <Badge
-                            key={item}
-                            variant="secondary"
-                            className="bg-green-500/5 text-green-600 dark:text-green-400 border border-green-500/20 text-xs px-2.5 py-1 rounded-full font-medium"
-                          >
-                            ✓ {item}
-                          </Badge>
-                        ))}
+                    <h4 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
+                      Physiological & Metabolic Impacts
+                    </h4>
+                    <div className="grid gap-3 sm:grid-cols-3">
+                      <div className="rounded-lg border border-border/40 p-3 bg-surface-muted/30 space-y-1">
+                        <span className="text-xs font-bold text-foreground flex items-center gap-1.5">
+                          <Activity className="h-3.5 w-3.5 text-teal" /> Glycemic Impact
+                        </span>
+                        <p className="text-xs text-muted-foreground leading-relaxed">{report.diabetesImpact}</p>
                       </div>
-                    ) : (
-                      <p className="text-xs text-muted-foreground italic">
-                        {tr("noBeneficialIngredients", currentLang)}
-                      </p>
-                    )}
+
+                      <div className="rounded-lg border border-border/40 p-3 bg-surface-muted/30 space-y-1">
+                        <span className="text-xs font-bold text-foreground flex items-center gap-1.5">
+                          <Heart className="h-3.5 w-3.5 text-rose-500" /> Vascular Impact
+                        </span>
+                        <p className="text-xs text-muted-foreground leading-relaxed">{report.bloodPressureImpact}</p>
+                      </div>
+
+                      <div className="rounded-lg border border-border/40 p-3 bg-surface-muted/30 space-y-1">
+                        <span className="text-xs font-bold text-foreground flex items-center gap-1.5">
+                          <Brain className="h-3.5 w-3.5 text-amber-500" /> Cardiac Impact
+                        </span>
+                        <p className="text-xs text-muted-foreground leading-relaxed">{report.heartHealthImpact}</p>
+                      </div>
+                    </div>
                   </div>
 
-                  {/* Concerning Ingredients */}
-                  <div className="space-y-3 pt-4 border-t border-border/40">
-                    <h3 className="font-display text-sm font-bold text-foreground flex items-center gap-2">
-                      <AlertTriangle className="h-4.5 w-4.5 text-red-500" />
-                      {tr("concerningIngredients", currentLang)} ({report.watchOut.length})
-                    </h3>
-                    {report.watchOut.length > 0 ? (
-                      <div className="flex flex-wrap gap-1.5">
-                        {report.watchOut.map((item) => (
-                          <Badge
-                            key={item}
-                            variant="secondary"
-                            className="bg-red-500/5 text-red-600 dark:text-red-400 border border-red-500/20 text-xs px-2.5 py-1 rounded-full font-medium"
-                          >
-                            ⚠ {item}
-                          </Badge>
-                        ))}
-                      </div>
-                    ) : (
-                      <p className="text-xs text-green-600 font-semibold flex items-center gap-1">
-                        <CheckCircle className="h-3.5 w-3.5" />{" "}
-                        {tr("noConcerningIngredients", currentLang)}
-                      </p>
-                    )}
-                  </div>
-
-                  {/* Reset Control */}
-                  <div className="pt-6 border-t border-border/40 flex justify-end">
-                    <Button
-                      variant="outline"
-                      onClick={resetScanner}
-                      className="text-xs font-semibold hover:bg-accent/40 border-border/80 gap-2 h-9 rounded-lg"
-                    >
-                      <RefreshCw className="h-3 w-3" />
-                      {tr("scanAnother", currentLang)}
-                    </Button>
+                  {/* Recommendation & Safety Disclaimer */}
+                  <div className="rounded-xl border border-teal/20 bg-teal/5 p-4 space-y-2">
+                    <span className="text-xs font-bold text-teal uppercase tracking-wider flex items-center gap-1.5">
+                      <Sparkles className="h-4 w-4" /> Wellness Recommendation
+                    </span>
+                    <p className="text-xs text-foreground leading-relaxed font-medium">
+                      {report.recommendation}
+                    </p>
+                    <p className="text-[11px] text-muted-foreground italic pt-1 border-t border-teal/10">
+                      *This nutrition and wellness analysis is for lifestyle guidance and dietary awareness only. It is not a clinical diagnosis or medical prescription.
+                    </p>
                   </div>
                 </CardContent>
               </Card>
-            </div>
-          )}
+            )}
+
+            {/* C. Compact Empty Result State */}
+            {!report && (
+              <Card className="border-border/60 bg-surface/60 shadow-none">
+                <CardContent className="p-6 text-center space-y-2">
+                  <div className="h-10 w-10 rounded-full bg-teal/10 text-teal flex items-center justify-center mx-auto">
+                    <ScanLine className="h-5 w-5" />
+                  </div>
+                  <p className="text-xs font-semibold text-foreground">No Food Analysis Generated Yet</p>
+                  <p className="text-[11px] text-muted-foreground max-w-md mx-auto">
+                    Upload an ingredient label photo, paste an ingredient list, or select a preset food item to see personalized nutrition insights.
+                  </p>
+                </CardContent>
+              </Card>
+            )}
+
+          </div>
+
         </div>
       </div>
-    </div>
     </div>
   );
 }

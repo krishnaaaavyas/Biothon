@@ -15,6 +15,8 @@ export interface PersonalizedFoodResult {
   heartImpact: number;
   reasons: string[];
   betterAlternatives: string[];
+  goodIngredients: string[];
+  watchOut: string[];
 }
 
 export class FoodImpactService {
@@ -23,6 +25,18 @@ export class FoodImpactService {
    */
   static cleanIngredients(ingredients: string[]): string[] {
     return ingredients.map((ing) => ing.toLowerCase().trim());
+  }
+
+  /**
+   * Parses raw ingredient string into clean array tokens
+   */
+  static parseIngredientsFromRawText(rawText?: string): string[] {
+    if (!rawText || typeof rawText !== "string") return [];
+    const cleanedText = rawText.replace(/^ingredients\s*:?/i, "").trim();
+    return cleanedText
+      .split(/[,;\n]+/)
+      .map((s) => s.trim())
+      .filter((s) => s.length > 0);
   }
 
   /**
@@ -243,6 +257,13 @@ export class FoodImpactService {
       heartImpact: baseHeartImpact,
     });
 
+    const goodIngredients = cleaned.filter((ing) =>
+      ing.includes("oat") || ing.includes("almond") || ing.includes("chana") || ing.includes("fiber") || ing.includes("protein") || ing.includes("probiotic") || ing.includes("chia") || ing.includes("flax")
+    );
+    const watchOut = cleaned.filter((ing) =>
+      ing.includes("sugar") || ing.includes("salt") || ing.includes("sodium") || ing.includes("palm") || ing.includes("msg") || ing.includes("maida") || ing.includes("hydrogenated")
+    );
+
     return {
       foodRiskCategory,
       personalizedFoodScore,
@@ -251,6 +272,8 @@ export class FoodImpactService {
       heartImpact,
       reasons,
       betterAlternatives,
+      goodIngredients,
+      watchOut,
     };
   }
 
