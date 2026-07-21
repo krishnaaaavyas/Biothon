@@ -1,4 +1,4 @@
-"""Synthetic-only tests for the LASI hypertension cohort audit."""
+﻿"""Synthetic-only tests for the LASI hypertension cohort audit."""
 import json, re, sys
 import numpy as np
 import pandas as pd
@@ -220,7 +220,5 @@ def test_cli_integration_synthetic_dta(tmp_path,monkeypatch):
     monkeypatch.setattr(audit,"REPOSITORY_ROOT",repo); monkeypatch.setattr(sys,"argv",["build","--data-root",str(root),"--output-dir",str(output)])
     audit.main(); assert validate_outputs(output,10)["validated_output_count"]==7
     exported="".join(p.read_text() for p in output.iterdir()); assert not any(k in exported for k in keys)
- feat/lasi-hypertension-cohort-audit
 
 
- feat/lasi-hypertension-model-cohort

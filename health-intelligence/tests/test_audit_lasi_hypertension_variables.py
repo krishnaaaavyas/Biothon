@@ -1,4 +1,4 @@
-"""Synthetic-only tests for the LASI hypertension variable audit."""
+﻿"""Synthetic-only tests for the LASI hypertension variable audit."""
 
 import json
 import sys

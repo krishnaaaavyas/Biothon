@@ -1,4 +1,4 @@
-"""Synthetic-only tests for LASI hypertension target auditing."""
+﻿"""Synthetic-only tests for LASI hypertension target auditing."""
 
 import pandas as pd
 import pytest

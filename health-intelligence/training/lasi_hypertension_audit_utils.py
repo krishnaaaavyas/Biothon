@@ -1,4 +1,4 @@
-"""Shared privacy controls for LASI hypertension aggregate audits."""
+﻿"""Shared privacy controls for LASI hypertension aggregate audits."""
 
 from __future__ import annotations
 
@@ -542,6 +542,4 @@ def execute_audit(
     validate_official_candidate_sets(bundle)
     write_bundle(bundle, output_dir)
     return bundle
- feat/lasi-hypertension-cohort-audit
 
- feat/lasi-hypertension-model-cohort

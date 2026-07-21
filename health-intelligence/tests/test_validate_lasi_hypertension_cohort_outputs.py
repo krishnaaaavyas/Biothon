@@ -1,4 +1,4 @@
-"""Synthetic tests for hypertension cohort-output validation."""
+﻿"""Synthetic tests for hypertension cohort-output validation."""
 import json
 import pytest
 from training import build_lasi_hypertension_cohort as audit
@@ -74,7 +74,5 @@ def test_partial_output_directory_lists_only_missing_files(output):
     message = str(error.value)
     assert f"Missing files:\n- {removed}" in message
     assert "Unexpected files:\n- none" in message
- feat/lasi-hypertension-cohort-audit
 
 
- feat/lasi-hypertension-model-cohort
