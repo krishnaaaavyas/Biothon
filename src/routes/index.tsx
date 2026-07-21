@@ -106,11 +106,11 @@ function Landing() {
                 className="h-12 gap-2 bg-primary text-primary-foreground hover:bg-primary/95 hover:shadow-md hover:-translate-y-0.5 transition-all duration-300 px-6 font-semibold"
               >
                 {user ? (
-                  <Link to="/assessment" search={{ mode: "lifestyle" }}>
+                  <Link to="/assessment" search={{ mode: "lifestyle", step: 1 }}>
                     {tr("startAssessment", currentLang)} <ArrowRight className="h-4 w-4" />
                   </Link>
                 ) : (
-                  <Link to="/login" search={{ redirect: "/assessment?mode=lifestyle" }}>
+                  <Link to="/login" search={{ redirect: "/assessment?mode=lifestyle&step=1" }}>
                     {tr("startAssessment", currentLang)} <ArrowRight className="h-4 w-4" />
                   </Link>
                 )}
@@ -122,11 +122,11 @@ function Landing() {
                 className="h-12 px-6 text-base font-semibold border-teal/20 text-teal hover:bg-teal/5 hover:border-teal/45 hover:text-teal hover:-translate-y-0.5 transition-all duration-300"
               >
                 {user ? (
-                  <Link to="/assessment" search={{ mode: "blood" }}>
+                  <Link to="/assessment" search={{ mode: "blood", step: 1 }}>
                     Analyze Blood Report
                   </Link>
                 ) : (
-                  <Link to="/login" search={{ redirect: "/assessment?mode=blood" }}>
+                  <Link to="/login" search={{ redirect: "/assessment?mode=blood&step=1" }}>
                     Analyze Blood Report
                   </Link>
                 )}
@@ -492,11 +492,11 @@ function Landing() {
                 className="h-11 gap-2 bg-primary text-primary-foreground hover:bg-primary/95 px-6 font-semibold"
               >
                 {user ? (
-                  <Link to="/assessment" search={{ mode: "lifestyle" }}>
+                  <Link to="/assessment" search={{ mode: "lifestyle", step: 1 }}>
                     {tr("startHealthAssessment", currentLang)} <ArrowRight className="h-4 w-4" />
                   </Link>
                 ) : (
-                  <Link to="/login" search={{ redirect: "/assessment?mode=lifestyle" }}>
+                  <Link to="/login" search={{ redirect: "/assessment?mode=lifestyle&step=1" }}>
                     {tr("startHealthAssessment", currentLang)} <ArrowRight className="h-4 w-4" />
                   </Link>
                 )}
@@ -508,11 +508,11 @@ function Landing() {
                 className="h-11 px-6 text-sm font-semibold border-teal/20 text-teal hover:bg-teal/5 hover:border-teal/45 hover:text-teal"
               >
                 {user ? (
-                  <Link to="/assessment" search={{ mode: "blood" }}>
+                  <Link to="/assessment" search={{ mode: "blood", step: 1 }}>
                     Analyze Blood Report
                   </Link>
                 ) : (
-                  <Link to="/login" search={{ redirect: "/assessment?mode=blood" }}>
+                  <Link to="/login" search={{ redirect: "/assessment?mode=blood&step=1" }}>
                     Analyze Blood Report
                   </Link>
                 )}

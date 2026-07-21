@@ -23,6 +23,8 @@ import { Label } from "@/components/ui/label";
 import { auth } from "@/lib/firebase";
 import SplitText from "@/components/ui/split-text";
 import { ShapeGrid } from "@/components/ui/shape-grid";
+import { calculateProfileCompleteness } from "@/lib/evidence-summary";
+import { ProfileCompletenessCard } from "@/components/ProfileCompletenessCard";
 
 import {
   ResponsiveContainer,
@@ -309,6 +311,13 @@ function ProgressPage() {
           hint={`${tr("riskLevel", currentLang)}: ${tr(result.overallRisk.toLowerCase() === "low" ? "low" : result.overallRisk.toLowerCase() === "moderate" ? "moderateRisk" : "high", currentLang)}`}
         />
       </div>
+
+      {/* Health Profile Completeness Card */}
+      {profile && (
+        <ProfileCompletenessCard
+          completeness={calculateProfileCompleteness(profile, profile.labObservations)}
+        />
+      )}
 
       {/* Weight Logger Form */}
       <Card className="border-border bg-surface shadow-card-soft">

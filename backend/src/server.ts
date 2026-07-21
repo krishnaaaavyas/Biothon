@@ -1618,15 +1618,22 @@ app.post(
         const msg = String(validationError?.message || "");
         if (
           msg === "LAB_UPLOAD_UNSUPPORTED_MIME_TYPE" ||
-          msg === "LAB_UPLOAD_MIME_SIGNATURE_MISMATCH"
+          msg === "LAB_UPLOAD_MIME_SIGNATURE_MISMATCH" ||
+          msg === "LAB_UPLOAD_HEIC_UNSUPPORTED"
         ) {
           return extractionUnavailable("LAB_FILE_UNSUPPORTED", 400);
         }
-        if (
-          msg === "LAB_UPLOAD_SIZE_LIMIT_EXCEEDED" ||
-          msg === "LAB_UPLOAD_DIMENSIONS_EXCEEDED"
-        ) {
+        if (msg === "LAB_UPLOAD_EMPTY_FILE") {
+          return extractionUnavailable("LAB_FILE_EMPTY", 400);
+        }
+        if (msg === "LAB_UPLOAD_SIZE_LIMIT_EXCEEDED") {
           return extractionUnavailable("LAB_FILE_TOO_LARGE", 400);
+        }
+        if (msg === "LAB_UPLOAD_DIMENSIONS_EXCEEDED") {
+          return extractionUnavailable("LAB_IMAGE_DIMENSIONS_EXCEEDED", 400);
+        }
+        if (msg === "LAB_UPLOAD_PDF_UNREADABLE") {
+          return extractionUnavailable("LAB_PDF_UNREADABLE", 400);
         }
         return extractionUnavailable("LAB_FILE_INVALID", 400);
       }
