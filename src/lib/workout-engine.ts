@@ -1,15 +1,4 @@
-export type WorkoutIntensityCode = "light" | "moderate" | "vigorous" | "restricted";
-
 export interface ExerciseRecommendation {
-  exerciseCode: string;
-  durationCode: string;
-  frequencyCode: string;
-  reasonCode: string;
-  expectedBenefitCode: string;
-  intensityCode: WorkoutIntensityCode;
-  durationMinutes: number;
-  frequencyDays: number;
-  // Legacy string properties for backward compatibility
   exercise: string;
   duration: string;
   frequency: string;
@@ -43,25 +32,13 @@ export interface WorkoutEngineInput {
 }
 
 export interface WorkoutEngineOutput {
-  statusCode: "safe" | "contraindicated";
-  summaryCode: string;
-  // Legacy string properties
   status: "safe" | "contraindicated";
   summary: string;
   weeks: WeeklyWorkoutPlan;
-  safetyNoteCodes: string[];
   safetyNotes: string[];
 }
 
 export const UNSAFE_FALLBACK_RECOMMENDATION: ExerciseRecommendation = {
-  exerciseCode: "workout.exercise.noSafeExercise.name",
-  durationCode: "0 min",
-  frequencyCode: "0 days/week",
-  reasonCode: "workout.exercise.noSafeExercise.reason",
-  expectedBenefitCode: "workout.exercise.noSafeExercise.benefit",
-  intensityCode: "restricted",
-  durationMinutes: 0,
-  frequencyDays: 0,
   exercise: "No safe exercise recommendation available.",
   duration: "0 min",
   frequency: "0 days/week",
@@ -69,11 +46,68 @@ export const UNSAFE_FALLBACK_RECOMMENDATION: ExerciseRecommendation = {
   expectedBenefit: "Seek urgent clinical evaluation before starting exercise.",
 };
 
-export function isExerciseContraindicated(input: WorkoutEngineInput): { contraindicated: boolean; reasonCode?: string; reason?: string } {
+export interface ExerciseItemTemplate {
+  name: string;
+  category: "cardio" | "strength" | "mobility";
+  isHighImpact: boolean;
+  baseDurationMinutes: number;
+  baseFrequencyDays: number;
+}
+
+export const EXERCISE_TEMPLATES: ExerciseItemTemplate[] = [
+  {
+    name: "Brisk Walking",
+    category: "cardio",
+    isHighImpact: false,
+    baseDurationMinutes: 20,
+    baseFrequencyDays: 3,
+  },
+  {
+    name: "Low-Impact Stationary Cycling",
+    category: "cardio",
+    isHighImpact: false,
+    baseDurationMinutes: 20,
+    baseFrequencyDays: 3,
+  },
+  {
+    name: "Supported Chair Squats & Glute Bridges",
+    category: "strength",
+    isHighImpact: false,
+    baseDurationMinutes: 15,
+    baseFrequencyDays: 2,
+  },
+  {
+    name: "Resistance Band Upper Body Press",
+    category: "strength",
+    isHighImpact: false,
+    baseDurationMinutes: 15,
+    baseFrequencyDays: 2,
+  },
+  {
+    name: "Gentle Hatha Yoga & Spine Mobility",
+    category: "mobility",
+    isHighImpact: false,
+    baseDurationMinutes: 20,
+    baseFrequencyDays: 3,
+  },
+  {
+    name: "Jump Squats & High-Impact Intervals",
+    category: "cardio",
+    isHighImpact: true,
+    baseDurationMinutes: 25,
+    baseFrequencyDays: 4,
+  },
+];
+
+/**
+ * Check medical contraindications for exercise safety.
+ */
+export function isExerciseContraindicated(input: WorkoutEngineInput): { contraindicated: boolean; reason?: string } {
   const p = input || {};
   const sx = (p.symptoms || "").toLowerCase();
   const conds = (p.medicalConditions || []).map((c) => c.toLowerCase());
 
+  // 1. Acute Symptoms (Chest pain, severe dizziness, acute shortness of breath, syncope)
   if (
     sx.includes("chest pain") ||
     sx.includes("angina") ||
@@ -87,15 +121,14 @@ export function isExerciseContraindicated(input: WorkoutEngineInput): { contrain
   ) {
     return {
       contraindicated: true,
-      reasonCode: "workout.safety.acuteSymptomsContraindicated",
       reason: "Reported acute symptoms (chest pain, dizziness, or shortness of breath) require clinical clearance before physical exertion.",
     };
   }
 
+  // 2. Severe Uncontrolled Hypertension (Systolic >= 180 or Diastolic >= 110)
   if ((typeof p.systolic === "number" && p.systolic >= 180) || (typeof p.diastolic === "number" && p.diastolic >= 110)) {
     return {
       contraindicated: true,
-      reasonCode: "workout.safety.hypertensionCrisisContraindicated",
       reason: "Severe blood pressure elevation (≥180/110 mmHg) contraindicates exercise until BP is medically stabilized.",
     };
   }
@@ -103,14 +136,15 @@ export function isExerciseContraindicated(input: WorkoutEngineInput): { contrain
   return { contraindicated: false };
 }
 
+/**
+ * Deterministic Workout Recommendation Engine (Main Entrypoint)
+ */
 export function generateWorkoutPlan(input: WorkoutEngineInput): WorkoutEngineOutput {
   const p = input || {};
   const safetyCheck = isExerciseContraindicated(p);
 
   if (safetyCheck.contraindicated) {
     return {
-      statusCode: "contraindicated",
-      summaryCode: safetyCheck.reasonCode || "workout.safety.contraindicatedSummary",
       status: "contraindicated",
       summary: safetyCheck.reason || "Physical exertion contraindicated.",
       weeks: {
@@ -119,11 +153,11 @@ export function generateWorkoutPlan(input: WorkoutEngineInput): WorkoutEngineOut
         week3: [UNSAFE_FALLBACK_RECOMMENDATION],
         week4: [UNSAFE_FALLBACK_RECOMMENDATION],
       },
-      safetyNoteCodes: [safetyCheck.reasonCode || "workout.safety.contraindicatedSummary"],
       safetyNotes: [safetyCheck.reason || "Seek urgent clinical evaluation."],
     };
   }
 
+  // Compute BMI if missing
   let bmi = p.bmi;
   if (!bmi && typeof p.heightCm === "number" && p.heightCm > 0 && typeof p.weightKg === "number" && p.weightKg > 0) {
     bmi = Number((p.weightKg / Math.pow(p.heightCm / 100, 2)).toFixed(1));
@@ -147,6 +181,7 @@ export function generateWorkoutPlan(input: WorkoutEngineInput): WorkoutEngineOut
 
   const isObese = typeof bmi === "number" && bmi >= 30;
 
+  // Injury / Joint restriction check
   const sx = (p.symptoms || "").toLowerCase();
   const conds = (p.medicalConditions || []).map((c) => c.toLowerCase());
   const hasJointRestriction =
@@ -158,46 +193,39 @@ export function generateWorkoutPlan(input: WorkoutEngineInput): WorkoutEngineOut
     conds.includes("back-pain") ||
     conds.includes("arthritis");
 
-  let exerciseCode = "workout.activities.briskWalking";
-  let primaryName = "Brisk Walking";
-  let intensityCode: WorkoutIntensityCode = "light";
-
+  // Select suitable base exercise
+  let primaryExerciseName = "Brisk Walking";
   if (hasJointRestriction) {
-    exerciseCode = "workout.activities.yogaMobility";
-    primaryName = "Gentle Hatha Yoga & Spine Mobility";
-    intensityCode = "light";
+    primaryExerciseName = "Gentle Hatha Yoga & Spine Mobility";
   } else if (isObese) {
-    exerciseCode = "workout.activities.stationaryCycling";
-    primaryName = "Low-Impact Stationary Cycling";
-    intensityCode = "light";
+    primaryExerciseName = "Low-Impact Stationary Cycling";
   } else if (!isSedentary && !isLight) {
-    exerciseCode = "workout.activities.briskWalking";
-    primaryName = "Brisk Walking";
-    intensityCode = "moderate";
+    primaryExerciseName = "Brisk Walking";
   }
 
-  let reasonCode = "workout.reason.lowActivity";
-  let benefitCode = "workout.benefit.cardioStamina";
+  // Derive Clinical Reason & Expected Benefit
   let clinicalReason = "Low baseline activity level.";
   let expectedBenefit = "Improves cardiovascular endurance and aerobic fitness.";
 
   if (isDiabetic) {
-    reasonCode = "workout.reason.diabeticScreening";
-    benefitCode = "workout.benefit.insulinSensitivity";
     clinicalReason = "Elevated glycemic screening markers.";
     expectedBenefit = "Improves insulin sensitivity and postprandial glucose uptake.";
   } else if (isHypertensive) {
-    reasonCode = "workout.reason.hypertensionScreening";
-    benefitCode = "workout.benefit.vascularResistance";
     clinicalReason = "Elevated blood pressure screening readings.";
     expectedBenefit = "Lowers systemic vascular resistance and resting arterial pressure.";
   } else if (isObese) {
-    reasonCode = "workout.reason.obesityRange";
-    benefitCode = "workout.benefit.caloricExpenditure";
     clinicalReason = "BMI in obesity range requires low-impact metabolic activation.";
     expectedBenefit = "Increases daily caloric expenditure while protecting knee joints.";
+  } else if (isSedentary) {
+    clinicalReason = "Sedentary lifestyle habits.";
+    expectedBenefit = "Establishes baseline aerobic conditioning and metabolic stamina.";
   }
 
+  // Progressive 4-Week Adaptation Calculation
+  // Week 1: Baseline duration (15-20 min), 3 days/week
+  // Week 2: +5 min duration, 3 days/week
+  // Week 3: +5 min duration, 4 days/week
+  // Week 4: Target capacity (+5 min), 4-5 days/week
   const baseMinutes = isSedentary ? 15 : isLight ? 20 : 25;
 
   const w1Min = baseMinutes;
@@ -205,40 +233,23 @@ export function generateWorkoutPlan(input: WorkoutEngineInput): WorkoutEngineOut
   const w3Min = baseMinutes + 10;
   const w4Min = baseMinutes + 15;
 
-  const w1FreqDays = 3;
-  const w2FreqDays = isSedentary ? 3 : 4;
-  const w3FreqDays = 4;
-  const w4FreqDays = isSedentary ? 4 : 5;
+  const w1Freq = isSedentary ? "3 days/week" : "3 days/week";
+  const w2Freq = isSedentary ? "3 days/week" : "4 days/week";
+  const w3Freq = "4 days/week";
+  const w4Freq = isSedentary ? "4 days/week" : "5 days/week";
 
-  const buildRec = (min: number, freqDays: number): ExerciseRecommendation => ({
-    exerciseCode,
-    durationCode: `${min} min`,
-    frequencyCode: `${freqDays} days/week`,
-    reasonCode,
-    expectedBenefitCode: benefitCode,
-    intensityCode,
-    durationMinutes: min,
-    frequencyDays: freqDays,
-    exercise: primaryName,
+  const buildRec = (min: number, freq: string): ExerciseRecommendation => ({
+    exercise: primaryExerciseName,
     duration: `${min} min`,
-    frequency: `${freqDays} days/week`,
+    frequency: freq,
     reason: clinicalReason,
     expectedBenefit: expectedBenefit,
   });
 
-  const secondaryCode = hasJointRestriction ? "workout.activities.chairSquats" : "workout.activities.resistanceBands";
-  const secondaryName = hasJointRestriction ? "Supported Chair Squats & Glute Bridges" : "Resistance Band Upper Body Press";
+  const secondaryExerciseName = hasJointRestriction ? "Supported Chair Squats & Glute Bridges" : "Resistance Band Upper Body Press";
 
-  const secondaryRec = (min: number): ExerciseRecommendation => ({
-    exerciseCode: secondaryCode,
-    durationCode: `${Math.max(10, min - 5)} min`,
-    frequencyCode: "2 days/week",
-    reasonCode: "workout.reason.strengthComplement",
-    expectedBenefitCode: "workout.benefit.muscleBoneDensity",
-    intensityCode: "light",
-    durationMinutes: Math.max(10, min - 5),
-    frequencyDays: 2,
-    exercise: secondaryName,
+  const secondaryRec = (min: number, freq: string): ExerciseRecommendation => ({
+    exercise: secondaryExerciseName,
     duration: `${Math.max(10, min - 5)} min`,
     frequency: "2 days/week",
     reason: "Complements aerobic exercise with joint-friendly muscular strength.",
@@ -246,19 +257,14 @@ export function generateWorkoutPlan(input: WorkoutEngineInput): WorkoutEngineOut
   });
 
   return {
-    statusCode: "safe",
-    summaryCode: "workout.summary.progressivePlan",
     status: "safe",
-    summary: `Progressive 4-week workout plan tailored for ${primaryName.toLowerCase()} and metabolic conditioning.`,
+    summary: `Progressive 4-week workout plan tailored for ${primaryExerciseName.toLowerCase()} and metabolic conditioning.`,
     weeks: {
-      week1: [buildRec(w1Min, w1FreqDays)],
-      week2: [buildRec(w2Min, w2FreqDays)],
-      week3: [buildRec(w3Min, w3FreqDays), secondaryRec(w3Min)],
-      week4: [buildRec(w4Min, w4FreqDays), secondaryRec(w4Min)],
+      week1: [buildRec(w1Min, w1Freq)],
+      week2: [buildRec(w2Min, w2Freq)],
+      week3: [buildRec(w3Min, w3Freq), secondaryRec(w3Min, w3Freq)],
+      week4: [buildRec(w4Min, w4Freq), secondaryRec(w4Min, w4Freq)],
     },
-    safetyNoteCodes: hasJointRestriction
-      ? ["workout.safety.jointDiscomfortExcluded"]
-      : ["workout.safety.stayHydrated"],
     safetyNotes: hasJointRestriction
       ? ["High-impact exercises excluded due to reported joint/knee discomfort."]
       : ["Stay hydrated and maintain moderate intensity where conversational speaking is comfortable."],

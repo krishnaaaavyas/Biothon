@@ -1,16 +1,11 @@
-export type DietStrategyCode =
-  | "balanced_maintenance"
-  | "calorie_conscious"
-  | "lower_glycemic"
-  | "lower_sodium"
-  | "lower_glycemic_lower_sodium"
-  | "high_protein_balanced";
+export type DietStrategy =
+  | "Calorie Deficit"
+  | "Low Sodium"
+  | "Low Glycemic"
+  | "Heart-Healthy / Lipid Control"
+  | "Balanced Wellness";
 
 export interface MealRecommendation {
-  mealCode: string;
-  reasonCode: string;
-  expectedBenefitCode: string;
-  // Legacy string properties for backward compatibility
   meal: string;
   reason: string;
   expectedBenefit: string;
@@ -47,10 +42,7 @@ export interface DietEngineInput {
 }
 
 export interface DietEngineOutput {
-  strategyCode: DietStrategyCode;
-  strategyReasonCode: string;
-  // Legacy strategy string for backward compatibility
-  strategy: string;
+  strategy: DietStrategy;
   strategyReason: string;
   meals: DailyDietPlan;
   constraintsApplied: {
@@ -61,212 +53,444 @@ export interface DietEngineOutput {
 }
 
 export interface MealTemplate {
-  code: string;
+  name: string;
   course: "breakfast" | "lunch" | "snacks" | "dinner";
-  strategies: DietStrategyCode[];
-  types: string[];
-  contains: string[];
-  reasonCodes: Record<DietStrategyCode, { reasonCode: string; expectedBenefitCode: string }>;
-  fallbackName: string;
-  fallbackReason: string;
-  fallbackBenefit: string;
+  strategies: DietStrategy[];
+  types: string[]; // ["vegetarian", "vegan", "satvik", "jain", "no-onion-garlic", "eggetarian", "non-vegetarian"]
+  contains: string[]; // ["milk", "paneer", "curd", "cheese", "ghee", "eggs", "fish", "chicken", "onion", "garlic", "root-vegetables", "peanuts", "soy", "gluten"]
+  reasons: Record<DietStrategy, { reason: string; expectedBenefit: string }>;
 }
 
 export const FALLBACK_MEAL: MealRecommendation = {
-  mealCode: "diet.meal.noSafeMeal.name",
-  reasonCode: "diet.meal.noSafeMeal.reason",
-  expectedBenefitCode: "diet.meal.noSafeMeal.benefit",
   meal: "No safe meal available.",
   reason: "Constraints restrict all available options.",
   expectedBenefit: "Consult a dietitian for custom options.",
 };
 
+// Reusable Deterministic Meal Template Catalog
 export const REUSABLE_MEAL_CATALOG: MealTemplate[] = [
+  // ─── BREAKFAST ───
   {
-    code: "vegetable_oats",
+    name: "Vegetable Oats",
     course: "breakfast",
-    strategies: ["lower_glycemic", "calorie_conscious", "high_protein_balanced", "lower_sodium", "balanced_maintenance"],
+    strategies: ["Low Glycemic", "Calorie Deficit", "Heart-Healthy / Lipid Control", "Low Sodium", "Balanced Wellness"],
     types: ["vegetarian", "vegan", "satvik", "jain", "no-onion-garlic"],
     contains: ["gluten"],
-    fallbackName: "Vegetable Oats",
-    fallbackReason: "Lower glycemic load and rich in soluble beta-glucan fiber.",
-    fallbackBenefit: "Supports blood sugar management and postprandial glucose stability.",
-    reasonCodes: {
-      lower_glycemic: {
-        reasonCode: "diet.meal.vegetableOats.reasonGlycemic",
-        expectedBenefitCode: "diet.meal.vegetableOats.benefitGlycemic",
+    reasons: {
+      "Low Glycemic": {
+        reason: "Lower glycemic load and rich in soluble beta-glucan fiber.",
+        expectedBenefit: "Supports blood sugar management and postprandial glucose stability.",
       },
-      calorie_conscious: {
-        reasonCode: "diet.meal.vegetableOats.reasonCalorie",
-        expectedBenefitCode: "diet.meal.vegetableOats.benefitCalorie",
+      "Calorie Deficit": {
+        reason: "High volume, low energy density breakfast.",
+        expectedBenefit: "Promotes satiety while maintaining target calorie deficit.",
       },
-      high_protein_balanced: {
-        reasonCode: "diet.meal.vegetableOats.reasonLipid",
-        expectedBenefitCode: "diet.meal.vegetableOats.benefitLipid",
+      "Heart-Healthy / Lipid Control": {
+        reason: "Beta-glucan fiber binds digestive cholesterol.",
+        expectedBenefit: "Helps reduce systemic LDL cholesterol absorption.",
       },
-      lower_sodium: {
-        reasonCode: "diet.meal.vegetableOats.reasonSodium",
-        expectedBenefitCode: "diet.meal.vegetableOats.benefitSodium",
+      "Low Sodium": {
+        reason: "Naturally sodium-free whole grain base.",
+        expectedBenefit: "Maintains optimal vascular pressure control.",
       },
-      balanced_maintenance: {
-        reasonCode: "diet.meal.vegetableOats.reasonBalanced",
-        expectedBenefitCode: "diet.meal.vegetableOats.benefitBalanced",
-      },
-      lower_glycemic_lower_sodium: {
-        reasonCode: "diet.meal.vegetableOats.reasonGlycemic",
-        expectedBenefitCode: "diet.meal.vegetableOats.benefitGlycemic",
+      "Balanced Wellness": {
+        reason: "Complex carbohydrates and dietary fiber balance.",
+        expectedBenefit: "Sustained morning energy release.",
       },
     },
   },
   {
-    code: "moong_dal_chilla",
+    name: "Moong Dal Chilla",
     course: "breakfast",
-    strategies: ["lower_glycemic", "calorie_conscious", "balanced_maintenance", "lower_sodium"],
+    strategies: ["Low Glycemic", "Calorie Deficit", "Balanced Wellness", "Low Sodium"],
     types: ["vegetarian", "vegan", "satvik", "jain", "no-onion-garlic"],
     contains: [],
-    fallbackName: "Moong Dal Chilla",
-    fallbackReason: "High plant-based protein with a low glycemic index.",
-    fallbackBenefit: "Prevents glucose spikes and stabilizes insulin response.",
-    reasonCodes: {
-      lower_glycemic: {
-        reasonCode: "diet.meal.moongDalChilla.reasonGlycemic",
-        expectedBenefitCode: "diet.meal.moongDalChilla.benefitGlycemic",
+    reasons: {
+      "Low Glycemic": {
+        reason: "High plant-based protein with a low glycemic index.",
+        expectedBenefit: "Prevents glucose spikes and stabilizes insulin response.",
       },
-      calorie_conscious: {
-        reasonCode: "diet.meal.moongDalChilla.reasonCalorie",
-        expectedBenefitCode: "diet.meal.moongDalChilla.benefitCalorie",
+      "Calorie Deficit": {
+        reason: "Protein-dense pancake with minimal fats.",
+        expectedBenefit: "Supports appetite regulation during weight loss.",
       },
-      high_protein_balanced: {
-        reasonCode: "diet.meal.moongDalChilla.reasonGlycemic",
-        expectedBenefitCode: "diet.meal.moongDalChilla.benefitGlycemic",
+      "Heart-Healthy / Lipid Control": {
+        reason: "Zero cholesterol and rich in legumes.",
+        expectedBenefit: "Supports arterial wall health.",
       },
-      lower_sodium: {
-        reasonCode: "diet.meal.moongDalChilla.reasonGlycemic",
-        expectedBenefitCode: "diet.meal.moongDalChilla.benefitGlycemic",
+      "Low Sodium": {
+        reason: "Fresh herb seasoning with minimal added salt.",
+        expectedBenefit: "Helps keep blood pressure in range.",
       },
-      balanced_maintenance: {
-        reasonCode: "diet.meal.moongDalChilla.reasonGlycemic",
-        expectedBenefitCode: "diet.meal.moongDalChilla.benefitGlycemic",
-      },
-      lower_glycemic_lower_sodium: {
-        reasonCode: "diet.meal.moongDalChilla.reasonGlycemic",
-        expectedBenefitCode: "diet.meal.moongDalChilla.benefitGlycemic",
+      "Balanced Wellness": {
+        reason: "Lentil protein and micro-nutrient balance.",
+        expectedBenefit: "Promotes metabolic health.",
       },
     },
   },
   {
-    code: "dal_tadka_brown_rice",
+    name: "Ragi Dosa with Coconut Chutney",
+    course: "breakfast",
+    strategies: ["Low Glycemic", "Low Sodium", "Balanced Wellness"],
+    types: ["vegetarian", "vegan", "satvik", "jain", "no-onion-garlic"],
+    contains: [],
+    reasons: {
+      "Low Glycemic": {
+        reason: "Finger millet provides slow-release carbohydrates and calcium.",
+        expectedBenefit: "Supports glycemic control and bone density.",
+      },
+      "Calorie Deficit": {
+        reason: "High fiber millet breakfast.",
+        expectedBenefit: "Extends satiety between meals.",
+      },
+      "Heart-Healthy / Lipid Control": {
+        reason: "Polyphenol-rich whole grain millet.",
+        expectedBenefit: "Provides lipid-protective antioxidants.",
+      },
+      "Low Sodium": {
+        reason: "Fermented batter naturally low in sodium.",
+        expectedBenefit: "Supports vascular endothelium health.",
+      },
+      "Balanced Wellness": {
+        reason: "Traditional fermented calcium-rich breakfast.",
+        expectedBenefit: "Improves gut microbiome diversity.",
+      },
+    },
+  },
+  {
+    name: "Sprouts Chaat",
+    course: "breakfast",
+    strategies: ["Low Glycemic", "Calorie Deficit", "Heart-Healthy / Lipid Control", "Low Sodium", "Balanced Wellness"],
+    types: ["vegetarian", "vegan", "satvik", "jain", "no-onion-garlic"],
+    contains: [],
+    reasons: {
+      "Low Glycemic": {
+        reason: "Raw sprouted legume enzymes with high protein content.",
+        expectedBenefit: "Minimal impact on blood sugar response.",
+      },
+      "Calorie Deficit": {
+        reason: "Nutrient-dense with exceptionally low calorie count.",
+        expectedBenefit: "Ideal for structured weight reduction goals.",
+      },
+      "Heart-Healthy / Lipid Control": {
+        reason: "Rich in vitamin C, active enzymes, and plant fiber.",
+        expectedBenefit: "Reduces oxidative lipid modification.",
+      },
+      "Low Sodium": {
+        reason: "Lemon juice and herbs substitute for table salt.",
+        expectedBenefit: "Controls fluid balance and blood pressure.",
+      },
+      "Balanced Wellness": {
+        reason: "Bioavailable plant protein and vitamins.",
+        expectedBenefit: "Boosts cellular metabolic energy.",
+      },
+    },
+  },
+
+  // ─── LUNCH ───
+  {
+    name: "Dal Tadka with Brown Rice and Cucumber Salad",
     course: "lunch",
-    strategies: ["lower_glycemic", "calorie_conscious", "high_protein_balanced", "lower_sodium", "balanced_maintenance"],
+    strategies: ["Low Glycemic", "Calorie Deficit", "Heart-Healthy / Lipid Control", "Low Sodium", "Balanced Wellness"],
     types: ["vegetarian", "vegan"],
     contains: ["onion", "garlic"],
-    fallbackName: "Dal Tadka with Brown Rice and Cucumber Salad",
-    fallbackReason: "Brown rice provides complex starch paired with high-protein yellow lentils.",
-    fallbackBenefit: "Moderates postprandial glucose rise.",
-    reasonCodes: {
-      lower_glycemic: {
-        reasonCode: "diet.meal.dalTadka.reasonGlycemic",
-        expectedBenefitCode: "diet.meal.dalTadka.benefitGlycemic",
+    reasons: {
+      "Low Glycemic": {
+        reason: "Brown rice provides complex starch paired with high-protein yellow lentils.",
+        expectedBenefit: "Moderates postprandial glucose rise.",
       },
-      calorie_conscious: {
-        reasonCode: "diet.meal.dalTadka.reasonCalorie",
-        expectedBenefitCode: "diet.meal.dalTadka.benefitCalorie",
+      "Calorie Deficit": {
+        reason: "High fiber pulse and whole grain combination.",
+        expectedBenefit: "Prevents afternoon hunger cravings.",
       },
-      high_protein_balanced: {
-        reasonCode: "diet.meal.dalTadka.reasonGlycemic",
-        expectedBenefitCode: "diet.meal.dalTadka.benefitGlycemic",
+      "Heart-Healthy / Lipid Control": {
+        reason: "Zero saturated fat and high soluble legume fiber.",
+        expectedBenefit: "Encourages bile acid excretion and cholesterol lowering.",
       },
-      lower_sodium: {
-        reasonCode: "diet.meal.dalTadka.reasonGlycemic",
-        expectedBenefitCode: "diet.meal.dalTadka.benefitGlycemic",
+      "Low Sodium": {
+        reason: "Steamed grain and spiced pulse with low sodium seasoning.",
+        expectedBenefit: "Maintains optimal systolic blood pressure.",
       },
-      balanced_maintenance: {
-        reasonCode: "diet.meal.dalTadka.reasonGlycemic",
-        expectedBenefitCode: "diet.meal.dalTadka.benefitGlycemic",
-      },
-      lower_glycemic_lower_sodium: {
-        reasonCode: "diet.meal.dalTadka.reasonGlycemic",
-        expectedBenefitCode: "diet.meal.dalTadka.benefitGlycemic",
+      "Balanced Wellness": {
+        reason: "Complete amino acid profile from grain + legume pairing.",
+        expectedBenefit: "Supports muscle tissue maintenance.",
       },
     },
   },
   {
-    code: "roasted_makhana",
+    name: "Gujarati Khichdi with Curd",
+    course: "lunch",
+    strategies: ["Low Glycemic", "Calorie Deficit", "Low Sodium", "Balanced Wellness"],
+    types: ["vegetarian", "satvik", "jain", "no-onion-garlic"],
+    contains: ["milk", "curd"],
+    reasons: {
+      "Low Glycemic": {
+        reason: "Split yellow moong dal reduces overall glycemic load.",
+        expectedBenefit: "Easy digestive clearance and stable blood sugar.",
+      },
+      "Calorie Deficit": {
+        reason: "Comforting, high-water volume meal.",
+        expectedBenefit: "Satiates without excess dietary fat.",
+      },
+      "Heart-Healthy / Lipid Control": {
+        reason: "Light lentil dish with probiotic curd.",
+        expectedBenefit: "Supports gut-lipid metabolic axis.",
+      },
+      "Low Sodium": {
+        reason: "Gentle spicing with minimal salt.",
+        expectedBenefit: "Supports steady renal and blood pressure function.",
+      },
+      "Balanced Wellness": {
+        reason: "Balanced comfort protein and prebiotic combination.",
+        expectedBenefit: "Promotes efficient digestion.",
+      },
+    },
+  },
+  {
+    name: "Soya Chunks Curry with Whole Wheat Roti",
+    course: "lunch",
+    strategies: ["Low Glycemic", "Calorie Deficit", "Heart-Healthy / Lipid Control", "Balanced Wellness"],
+    types: ["vegetarian", "vegan"],
+    contains: ["soy", "onion", "garlic", "gluten"],
+    reasons: {
+      "Low Glycemic": {
+        reason: "Soy isoflavones and high protein minimize glucose curve.",
+        expectedBenefit: "Protects against insulin resistance spikes.",
+      },
+      "Calorie Deficit": {
+        reason: "Very high protein-to-calorie ratio.",
+        expectedBenefit: "Preserves lean body mass during weight loss.",
+      },
+      "Heart-Healthy / Lipid Control": {
+        reason: "Plant soy protein displaces animal saturated fats.",
+        expectedBenefit: "Assists in blood lipid optimization.",
+      },
+      "Low Sodium": {
+        reason: "Potassium-rich soya and whole wheat flour.",
+        expectedBenefit: "Balances intracellular electrolyte pressure.",
+      },
+      "Balanced Wellness": {
+        reason: "Complete vegan protein source.",
+        expectedBenefit: "Supports physical recovery.",
+      },
+    },
+  },
+  {
+    name: "Jain Methi Thepla with Boiled Potato Sabzi",
+    course: "lunch",
+    strategies: ["Low Sodium", "Balanced Wellness"],
+    types: ["vegetarian", "satvik", "jain", "no-onion-garlic"],
+    contains: ["root-vegetables", "gluten"],
+    reasons: {
+      "Low Glycemic": {
+        reason: "Fenugreek herb infused flatbread.",
+        expectedBenefit: "Fenugreek seeds improve insulin sensitivity.",
+      },
+      "Calorie Deficit": {
+        reason: "Portion-controlled herb flatbread.",
+        expectedBenefit: "Satiating whole grain energy.",
+      },
+      "Heart-Healthy / Lipid Control": {
+        reason: "Herb-rich bread with zero cholesterol.",
+        expectedBenefit: "Maintains clear vascular walls.",
+      },
+      "Low Sodium": {
+        reason: "Herbal spicing reduces sodium requirement.",
+        expectedBenefit: "Keeps blood pressure within safe boundaries.",
+      },
+      "Balanced Wellness": {
+        reason: "Traditional Jain herbal preparation.",
+        expectedBenefit: "Provides dietary fiber and phytonutrients.",
+      },
+    },
+  },
+
+  // ─── SNACKS ───
+  {
+    name: "Roasted Makhana (Lotus Seeds)",
     course: "snacks",
-    strategies: ["lower_glycemic", "calorie_conscious", "high_protein_balanced", "lower_sodium", "balanced_maintenance"],
+    strategies: ["Low Glycemic", "Calorie Deficit", "Heart-Healthy / Lipid Control", "Low Sodium", "Balanced Wellness"],
     types: ["vegetarian", "vegan", "satvik", "jain", "no-onion-garlic"],
     contains: [],
-    fallbackName: "Roasted Makhana (Lotus Seeds)",
-    fallbackReason: "Low glycemic index puffed water lily seeds.",
-    fallbackBenefit: "Prevents afternoon blood glucose dips and spikes.",
-    reasonCodes: {
-      lower_glycemic: {
-        reasonCode: "diet.meal.makhana.reasonGlycemic",
-        expectedBenefitCode: "diet.meal.makhana.benefitGlycemic",
+    reasons: {
+      "Low Glycemic": {
+        reason: "Low glycemic index puffed water lily seeds.",
+        expectedBenefit: "Prevents afternoon blood glucose dips and spikes.",
       },
-      calorie_conscious: {
-        reasonCode: "diet.meal.makhana.reasonGlycemic",
-        expectedBenefitCode: "diet.meal.makhana.benefitGlycemic",
+      "Calorie Deficit": {
+        reason: "Crunchy snack with low calorie density.",
+        expectedBenefit: "Satisfies oral fixation without breaking calorie budget.",
       },
-      high_protein_balanced: {
-        reasonCode: "diet.meal.makhana.reasonGlycemic",
-        expectedBenefitCode: "diet.meal.makhana.benefitGlycemic",
+      "Heart-Healthy / Lipid Control": {
+        reason: "Rich in kaempferol flavonoid antioxidants.",
+        expectedBenefit: "Protects cardiac tissue from oxidative stress.",
       },
-      lower_sodium: {
-        reasonCode: "diet.meal.makhana.reasonGlycemic",
-        expectedBenefitCode: "diet.meal.makhana.benefitGlycemic",
+      "Low Sodium": {
+        reason: "Dry roasted with rock salt or herbs.",
+        expectedBenefit: "Avoids sodium-induced fluid retention.",
       },
-      balanced_maintenance: {
-        reasonCode: "diet.meal.makhana.reasonGlycemic",
-        expectedBenefitCode: "diet.meal.makhana.benefitGlycemic",
-      },
-      lower_glycemic_lower_sodium: {
-        reasonCode: "diet.meal.makhana.reasonGlycemic",
-        expectedBenefitCode: "diet.meal.makhana.benefitGlycemic",
+      "Balanced Wellness": {
+        reason: "Antioxidant-dense traditional snack.",
+        expectedBenefit: "Improves cellular defense.",
       },
     },
   },
   {
-    code: "khichdi_steamed_veg",
-    course: "dinner",
-    strategies: ["lower_glycemic", "calorie_conscious", "high_protein_balanced", "lower_sodium", "balanced_maintenance"],
+    name: "Roasted Bengal Gram (Chana)",
+    course: "snacks",
+    strategies: ["Low Glycemic", "Calorie Deficit", "Heart-Healthy / Lipid Control", "Low Sodium", "Balanced Wellness"],
     types: ["vegetarian", "vegan", "satvik", "jain", "no-onion-garlic"],
     contains: [],
-    fallbackName: "Moong Dal Khichdi with Steamed Vegetables",
-    fallbackReason: "Light, easily digestible lentil and rice porridge.",
-    fallbackBenefit: "Prevents nocturnal glucose spikes and improves sleep.",
-    reasonCodes: {
-      lower_glycemic: {
-        reasonCode: "diet.meal.khichdi.reasonGlycemic",
-        expectedBenefitCode: "diet.meal.khichdi.benefitGlycemic",
+    reasons: {
+      "Low Glycemic": {
+        reason: "High fiber roasted legumes with slow digestibility.",
+        expectedBenefit: "Extends glucose stability until dinner.",
       },
-      calorie_conscious: {
-        reasonCode: "diet.meal.khichdi.reasonGlycemic",
-        expectedBenefitCode: "diet.meal.khichdi.benefitGlycemic",
+      "Calorie Deficit": {
+        reason: "High protein and fiber snack.",
+        expectedBenefit: "Curbs mid-day hunger.",
       },
-      high_protein_balanced: {
-        reasonCode: "diet.meal.khichdi.reasonGlycemic",
-        expectedBenefitCode: "diet.meal.khichdi.benefitGlycemic",
+      "Heart-Healthy / Lipid Control": {
+        reason: "Soluble pulse fiber reduces LDL reabsorption.",
+        expectedBenefit: "Supports healthy lipid profiles.",
       },
-      lower_sodium: {
-        reasonCode: "diet.meal.khichdi.reasonGlycemic",
-        expectedBenefitCode: "diet.meal.khichdi.benefitGlycemic",
+      "Low Sodium": {
+        reason: "Unsalted dry roasted legumes.",
+        expectedBenefit: "Zero impact on blood pressure.",
       },
-      balanced_maintenance: {
-        reasonCode: "diet.meal.khichdi.reasonGlycemic",
-        expectedBenefitCode: "diet.meal.khichdi.benefitGlycemic",
+      "Balanced Wellness": {
+        reason: "Natural plant protein and minerals.",
+        expectedBenefit: "Sustains steady afternoon focus.",
       },
-      lower_glycemic_lower_sodium: {
-        reasonCode: "diet.meal.khichdi.reasonGlycemic",
-        expectedBenefitCode: "diet.meal.khichdi.benefitGlycemic",
+    },
+  },
+
+  // ─── DINNER ───
+  {
+    name: "Moong Dal Khichdi with Steamed Vegetables",
+    course: "dinner",
+    strategies: ["Low Glycemic", "Calorie Deficit", "Heart-Healthy / Lipid Control", "Low Sodium", "Balanced Wellness"],
+    types: ["vegetarian", "vegan", "satvik", "jain", "no-onion-garlic"],
+    contains: [],
+    reasons: {
+      "Low Glycemic": {
+        reason: "Light, easily digestible lentil and rice porridge.",
+        expectedBenefit: "Prevents nocturnal glucose spikes and improves sleep.",
+      },
+      "Calorie Deficit": {
+        reason: "Light evening meal with low calorie density.",
+        expectedBenefit: "Supports nocturnal lipid metabolism and weight loss.",
+      },
+      "Heart-Healthy / Lipid Control": {
+        reason: "Low fat and zero cholesterol dinner.",
+        expectedBenefit: "Reduces liver metabolic burden overnight.",
+      },
+      "Low Sodium": {
+        reason: "Mild herb seasoning with low salt.",
+        expectedBenefit: "Lowers nocturnal blood pressure dipping strain.",
+      },
+      "Balanced Wellness": {
+        reason: "Classic restorative evening dish.",
+        expectedBenefit: "Promotes digestive rest and recovery.",
+      },
+    },
+  },
+  {
+    name: "Mix Vegetable Sabzi with 2 Bajra Rotis",
+    course: "dinner",
+    strategies: ["Low Glycemic", "Calorie Deficit", "Low Sodium", "Balanced Wellness"],
+    types: ["vegetarian", "vegan", "satvik", "jain", "no-onion-garlic"],
+    contains: [],
+    reasons: {
+      "Low Glycemic": {
+        reason: "Pearl millet (bajra) releases glucose slowly.",
+        expectedBenefit: "Stabilizes overnight insulin levels.",
+      },
+      "Calorie Deficit": {
+        reason: "High fiber vegetable curry with gluten-free millet.",
+        expectedBenefit: "Keeps evening appetite satisfied.",
+      },
+      "Heart-Healthy / Lipid Control": {
+        reason: "Magnesium-rich millet with fiber vegetables.",
+        expectedBenefit: "Relaxes arterial smooth muscle.",
+      },
+      "Low Sodium": {
+        reason: "Fresh vegetable curry prepared with minimal salt.",
+        expectedBenefit: "Supports nocturnal blood pressure regulation.",
+      },
+      "Balanced Wellness": {
+        reason: "Nutrient-dense vegetable and millet meal.",
+        expectedBenefit: "Provides essential dietary minerals.",
+      },
+    },
+  },
+  {
+    name: "Paneer Bhurji with 2 Jowar Rotis",
+    course: "dinner",
+    strategies: ["Low Glycemic", "Calorie Deficit", "Balanced Wellness"],
+    types: ["vegetarian"],
+    contains: ["paneer", "milk", "onion", "garlic"],
+    reasons: {
+      "Low Glycemic": {
+        reason: "High protein cottage cheese with gluten-free sorghum.",
+        expectedBenefit: "Zero glycemic spike before sleep.",
+      },
+      "Calorie Deficit": {
+        reason: "High protein satiety meal.",
+        expectedBenefit: "Prevents late-night snacking.",
+      },
+      "Heart-Healthy / Lipid Control": {
+        reason: "Calcium-rich paneer with complex sorghum.",
+        expectedBenefit: "Supports muscle protein synthesis.",
+      },
+      "Low Sodium": {
+        reason: "Lightly spiced paneer crumble.",
+        expectedBenefit: "Controls evening sodium load.",
+      },
+      "Balanced Wellness": {
+        reason: "Casein protein provides slow overnight amino release.",
+        expectedBenefit: "Supports tissue repair.",
+      },
+    },
+  },
+  {
+    name: "Tofu Stir-fry with Broccoli and Quinoa",
+    course: "dinner",
+    strategies: ["Low Glycemic", "Calorie Deficit", "Heart-Healthy / Lipid Control", "Low Sodium", "Balanced Wellness"],
+    types: ["vegetarian", "vegan", "satvik", "jain", "no-onion-garlic"],
+    contains: ["soy"],
+    reasons: {
+      "Low Glycemic": {
+        reason: "Tofu and quinoa provide complete vegan protein with low carbs.",
+        expectedBenefit: "Excellent glycemic control for diabetic management.",
+      },
+      "Calorie Deficit": {
+        reason: "Lean plant protein with cruciferous vegetables.",
+        expectedBenefit: "Maximizes fat oxidation while preserving muscle.",
+      },
+      "Heart-Healthy / Lipid Control": {
+        reason: "Soy protein and glucosinolates from broccoli.",
+        expectedBenefit: "Supports arterial elasticity and lipid lowering.",
+      },
+      "Low Sodium": {
+        reason: "Steamed tofu and broccoli with herbs.",
+        expectedBenefit: "Optimal for blood pressure control.",
+      },
+      "Balanced Wellness": {
+        reason: "Complete amino acid vegan dinner.",
+        expectedBenefit: "Enhances cellular repair.",
       },
     },
   },
 ];
 
-export function selectDietStrategy(input: DietEngineInput): { strategyCode: DietStrategyCode; strategyReasonCode: string; strategy: string; strategyReason: string } {
+/**
+ * Strategy Selection Logic (Rule 3)
+ */
+export function selectDietStrategy(input: DietEngineInput): { strategy: DietStrategy; reason: string } {
   const p = input || {};
 
+  // Compute BMI if missing
   let bmi = p.bmi;
   if (!bmi && typeof p.heightCm === "number" && p.heightCm > 0 && typeof p.weightKg === "number" && p.weightKg > 0) {
     bmi = Number((p.weightKg / Math.pow(p.heightCm / 100, 2)).toFixed(1));
@@ -277,6 +501,7 @@ export function selectDietStrategy(input: DietEngineInput): { strategyCode: Diet
   const systolic = p.systolic;
   const diastolic = p.diastolic;
 
+  // 1. Prediabetes / Diabetes -> Low Glycemic
   const isDiabeticRisk =
     p.diabetesRiskCategory === "high" ||
     p.diabetesRiskCategory === "moderate" ||
@@ -284,6 +509,14 @@ export function selectDietStrategy(input: DietEngineInput): { strategyCode: Diet
     (typeof hba1c === "number" && hba1c >= 5.7) ||
     (p.priorities || []).some((item) => item.id === "glycemic-control");
 
+  if (isDiabeticRisk) {
+    return {
+      strategy: "Low Glycemic",
+      reason: "Elevated glycemic screening markers or glucose levels indicate need for glycemic load management.",
+    };
+  }
+
+  // 2. Hypertension -> Low Sodium
   const isHypRisk =
     p.hypertensionRiskCategory === "high" ||
     p.hypertensionRiskCategory === "moderate" ||
@@ -291,64 +524,47 @@ export function selectDietStrategy(input: DietEngineInput): { strategyCode: Diet
     (typeof diastolic === "number" && diastolic >= 85) ||
     (p.priorities || []).some((item) => item.id === "hypertension-management");
 
-  if (isDiabeticRisk && isHypRisk) {
-    return {
-      strategyCode: "lower_glycemic_lower_sodium",
-      strategyReasonCode: "diet.strategy.reasonLowerGlycemicLowerSodium",
-      strategy: "Lower Glycemic & Lower Sodium",
-      strategyReason: "Combined elevated glucose and blood pressure screening markers require dual glycemic and sodium control.",
-    };
-  }
-
-  if (isDiabeticRisk) {
-    return {
-      strategyCode: "lower_glycemic",
-      strategyReasonCode: "diet.strategy.reasonLowerGlycemic",
-      strategy: "Low Glycemic",
-      strategyReason: "Elevated glycemic screening markers or glucose levels indicate need for glycemic load management.",
-    };
-  }
-
   if (isHypRisk) {
     return {
-      strategyCode: "lower_sodium",
-      strategyReasonCode: "diet.strategy.reasonLowerSodium",
       strategy: "Low Sodium",
-      strategyReason: "Elevated blood pressure readings or hypertension screening require a sodium-restricted DASH-oriented diet.",
+      reason: "Elevated blood pressure readings or hypertension screening require a sodium-restricted DASH-oriented diet.",
     };
   }
 
+  // 3. BMI High -> Calorie Deficit
   const isHighBmi = (typeof bmi === "number" && bmi >= 25) || (p.priorities || []).some((item) => item.id === "weight-management");
+
   if (isHighBmi) {
     return {
-      strategyCode: "calorie_conscious",
-      strategyReasonCode: "diet.strategy.reasonCalorieConscious",
       strategy: "Calorie Deficit",
-      strategyReason: "BMI in overweight/obesity range requires a structured energy deficit strategy.",
+      reason: "BMI in overweight/obesity range requires a structured energy deficit strategy.",
     };
   }
 
+  // 4. Lipid Strain -> Heart-Healthy
   const isLipidRisk = (typeof p.totalCholesterol === "number" && p.totalCholesterol >= 200) || (typeof p.ldl === "number" && p.ldl >= 130);
+
   if (isLipidRisk) {
     return {
-      strategyCode: "high_protein_balanced",
-      strategyReasonCode: "diet.strategy.reasonHighProteinBalanced",
       strategy: "Heart-Healthy / Lipid Control",
-      strategyReason: "Elevated lipid panel markers call for a low saturated fat, soluble-fiber rich strategy.",
+      reason: "Elevated lipid panel markers call for a low saturated fat, soluble-fiber rich strategy.",
     };
   }
 
+  // 5. Default -> Balanced Wellness
   return {
-    strategyCode: "balanced_maintenance",
-    strategyReasonCode: "diet.strategy.reasonBalancedMaintenance",
     strategy: "Balanced Wellness",
-    strategyReason: "Physiological markers are within normal range; maintaining nutrient balance and metabolic health.",
+    reason: "Physiological markers are within normal range; maintaining nutrient balance and metabolic health.",
   };
 }
 
+/**
+ * Check if a meal satisfies all strict dietary, allergy, and food exclusion constraints (Rule 5)
+ */
 export function isMealConstraintCompliant(meal: MealTemplate, input: DietEngineInput): boolean {
   const pref = (input.dietType || "vegetarian").toLowerCase();
 
+  // 1. Dietary Preference Filters
   if (pref === "vegetarian" || pref === "satvik" || pref === "jain" || pref === "no-onion-garlic") {
     if (meal.types.includes("non-vegetarian") || meal.types.includes("eggetarian")) return false;
     if (meal.contains.includes("chicken") || meal.contains.includes("fish") || meal.contains.includes("meat") || meal.contains.includes("eggs")) return false;
@@ -384,6 +600,7 @@ export function isMealConstraintCompliant(meal: MealTemplate, input: DietEngineI
     if (meal.types.includes("non-vegetarian") || meal.contains.includes("chicken") || meal.contains.includes("fish")) return false;
   }
 
+  // 2. Lactose Intolerance & Dairy Allergy
   const hasLactoseIntolerance =
     input.lactoseIntolerant === true ||
     (input.allergies || []).some((a) => a.toLowerCase().includes("lactose") || a.toLowerCase().includes("dairy") || a.toLowerCase().includes("milk")) ||
@@ -404,6 +621,7 @@ export function isMealConstraintCompliant(meal: MealTemplate, input: DietEngineI
     }
   }
 
+  // 3. Allergies & Excluded Foods
   const allExclusions: string[] = [
     ...(input.allergies || []),
     ...(input.excludedFoods || []),
@@ -411,10 +629,12 @@ export function isMealConstraintCompliant(meal: MealTemplate, input: DietEngineI
   ].map((s) => s.toLowerCase()).filter(Boolean);
 
   for (const exclusion of allExclusions) {
+    // Direct match against meal contains tags
     if (meal.contains.some((ingredient) => ingredient.toLowerCase() === exclusion)) {
       return false;
     }
-    if (meal.code.toLowerCase().includes(exclusion)) {
+    // Substring match against meal name
+    if (meal.name.toLowerCase().includes(exclusion)) {
       return false;
     }
   }
@@ -422,58 +642,58 @@ export function isMealConstraintCompliant(meal: MealTemplate, input: DietEngineI
   return true;
 }
 
+/**
+ * Populate Meal Recommendation for a Course
+ */
 export function populateMealForCourse(
   course: "breakfast" | "lunch" | "snacks" | "dinner",
-  strategyCode: DietStrategyCode,
+  strategy: DietStrategy,
   input: DietEngineInput
 ): MealRecommendation {
+  // 1. Filter catalog for course & strategy & constraint compliance
   const matches = REUSABLE_MEAL_CATALOG.filter((meal) => {
     if (meal.course !== course) return false;
-    if (!meal.strategies.includes(strategyCode) && !meal.strategies.includes("balanced_maintenance")) return false;
+    if (!meal.strategies.includes(strategy) && !meal.strategies.includes("Balanced Wellness")) return false;
     return isMealConstraintCompliant(meal, input);
   });
 
   if (matches.length === 0) {
+    // Try any compliant meal in course regardless of strategy
     const anyCompliant = REUSABLE_MEAL_CATALOG.filter((meal) => meal.course === course && isMealConstraintCompliant(meal, input));
     if (anyCompliant.length === 0) {
       return FALLBACK_MEAL;
     }
     const selected = anyCompliant[0];
-    const reasoning = selected.reasonCodes[strategyCode] || selected.reasonCodes["balanced_maintenance"];
+    const reasoning = selected.reasons[strategy] || selected.reasons["Balanced Wellness"];
     return {
-      mealCode: `diet.meal.${selected.code}.name`,
-      reasonCode: reasoning.reasonCode,
-      expectedBenefitCode: reasoning.expectedBenefitCode,
-      meal: selected.fallbackName,
-      reason: selected.fallbackReason,
-      expectedBenefit: selected.fallbackBenefit,
+      meal: selected.name,
+      reason: reasoning.reason,
+      expectedBenefit: reasoning.expectedBenefit,
     };
   }
 
   const selected = matches[0];
-  const reasoning = selected.reasonCodes[strategyCode] || selected.reasonCodes["balanced_maintenance"];
+  const reasoning = selected.reasons[strategy] || selected.reasons["Balanced Wellness"];
 
   return {
-    mealCode: `diet.meal.${selected.code}.name`,
-    reasonCode: reasoning.reasonCode,
-    expectedBenefitCode: reasoning.expectedBenefitCode,
-    meal: selected.fallbackName,
-    reason: selected.fallbackReason,
-    expectedBenefit: selected.fallbackBenefit,
+    meal: selected.name,
+    reason: reasoning.reason,
+    expectedBenefit: reasoning.expectedBenefit,
   };
 }
 
+/**
+ * Deterministic Diet Recommendation Engine (Main Entrypoint)
+ */
 export function generateDietPlan(input: DietEngineInput): DietEngineOutput {
-  const { strategyCode, strategyReasonCode, strategy, strategyReason } = selectDietStrategy(input);
+  const { strategy, reason: strategyReason } = selectDietStrategy(input);
 
-  const breakfast = populateMealForCourse("breakfast", strategyCode, input);
-  const lunch = populateMealForCourse("lunch", strategyCode, input);
-  const snacks = populateMealForCourse("snacks", strategyCode, input);
-  const dinner = populateMealForCourse("dinner", strategyCode, input);
+  const breakfast = populateMealForCourse("breakfast", strategy, input);
+  const lunch = populateMealForCourse("lunch", strategy, input);
+  const snacks = populateMealForCourse("snacks", strategy, input);
+  const dinner = populateMealForCourse("dinner", strategy, input);
 
   return {
-    strategyCode,
-    strategyReasonCode,
     strategy,
     strategyReason,
     meals: {

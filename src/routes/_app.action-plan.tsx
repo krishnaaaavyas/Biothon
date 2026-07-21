@@ -212,30 +212,25 @@ function ActionPlanPage() {
                             #{i + 1}
                           </span>
                           <Badge variant="outline" className={`text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 ${
-                            rec.timelineCode === "today" ? "bg-rose-500/10 text-rose-600 border-rose-500/20" : rec.timelineCode === "this_week" ? "bg-amber-500/10 text-amber-600 border-amber-500/20" : "bg-teal/10 text-teal border-teal/20"
+                            rec.timeline === "Today" ? "bg-rose-500/10 text-rose-600 border-rose-500/20" : rec.timeline === "This Week" ? "bg-amber-500/10 text-amber-600 border-amber-500/20" : "bg-teal/10 text-teal border-teal/20"
                           }`}>
-                            {tr(`timeline.${rec.timelineCode}`, currentLang)}
+                            {rec.timeline}
                           </Badge>
                         </div>
-                        <p className="text-sm font-bold text-foreground leading-snug">
-                          {tr(rec.actionCode, currentLang, rec.actionParams)}
-                        </p>
+                        <p className="text-sm font-bold text-foreground leading-snug">{rec.action}</p>
                         <p className="text-xs text-muted-foreground leading-normal">
-                          <span className="font-semibold text-foreground">Why: </span>
-                          {tr(rec.whyCode, currentLang, rec.whyParams)}
+                          <span className="font-semibold text-foreground">Why: </span>{rec.why}
                         </p>
                       </div>
 
                       <div className="space-y-1.5 pt-2 border-t border-border/30">
-                        {rec.evidenceCodes && rec.evidenceCodes.length > 0 && (
+                        {rec.evidence.length > 0 && (
                           <div className="text-[11px] text-muted-foreground">
-                            <span className="font-semibold text-foreground">Evidence: </span>
-                            {rec.evidenceCodes.map((c) => tr(c, currentLang)).join(" ")}
+                            <span className="font-semibold text-foreground">Evidence: </span>{rec.evidence.join(" ")}
                           </div>
                         )}
                         <div className="text-[10px] text-teal font-medium leading-normal">
-                          <span className="font-semibold">Benefit: </span>
-                          {tr(rec.expectedBenefitCode, currentLang, rec.benefitParams)}
+                          <span className="font-semibold">Benefit: </span>{rec.expectedBenefit}
                         </div>
                       </div>
                     </div>

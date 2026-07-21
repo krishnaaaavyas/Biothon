@@ -3,7 +3,6 @@ import { ShieldCheck, ShieldAlert, AlertTriangle, CheckCircle2, HelpCircle } fro
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { type EvidenceSummary } from "@/lib/evidence-summary";
-import { tr, useLanguage } from "@/lib/i18n";
 
 interface EvidenceSummaryCardProps {
   summary: EvidenceSummary;
@@ -11,12 +10,10 @@ interface EvidenceSummaryCardProps {
 }
 
 export const EvidenceSummaryCard: React.FC<EvidenceSummaryCardProps> = ({ summary, className = "" }) => {
-  const currentLang = useLanguage();
-
   const qualityBadges = {
-    high: { labelCode: "evidence.quality.high", variant: "default" as const, color: "bg-emerald-500/10 text-emerald-600 border-emerald-500/20" },
-    moderate: { labelCode: "evidence.quality.moderate", variant: "secondary" as const, color: "bg-amber-500/10 text-amber-600 border-amber-500/20" },
-    low: { labelCode: "evidence.quality.low", variant: "destructive" as const, color: "bg-rose-500/10 text-rose-600 border-rose-500/20" },
+    high: { label: "High Quality", variant: "default" as const, color: "bg-emerald-500/10 text-emerald-600 border-emerald-500/20" },
+    moderate: { label: "Moderate Quality", variant: "secondary" as const, color: "bg-amber-500/10 text-amber-600 border-amber-500/20" },
+    low: { label: "Low Quality", variant: "destructive" as const, color: "bg-rose-500/10 text-rose-600 border-rose-500/20" },
   };
 
   const confidenceIcons = {
@@ -36,7 +33,7 @@ export const EvidenceSummaryCard: React.FC<EvidenceSummaryCardProps> = ({ summar
           <h3 className="font-display font-semibold text-lg text-foreground">Evidence Quality Summary</h3>
         </div>
         <Badge variant="outline" className={`rounded-full px-3 py-0.5 text-xs font-semibold ${currentQuality.color}`}>
-          {tr(currentQuality.labelCode, currentLang)}
+          {currentQuality.label}
         </Badge>
       </div>
 
@@ -56,8 +53,8 @@ export const EvidenceSummaryCard: React.FC<EvidenceSummaryCardProps> = ({ summar
       <div className="rounded-lg bg-surface-muted/40 p-3 border border-border/20 space-y-1">
         <div className="flex items-center gap-2">
           {confidenceIcons[summary.confidence]}
-          <span className="text-sm font-semibold text-foreground">
-            {tr(`evidence.confidence.${summary.confidence}`, currentLang)}
+          <span className="text-sm font-semibold capitalize text-foreground">
+            Confidence in available evidence: <span className="font-bold">{summary.confidence}</span>
           </span>
         </div>
         {summary.reasons.length > 0 && (
