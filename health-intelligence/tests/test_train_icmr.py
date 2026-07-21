@@ -96,9 +96,43 @@ def test_missing_targets_are_removed_before_cv_folds(
     assert recorder.seen_rows == [len(synthetic_training_fixture) - 2]
 
 
-def test_saved_metadata_has_threshold_schema():
-    metadata_path = train_icmr.METADATA_PATH
-    with open(metadata_path, "r", encoding="utf-8") as metadata_file:
+@pytest.fixture
+def synthetic_threshold_analysis():
+    """Synthetic CV summaries used only to exercise the metadata schema."""
+    return [
+        {
+            "sensitivity_target": target,
+            "mean_cutoff": 0.4 - index * 0.05,
+            "std_cutoff": 0.01,
+            "mean_specificity": 0.8 - index * 0.05,
+            "std_specificity": 0.02,
+            "mean_pr_auc": 0.3,
+            "std_pr_auc": 0.03,
+        }
+        for index, target in enumerate(train_icmr.SENSITIVITY_TARGETS)
+    ]
+
+
+@pytest.fixture
+def generated_metadata(tmp_path, synthetic_threshold_analysis):
+    threshold_options, active_threshold = train_icmr._build_threshold_metadata(
+        synthetic_threshold_analysis
+    )
+    metadata = {
+        "threshold_options": threshold_options,
+        "active_threshold": active_threshold,
+    }
+    metadata_path = tmp_path / "nested" / "diabetes_model_metadata.json"
+    train_icmr._write_metadata_json(metadata, str(metadata_path))
+    return metadata_path
+
+
+def test_metadata_file_is_created_without_existing_parent(generated_metadata):
+    assert generated_metadata.is_file()
+
+
+def test_saved_metadata_has_threshold_schema(generated_metadata):
+    with generated_metadata.open("r", encoding="utf-8") as metadata_file:
         metadata = json.load(metadata_file)
 
     assert isinstance(metadata["threshold_options"], list)
@@ -122,6 +156,37 @@ def test_saved_metadata_has_threshold_schema():
         "mean_specificity",
         "std_specificity",
     } <= metadata["active_threshold"].keys()
+
+
+def test_threshold_metadata_generation_is_deterministic(
+    synthetic_threshold_analysis,
+):
+    first = train_icmr._build_threshold_metadata(synthetic_threshold_analysis)
+    second = train_icmr._build_threshold_metadata(synthetic_threshold_analysis)
+
+    assert first == second
+    assert sum(option["selected_default"] for option in first[0]) == 1
+    assert first[1]["sensitivity_target"] == train_icmr.DEFAULT_SENSITIVITY_TARGET
+
+
+def test_metadata_generation_needs_no_dataset_or_model_binary(
+    tmp_path, synthetic_threshold_analysis, monkeypatch
+):
+    def forbidden_access(*args, **kwargs):
+        raise AssertionError("raw dataset or model binary access was attempted")
+
+    monkeypatch.setattr(train_icmr, "_load_dataset", forbidden_access)
+    monkeypatch.setattr(train_icmr.joblib, "dump", forbidden_access)
+    options, active = train_icmr._build_threshold_metadata(
+        synthetic_threshold_analysis
+    )
+    output_path = tmp_path / "missing" / "metadata.json"
+    train_icmr._write_metadata_json(
+        {"threshold_options": options, "active_threshold": active},
+        str(output_path),
+    )
+
+    assert output_path.is_file()
 
 
 def test_pipeline_trains_and_predicts_probabilities(synthetic_training_fixture):

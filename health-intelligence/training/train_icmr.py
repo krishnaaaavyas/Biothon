@@ -229,6 +229,71 @@ def _threshold_analysis(
     return results
 
 
+def _build_threshold_metadata(
+    threshold_analysis: list[dict],
+    default_sensitivity_target: float = DEFAULT_SENSITIVITY_TARGET,
+) -> tuple[list[dict], dict]:
+    """Build deterministic threshold metadata from completed CV summaries.
+
+    This performs no training and reads no dataset, allowing schema tests to
+    remain independent of generated runtime artifacts.
+    """
+    default_rows = [
+        row for row in threshold_analysis
+        if abs(row["sensitivity_target"] - default_sensitivity_target) < 1e-9
+    ]
+    if len(default_rows) != 1:
+        raise ValueError(
+            "Threshold analysis must contain exactly one default sensitivity target."
+        )
+
+    threshold_options = []
+    for row in threshold_analysis:
+        threshold_options.append({
+            "sensitivity_target": row["sensitivity_target"],
+            "mean_cutoff": row["mean_cutoff"],
+            "std_cutoff": row["std_cutoff"],
+            "mean_specificity": row["mean_specificity"],
+            "std_specificity": row["std_specificity"],
+            "mean_pr_auc": row["mean_pr_auc"],
+            "std_pr_auc": row["std_pr_auc"],
+            "selected_default": abs(
+                row["sensitivity_target"] - default_sensitivity_target
+            ) < 1e-9,
+        })
+
+    default_row = default_rows[0]
+    active_threshold = {
+        "sensitivity_target": default_row["sensitivity_target"],
+        "mean_cutoff": default_row["mean_cutoff"],
+        "std_cutoff": default_row["std_cutoff"],
+        "mean_specificity": default_row["mean_specificity"],
+        "std_specificity": default_row["std_specificity"],
+        "note": (
+            "This is the mean probability cutoff from CV folds achieving "
+            f">= {default_sensitivity_target:.0%} sensitivity. "
+            "A human reviewer may override by selecting another entry from "
+            "threshold_options without retraining."
+        ),
+    }
+    return threshold_options, active_threshold
+
+
+def _write_metadata_json(metadata: dict, metadata_path: str) -> None:
+    """Atomically write metadata, creating a missing parent directory."""
+    parent_dir = os.path.dirname(os.path.abspath(metadata_path))
+    os.makedirs(parent_dir, exist_ok=True)
+    temporary_path = metadata_path + ".tmp"
+    try:
+        with open(temporary_path, "w", encoding="utf-8") as metadata_file:
+            json.dump(metadata, metadata_file, indent=2)
+        os.replace(temporary_path, metadata_path)
+    except Exception:
+        if os.path.exists(temporary_path):
+            os.remove(temporary_path)
+        raise
+
+
 # ---------------------------------------------------------------------------
 # Main
 # ---------------------------------------------------------------------------
@@ -497,22 +562,9 @@ def main():
         default_row["mean_specificity"],
     )
 
-    # Build threshold_options list for metadata — mark the default
-    threshold_options = []
-    for row in threshold_analysis:
-        is_default = (
-            abs(row["sensitivity_target"] - DEFAULT_SENSITIVITY_TARGET) < 1e-9
-        )
-        threshold_options.append({
-            "sensitivity_target":  row["sensitivity_target"],
-            "mean_cutoff":         row["mean_cutoff"],
-            "std_cutoff":          row["std_cutoff"],
-            "mean_specificity":    row["mean_specificity"],
-            "std_specificity":     row["std_specificity"],
-            "mean_pr_auc":         row["mean_pr_auc"],
-            "std_pr_auc":          row["std_pr_auc"],
-            "selected_default":    is_default,
-        })
+    threshold_options, active_threshold = _build_threshold_metadata(
+        threshold_analysis
+    )
 
     # ------------------------------------------------------------------
     # Final model — fit on full dataset then save
@@ -575,19 +627,7 @@ def main():
         },
         "dummy_baseline": dummy_baseline,
         "threshold_options": threshold_options,
-        "active_threshold": {
-            "sensitivity_target":  default_row["sensitivity_target"],
-            "mean_cutoff":         selected_cutoff,
-            "std_cutoff":          default_row["std_cutoff"],
-            "mean_specificity":    default_row["mean_specificity"],
-            "std_specificity":     default_row["std_specificity"],
-            "note": (
-                "This is the mean probability cutoff from CV folds achieving "
-                f">= {DEFAULT_SENSITIVITY_TARGET:.0%} sensitivity. "
-                "A human reviewer may override by selecting another entry from "
-                "threshold_options without retraining."
-            ),
-        },
+        "active_threshold": active_threshold,
         "limitations": [
             "RESEARCH_ONLY: not validated for clinical use",
             "Small sample size — estimates may have high variance",
@@ -609,8 +649,7 @@ def main():
 
     # Write metadata first — if this fails, no joblib file is written
     metadata_tmp = METADATA_PATH + ".tmp"
-    with open(metadata_tmp, "w", encoding="utf-8") as f:
-        json.dump(metadata, f, indent=2)
+    _write_metadata_json(metadata, metadata_tmp)
 
     joblib.dump(final_pipeline, MODEL_PATH)
     os.replace(metadata_tmp, METADATA_PATH)   # atomic rename
