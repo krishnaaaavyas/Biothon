@@ -131,10 +131,16 @@ function AssessmentPage() {
 
   // Determine flowMode based on search parameters or initial state
   const [flowMode, setFlowMode] = useState<"blood" | "questionnaire" | "combined" | null>(() => {
+    const normMode = mode ? String(mode).toLowerCase() : null;
+    if (normMode === "blood") return "blood";
+    if (normMode === "lifestyle" || normMode === "questionnaire") return "questionnaire";
+    if (normMode === "combined" || normMode === "retake" || normMode === "reassess") return "combined";
     if (initialStep === 5) return "blood";
     if (initialStep && initialStep >= 1 && initialStep <= 4) return "questionnaire";
     return null;
   });
+
+  const [externalConsent, setExternalConsent] = useState(true);
 
   const form = useForm<Profile>({
     defaultValues: profile ?? {
@@ -214,11 +220,11 @@ function AssessmentPage() {
     }
     if (flowMode === "combined") {
       return [
-        { id: 1, type: "personal" as const, label: "Basic Profile", desc: "Goals & Body" },
-        { id: 2, type: "health" as const, label: "Health Info", desc: "Conditions & History" },
-        { id: 3, type: "lifestyle" as const, label: "Lifestyle", desc: "Activity & Habits" },
-        { id: 4, type: "diet" as const, label: "Diet Prefs", desc: "Cuisine & Exclusions" },
-        { id: 5, type: "blood" as const, label: "Blood Report", desc: "Upload & Verify" },
+        { id: 1, type: "blood" as const, label: "Blood Report", desc: "Upload & Verify" },
+        { id: 2, type: "personal" as const, label: "Basic Profile", desc: "Goals & Body" },
+        { id: 3, type: "health" as const, label: "Health Info", desc: "Conditions & History" },
+        { id: 4, type: "lifestyle" as const, label: "Lifestyle", desc: "Activity & Habits" },
+        { id: 5, type: "diet" as const, label: "Diet Prefs", desc: "Cuisine & Exclusions" },
       ];
     }
     return [];
@@ -355,6 +361,37 @@ function AssessmentPage() {
     }
   };
 
+  function getExtractionErrorMessage(reasonCode?: string): string {
+    switch (reasonCode) {
+      case "LAB_EXTRACTION_DISABLED":
+        return "AI extraction is currently disabled. You can enter your laboratory values manually.";
+      case "LAB_EXTRACTION_CONSENT_REQUIRED":
+      case "EXTERNAL_PROCESSING_CONSENT_REQUIRED":
+        return "Consent is required before external AI processing.";
+      case "LAB_EXTRACTION_API_KEY_MISSING":
+        return "AI extraction service is not configured. You can enter your laboratory values manually.";
+      case "LAB_FILE_TYPE_UNSUPPORTED":
+      case "LAB_UPLOAD_UNSUPPORTED_MIME_TYPE":
+        return "This file type is not supported. Upload a PDF, PNG, or JPEG.";
+      case "LAB_FILE_TOO_LARGE":
+      case "LAB_UPLOAD_SIZE_LIMIT_EXCEEDED":
+        return "File size limit exceeded. Please upload a smaller report file.";
+      case "LAB_FILE_INVALID":
+      case "LAB_UPLOAD_INVALID_IMAGE":
+      case "LAB_UPLOAD_MIME_SIGNATURE_MISMATCH":
+        return "Selected file is invalid or unreadable. Please choose a valid lab report.";
+      case "LAB_EXTRACTION_TIMEOUT":
+        return "AI extraction timed out. You can enter your laboratory values manually.";
+      case "LAB_EXTRACTION_EMPTY_RESULT":
+        return "No lab values could be extracted from this report. You can enter values manually.";
+      case "LAB_EXTRACTION_PARSE_FAILED":
+        return "Failed to read lab report structure. You can enter your laboratory values manually.";
+      case "LAB_EXTRACTION_PROVIDER_REJECTED":
+      default:
+        return "AI extraction is currently unavailable. You can enter your laboratory values manually.";
+    }
+  }
+
   const startScanningAnimationAndOCR = async (ocrPromise: Promise<any>) => {
     setBloodUploadState("processing");
     setProcessingIndex(0);
@@ -374,13 +411,18 @@ function AssessmentPage() {
 
     try {
       const [result] = await Promise.all([ocrPromise, animPromise]);
-      processOCRResult(result);
-      setBloodUploadState("review");
-      toast.success("Lab report analyzed successfully!");
-    } catch (err) {
+      if (result?.status === "extraction-unavailable") {
+        setBloodUploadState("review");
+        toast.error(getExtractionErrorMessage(result.reasonCode));
+      } else {
+        processOCRResult(result);
+        setBloodUploadState("review");
+        toast.success("Lab report analyzed successfully!");
+      }
+    } catch (err: any) {
       console.error("OCR analysis failure:", err);
       setBloodUploadState("review");
-      toast.error("AI extraction failed. You can enter values manually.");
+      toast.error(getExtractionErrorMessage(err?.reasonCode || err?.message));
     } finally {
       setIsScanning(false);
     }
@@ -404,6 +446,7 @@ function AssessmentPage() {
     const ocrPromise = assessLabReportImage({
       base64Image: base64Data,
       mimeType: "image/jpeg",
+      externalProcessingConsent: externalConsent,
     });
 
     await startScanningAnimationAndOCR(ocrPromise);
@@ -429,6 +472,7 @@ function AssessmentPage() {
       assessLabReportImage({
         base64Image: base64Data,
         mimeType: file.type || "image/jpeg",
+        externalProcessingConsent: externalConsent,
       })
     );
 
@@ -1488,6 +1532,19 @@ function AssessmentPage() {
                               <Camera className="h-4 w-4" />
                               Scan with Camera
                             </Button>
+
+                            <div className="flex items-center gap-2 pt-1 px-1 text-xs text-muted-foreground">
+                              <input
+                                type="checkbox"
+                                id="external-consent"
+                                checked={externalConsent}
+                                onChange={(e) => setExternalConsent(e.target.checked)}
+                                className="h-4 w-4 rounded border-border text-teal focus:ring-teal cursor-pointer shrink-0"
+                              />
+                              <label htmlFor="external-consent" className="cursor-pointer select-none text-[11px] leading-tight">
+                                I consent to external AI processing of this lab report for biomarker extraction.
+                              </label>
+                            </div>
                           </div>
                         )}
 

@@ -502,6 +502,11 @@ export async function assessIngredientsText({
 }
 
 export interface ExtractedLabReport {
+  status?: string;
+  reasonCode?: string;
+  observations?: any[];
+  manualEntryAllowed?: boolean;
+  message?: string;
   fastingBloodSugar?: { value: number; unit: string };
   HbA1c?: { value: number; unit: string };
   totalCholesterol?: { value: number; unit: string };
@@ -514,9 +519,11 @@ export interface ExtractedLabReport {
 export async function assessLabReportImage({
   base64Image,
   mimeType,
+  externalProcessingConsent = true,
 }: {
   base64Image: string;
   mimeType: string;
+  externalProcessingConsent?: boolean;
 }): Promise<ExtractedLabReport> {
   const contents = [
     {
@@ -547,13 +554,33 @@ export async function assessLabReportImage({
       "Content-Type": "application/json",
       Authorization: `Bearer ${idToken}`,
     },
-    body: JSON.stringify({ contents }),
+    body: JSON.stringify({ contents, externalProcessingConsent }),
   });
 
+  const data = await response.json().catch(() => null);
+
   if (!response.ok) {
-    const errorText = await response.text();
-    throw new Error(errorText || "Lab report analysis failed");
+    if (data && typeof data === "object") {
+      return {
+        status: data.status || "extraction-unavailable",
+        reasonCode: data.reasonCode || data.error || "LAB_EXTRACTION_PROVIDER_REJECTED",
+        observations: data.observations || [],
+        manualEntryAllowed: data.manualEntryAllowed ?? true,
+        message: data.message,
+      };
+    }
+    return {
+      status: "extraction-unavailable",
+      reasonCode: "LAB_EXTRACTION_PROVIDER_REJECTED",
+      observations: [],
+      manualEntryAllowed: true,
+    };
   }
 
-  return response.json();
+  return data || {
+    status: "extraction-unavailable",
+    reasonCode: "LAB_EXTRACTION_EMPTY_RESULT",
+    observations: [],
+    manualEntryAllowed: true,
+  };
 }

@@ -283,68 +283,259 @@ async function testSecurity() {
   });
 
   const httpFetch = global.fetch;
-  const validPng = (await sharp({
-    create: { width: 1, height: 1, channels: 3, background: "white" },
-  }).png().toBuffer()).toString("base64");
-  const labRequest = (data = validPng, mimeType = "image/png", consent?: boolean) => httpFetch(`${baseUrl}/lab-report/analyze`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json", Authorization: "Bearer mock-uid-patient-A" },
-    body: JSON.stringify({
-      contents: [{ role: "user", parts: [{ inlineData: { mimeType, data } }] }],
-      ...(consent === undefined ? {} : { externalProcessingConsent: consent }),
-    }),
-  });
+  const validPng = (
+    await sharp({
+      create: { width: 1, height: 1, channels: 3, background: "white" },
+    })
+      .png()
+      .toBuffer()
+  ).toString("base64");
+  const validJpeg = (
+    await sharp({
+      create: { width: 1, height: 1, channels: 3, background: "white" },
+    })
+      .jpeg()
+      .toBuffer()
+  ).toString("base64");
+  const validPdf = Buffer.from("%PDF-1.4\n1 0 obj\n<<>>\nendobj\ntrailer\n<<>>\n%%EOF\n").toString(
+    "base64"
+  );
 
-  await runTest("Lab extraction - Missing Gemini configuration returns safe 503", async () => {
-    const previous = process.env.GEMINI_API_KEY;
-    delete process.env.GEMINI_API_KEY;
-    const res = await labRequest();
-    if (previous) process.env.GEMINI_API_KEY = previous;
-    const body: any = await res.json();
-    if (res.status !== 503 || body.reasonCode !== "OCR_SERVICE_UNAVAILABLE") {
-      throw new Error(`Expected extraction-unavailable 503, got ${res.status}`);
-    }
-    if (Object.keys(body.biomarkers || {}).length !== 0) throw new Error("Fabricated biomarkers returned");
-  });
+  const labRequest = (
+    data = validPng,
+    mimeType = "image/png",
+    consent?: boolean,
+    customContents?: any
+  ) =>
+    httpFetch(`${baseUrl}/lab-report/analyze`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: "Bearer mock-uid-patient-A" },
+      body: JSON.stringify(
+        customContents !== undefined
+          ? customContents
+          : {
+              contents: [{ role: "user", parts: [{ inlineData: { mimeType, data } }] }],
+              ...(consent === undefined ? {} : { externalProcessingConsent: consent }),
+            }
+      ),
+    });
 
-  await runTest("Lab extraction - Gemini failure returns safe 503", async () => {
+  await runTest("Lab extraction - Valid PNG/JPEG request returns extracted status", async () => {
     const originalFetch = global.fetch;
     process.env.GEMINI_API_KEY = "synthetic-test-key";
-    global.fetch = async () => new Response("private upstream error", { status: 500 });
+    global.fetch = async () =>
+      new Response(
+        JSON.stringify({
+          candidates: [
+            {
+              content: {
+                parts: [{ text: JSON.stringify({ fastingBloodSugar: { value: 99, unit: "mg/dL" } }) }],
+              },
+            },
+          ],
+        }),
+        { status: 200, headers: { "Content-Type": "application/json" } }
+      );
     try {
-      const res = await labRequest();
-      const body: any = await res.json();
-      if (res.status !== 503 || Object.keys(body.biomarkers || {}).length) {
-        throw new Error("Gemini failure did not fail safely");
-      }
-    } finally { global.fetch = originalFetch; }
-  });
-
-  await runTest("Lab extraction - Malformed Gemini JSON returns safe 503", async () => {
-    const originalFetch = global.fetch;
-    process.env.GEMINI_API_KEY = "synthetic-test-key";
-    global.fetch = async () => new Response(JSON.stringify({
-      candidates: [{ content: { parts: [{ text: "{malformed" }] } }],
-    }), { status: 200, headers: { "Content-Type": "application/json" } });
-    try {
-      const res = await labRequest();
-      if (res.status !== 503) throw new Error(`Expected 503, got ${res.status}`);
-    } finally { global.fetch = originalFetch; }
-  });
-
-  await runTest("Lab extraction - Valid extraction preserves biomarker keys", async () => {
-    const originalFetch = global.fetch;
-    process.env.GEMINI_API_KEY = "synthetic-test-key";
-    global.fetch = async () => new Response(JSON.stringify({
-      candidates: [{ content: { parts: [{ text: JSON.stringify({ fastingBloodSugar: { value: 99, unit: "mg/dL" } }) }] } }],
-    }), { status: 200, headers: { "Content-Type": "application/json" } });
-    try {
-      const res = await labRequest();
+      const res = await labRequest(validJpeg, "image/jpeg");
       const body: any = await res.json();
       if (res.status !== 200 || body.status !== "extracted" || !body.fastingBloodSugar) {
-        throw new Error("Valid extraction contract changed");
+        throw new Error("Valid JPEG extraction failed");
       }
-    } finally { global.fetch = originalFetch; }
+    } finally {
+      global.fetch = originalFetch;
+    }
+  });
+
+  await runTest("Lab extraction - Valid PDF request returns extracted status", async () => {
+    const originalFetch = global.fetch;
+    process.env.GEMINI_API_KEY = "synthetic-test-key";
+    global.fetch = async () =>
+      new Response(
+        JSON.stringify({
+          candidates: [
+            {
+              content: {
+                parts: [{ text: JSON.stringify({ HbA1c: { value: 5.6, unit: "%" } }) }],
+              },
+            },
+          ],
+        }),
+        { status: 200, headers: { "Content-Type": "application/json" } }
+      );
+    try {
+      const res = await labRequest(validPdf, "application/pdf");
+      const body: any = await res.json();
+      if (res.status !== 200 || body.status !== "extracted" || !body.HbA1c) {
+        throw new Error("Valid PDF extraction failed");
+      }
+    } finally {
+      global.fetch = originalFetch;
+    }
+  });
+
+  await runTest("Lab extraction - Unsupported MIME type returns LAB_FILE_TYPE_UNSUPPORTED", async () => {
+    const res = await labRequest("plain text data", "text/plain");
+    const body: any = await res.json();
+    if (res.status !== 400 || body.reasonCode !== "LAB_FILE_TYPE_UNSUPPORTED") {
+      throw new Error(`Expected 400 LAB_FILE_TYPE_UNSUPPORTED, got ${res.status} ${body.reasonCode}`);
+    }
+  });
+
+  await runTest("Lab extraction - Oversized file returns LAB_FILE_TOO_LARGE", async () => {
+    const pngHeader = Buffer.from(validPng, "base64");
+    const hugeBuffer = Buffer.concat([pngHeader, Buffer.alloc(11 * 1024 * 1024)]);
+    const res = await labRequest(hugeBuffer.toString("base64"), "image/png");
+    const body: any = await res.json();
+    if (res.status !== 400 || body.reasonCode !== "LAB_FILE_TOO_LARGE") {
+      throw new Error(`Expected 400 LAB_FILE_TOO_LARGE, got ${res.status} ${body.reasonCode}`);
+    }
+  });
+
+  await runTest("Lab extraction - Missing file/contents returns LAB_FILE_INVALID", async () => {
+    const res = await labRequest("", "image/png", undefined, {});
+    const body: any = await res.json();
+    if (res.status !== 400 || body.reasonCode !== "LAB_FILE_INVALID") {
+      throw new Error(`Expected 400 LAB_FILE_INVALID, got ${res.status} ${body.reasonCode}`);
+    }
+  });
+
+  await runTest("Lab extraction - Missing consent returns LAB_EXTRACTION_CONSENT_REQUIRED", async () => {
+    const prevConsent = process.env.REQUIRE_EXTERNAL_PROCESSING_CONSENT;
+    process.env.REQUIRE_EXTERNAL_PROCESSING_CONSENT = "true";
+    try {
+      const res = await labRequest(validPng, "image/png", false);
+      const body: any = await res.json();
+      if (res.status !== 422 || body.reasonCode !== "LAB_EXTRACTION_CONSENT_REQUIRED") {
+        throw new Error(`Expected 422 LAB_EXTRACTION_CONSENT_REQUIRED, got ${res.status} ${body.reasonCode}`);
+      }
+    } finally {
+      if (prevConsent !== undefined) process.env.REQUIRE_EXTERNAL_PROCESSING_CONSENT = prevConsent;
+      else delete process.env.REQUIRE_EXTERNAL_PROCESSING_CONSENT;
+    }
+  });
+
+  await runTest("Lab extraction - Missing Gemini API key returns LAB_EXTRACTION_API_KEY_MISSING", async () => {
+    const previous = process.env.GEMINI_API_KEY;
+    delete process.env.GEMINI_API_KEY;
+    try {
+      const res = await labRequest();
+      const body: any = await res.json();
+      if (res.status !== 503 || body.reasonCode !== "LAB_EXTRACTION_API_KEY_MISSING") {
+        throw new Error(`Expected 503 LAB_EXTRACTION_API_KEY_MISSING, got ${res.status} ${body.reasonCode}`);
+      }
+      if (body.manualEntryAllowed !== true || (body.observations && body.observations.length > 0)) {
+        throw new Error("Fabricated observations returned on missing API key");
+      }
+    } finally {
+      if (previous) process.env.GEMINI_API_KEY = previous;
+    }
+  });
+
+  await runTest("Lab extraction - Disabled extraction returns LAB_EXTRACTION_DISABLED", async () => {
+    const previous = process.env.GEMINI_LAB_PROCESSING_ENABLED;
+    process.env.GEMINI_LAB_PROCESSING_ENABLED = "false";
+    try {
+      const res = await labRequest();
+      const body: any = await res.json();
+      if (res.status !== 503 || body.reasonCode !== "LAB_EXTRACTION_DISABLED") {
+        throw new Error(`Expected 503 LAB_EXTRACTION_DISABLED, got ${res.status} ${body.reasonCode}`);
+      }
+    } finally {
+      if (previous !== undefined) process.env.GEMINI_LAB_PROCESSING_ENABLED = previous;
+      else delete process.env.GEMINI_LAB_PROCESSING_ENABLED;
+    }
+  });
+
+  await runTest("Lab extraction - Provider timeout returns LAB_EXTRACTION_TIMEOUT", async () => {
+    const originalFetch = global.fetch;
+    process.env.GEMINI_API_KEY = "synthetic-test-key";
+    global.fetch = async () => {
+      const err = new Error("The operation was aborted");
+      err.name = "AbortError";
+      throw err;
+    };
+    try {
+      const res = await labRequest();
+      const body: any = await res.json();
+      if (res.status !== 503 || body.reasonCode !== "LAB_EXTRACTION_TIMEOUT") {
+        throw new Error(`Expected 503 LAB_EXTRACTION_TIMEOUT, got ${res.status} ${body.reasonCode}`);
+      }
+    } finally {
+      global.fetch = originalFetch;
+    }
+  });
+
+  await runTest("Lab extraction - Provider HTTP 500 returns LAB_EXTRACTION_PROVIDER_REJECTED", async () => {
+    const originalFetch = global.fetch;
+    process.env.GEMINI_API_KEY = "synthetic-test-key";
+    global.fetch = async () => new Response("Internal error", { status: 500 });
+    try {
+      const res = await labRequest();
+      const body: any = await res.json();
+      if (res.status !== 503 || body.reasonCode !== "LAB_EXTRACTION_PROVIDER_REJECTED") {
+        throw new Error(`Expected 503 LAB_EXTRACTION_PROVIDER_REJECTED, got ${res.status} ${body.reasonCode}`);
+      }
+    } finally {
+      global.fetch = originalFetch;
+    }
+  });
+
+  await runTest("Lab extraction - Empty extraction result returns LAB_EXTRACTION_EMPTY_RESULT", async () => {
+    const originalFetch = global.fetch;
+    process.env.GEMINI_API_KEY = "synthetic-test-key";
+    global.fetch = async () =>
+      new Response(
+        JSON.stringify({
+          candidates: [{ content: { parts: [{ text: "{}" }] } }],
+        }),
+        { status: 200, headers: { "Content-Type": "application/json" } }
+      );
+    try {
+      const res = await labRequest();
+      const body: any = await res.json();
+      if (res.status !== 503 || body.reasonCode !== "LAB_EXTRACTION_EMPTY_RESULT") {
+        throw new Error(`Expected 503 LAB_EXTRACTION_EMPTY_RESULT, got ${res.status} ${body.reasonCode}`);
+      }
+    } finally {
+      global.fetch = originalFetch;
+    }
+  });
+
+  await runTest("Lab extraction - Malformed model JSON returns LAB_EXTRACTION_PARSE_FAILED", async () => {
+    const originalFetch = global.fetch;
+    process.env.GEMINI_API_KEY = "synthetic-test-key";
+    global.fetch = async () =>
+      new Response(
+        JSON.stringify({
+          candidates: [{ content: { parts: [{ text: "{invalid json" }] } }],
+        }),
+        { status: 200, headers: { "Content-Type": "application/json" } }
+      );
+    try {
+      const res = await labRequest();
+      const body: any = await res.json();
+      if (res.status !== 503 || body.reasonCode !== "LAB_EXTRACTION_PARSE_FAILED") {
+        throw new Error(`Expected 503 LAB_EXTRACTION_PARSE_FAILED, got ${res.status} ${body.reasonCode}`);
+      }
+    } finally {
+      global.fetch = originalFetch;
+    }
+  });
+
+  await runTest("Security - Verification of no secret, prompt, or PHI leakage in extraction responses", async () => {
+    const originalFetch = global.fetch;
+    process.env.GEMINI_API_KEY = "synthetic-test-key";
+    global.fetch = async () => new Response("Upstream error detail", { status: 403 });
+    try {
+      const res = await labRequest();
+      const bodyText = await res.text();
+      if (bodyText.includes("synthetic-test-key") || bodyText.includes("Upstream error detail")) {
+        throw new Error("Sensitive secret or raw provider error leaked in response body");
+      }
+    } finally {
+      global.fetch = originalFetch;
+    }
   });
 
   await runTest("Security - Blocked CORS origin is rejected", async () => {

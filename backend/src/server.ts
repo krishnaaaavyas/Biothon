@@ -1539,52 +1539,104 @@ app.post(
   "/api/lab-report/analyze",
   requireAuth,
   async (req: AuthenticatedRequest, res) => {
+    const startTime = Date.now();
+    const requestId = (req.headers["x-request-id"] as string) || crypto.randomUUID();
     const uid = req.user?.uid;
     if (!uid) {
       return res.status(400).json({ error: "Bad Request: Missing User UID" });
     }
 
+    let safeMimeType = "unknown";
+    let fileSizeBucket = "unknown";
+
+    const getFileSizeBucket = (bytes: number): string => {
+      if (bytes < 100 * 1024) return "<100KB";
+      if (bytes < 1024 * 1024) return "100KB-1MB";
+      if (bytes < 5 * 1024 * 1024) return "1MB-5MB";
+      if (bytes < 10 * 1024 * 1024) return "5MB-10MB";
+      return ">10MB";
+    };
+
+    const extractionUnavailable = (reasonCode: string, statusCode = 503) => {
+      const durationMs = Date.now() - startTime;
+      console.log(
+        JSON.stringify({
+          requestId,
+          mimeType: safeMimeType,
+          fileSizeBucket,
+          reasonCode,
+          durationMs,
+        })
+      );
+      return res.status(statusCode).json({
+        status: "extraction-unavailable",
+        reasonCode,
+        observations: [],
+        manualEntryAllowed: true,
+      });
+    };
+
     try {
       const { contents } = req.body;
-      if (!contents || !Array.isArray(contents)) {
-        return res.status(400).json({ error: "Bad Request: Missing contents array" });
+      if (!contents || !Array.isArray(contents) || contents.length === 0) {
+        return extractionUnavailable("LAB_FILE_INVALID", 400);
+      }
+
+      const inlinePart = contents.flatMap((entry: any) =>
+        Array.isArray(entry?.parts) ? entry.parts.filter((p: any) => p?.inlineData) : []
+      )[0];
+      if (inlinePart?.inlineData?.mimeType) {
+        safeMimeType = String(inlinePart.inlineData.mimeType);
+      }
+      if (inlinePart?.inlineData?.data && typeof inlinePart.inlineData.data === "string") {
+        fileSizeBucket = getFileSizeBucket(Math.floor((inlinePart.inlineData.data.length * 3) / 4));
       }
 
       const processingEnabled = process.env.GEMINI_LAB_PROCESSING_ENABLED !== "false";
       if (!processingEnabled) {
-        return res.status(503).json({ error: "LAB_EXTERNAL_PROCESSING_DISABLED" });
+        return extractionUnavailable("LAB_EXTRACTION_DISABLED", 503);
       }
+
       const consentRequired = process.env.REQUIRE_EXTERNAL_PROCESSING_CONSENT
         ? process.env.REQUIRE_EXTERNAL_PROCESSING_CONSENT === "true"
         : process.env.NODE_ENV === "production";
       if (consentRequired && req.body.externalProcessingConsent !== true) {
-        return res.status(422).json({ error: "EXTERNAL_PROCESSING_CONSENT_REQUIRED" });
+        return extractionUnavailable("LAB_EXTRACTION_CONSENT_REQUIRED", 422);
       }
+
       try {
         await validateLabUpload(contents);
       } catch (validationError: any) {
-        return res.status(400).json({ error: validationError.message || "LAB_UPLOAD_INVALID" });
+        const msg = String(validationError?.message || "");
+        if (
+          msg === "LAB_UPLOAD_UNSUPPORTED_MIME_TYPE" ||
+          msg === "LAB_UPLOAD_MIME_SIGNATURE_MISMATCH"
+        ) {
+          return extractionUnavailable("LAB_FILE_TYPE_UNSUPPORTED", 400);
+        }
+        if (
+          msg === "LAB_UPLOAD_SIZE_LIMIT_EXCEEDED" ||
+          msg === "LAB_UPLOAD_DIMENSIONS_EXCEEDED"
+        ) {
+          return extractionUnavailable("LAB_FILE_TOO_LARGE", 400);
+        }
+        return extractionUnavailable("LAB_FILE_INVALID", 400);
       }
 
-      let result: any = null;
       const key = process.env.GEMINI_API_KEY;
-      const extractionUnavailable = () => res.status(503).json({
-        status: "extraction-unavailable",
-        reasonCode: "OCR_SERVICE_UNAVAILABLE",
-        biomarkers: {},
-        manualEntryRequired: true,
-        message: "Automatic extraction is unavailable. Enter or review the values manually.",
-      });
-
       if (
-        key &&
-        key !== "YOUR_GEMINI_API_KEY" &&
-        !key.includes("placeholder")
+        !key ||
+        key === "YOUR_GEMINI_API_KEY" ||
+        key.includes("placeholder") ||
+        key.trim() === ""
       ) {
-        const model = "gemini-2.5-flash";
-        const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${encodeURIComponent(key)}`;
+        return extractionUnavailable("LAB_EXTRACTION_API_KEY_MISSING", 503);
+      }
 
-        const labPrompt = `You are a clinical laboratory data extraction system. Analyze the provided lab report image or document.
+      const model = "gemini-2.5-flash";
+      const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${encodeURIComponent(key)}`;
+
+      const labPrompt = `You are a clinical laboratory data extraction system. Analyze the provided lab report image or document.
 Extract the following biomarkers if present, including their numeric value and unit. Do not guess values.
 Biomarkers to look for:
 1. fastingBloodSugar (fasting blood glucose, FBS)
@@ -1598,16 +1650,17 @@ Also extract the report date/test date if visible.
 
 Return strictly valid JSON matching the requested schema.`;
 
-        // Update parts
-        const geminiContents = JSON.parse(JSON.stringify(contents));
-        geminiContents.push({
-          role: "user",
-          parts: [{ text: labPrompt }],
-        });
+      const geminiContents = JSON.parse(JSON.stringify(contents));
+      geminiContents.push({
+        role: "user",
+        parts: [{ text: labPrompt }],
+      });
 
+      let geminiResp: Response;
+      try {
         const controller = new AbortController();
         const timeoutId = setTimeout(() => controller.abort(), 10000);
-        const geminiResp = await fetch(url, {
+        geminiResp = await fetch(url, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
@@ -1621,49 +1674,49 @@ Return strictly valid JSON matching the requested schema.`;
                     type: "object",
                     properties: {
                       value: { type: "number" },
-                      unit: { type: "string" }
-                    }
+                      unit: { type: "string" },
+                    },
                   },
                   HbA1c: {
                     type: "object",
                     properties: {
                       value: { type: "number" },
-                      unit: { type: "string" }
-                    }
+                      unit: { type: "string" },
+                    },
                   },
                   totalCholesterol: {
                     type: "object",
                     properties: {
                       value: { type: "number" },
-                      unit: { type: "string" }
-                    }
+                      unit: { type: "string" },
+                    },
                   },
                   ldl: {
                     type: "object",
                     properties: {
                       value: { type: "number" },
-                      unit: { type: "string" }
-                    }
+                      unit: { type: "string" },
+                    },
                   },
                   hdl: {
                     type: "object",
                     properties: {
                       value: { type: "number" },
-                      unit: { type: "string" }
-                    }
+                      unit: { type: "string" },
+                    },
                   },
                   triglycerides: {
                     type: "object",
                     properties: {
                       value: { type: "number" },
-                      unit: { type: "string" }
-                    }
+                      unit: { type: "string" },
+                    },
                   },
                   reportDate: {
                     type: "string",
-                    description: "Date of the report in YYYY-MM-DD format if visible"
-                  }
-                }
+                    description: "Date of the report in YYYY-MM-DD format if visible",
+                  },
+                },
               },
               temperature: 0.1,
             },
@@ -1671,57 +1724,80 @@ Return strictly valid JSON matching the requested schema.`;
           signal: controller.signal,
         });
         clearTimeout(timeoutId);
-
-        if (geminiResp.ok) {
-          const geminiJson: any = await geminiResp.json();
-          const geminiText =
-            geminiJson?.candidates?.[0]?.content?.parts?.map((p: any) => p.text ?? "").join("") ??
-            "";
-          if (geminiText) {
-            result = JSON.parse(geminiText);
-          }
-        } else {
-          console.warn("module=lab-extraction status=upstream-unavailable");
+      } catch (fetchErr: any) {
+        if (fetchErr?.name === "AbortError" || String(fetchErr?.message).includes("aborted")) {
+          return extractionUnavailable("LAB_EXTRACTION_TIMEOUT", 503);
         }
+        return extractionUnavailable("LAB_EXTRACTION_PROVIDER_REJECTED", 503);
       }
 
-      if (!result) {
-        return extractionUnavailable();
+      if (!geminiResp.ok) {
+        return extractionUnavailable("LAB_EXTRACTION_PROVIDER_REJECTED", 503);
+      }
+
+      let result: any = null;
+      try {
+        const geminiJson: any = await geminiResp.json();
+        const geminiText =
+          geminiJson?.candidates?.[0]?.content?.parts?.map((p: any) => p.text ?? "").join("") ??
+          "";
+        if (geminiText) {
+          result = JSON.parse(geminiText);
+        }
+      } catch {
+        return extractionUnavailable("LAB_EXTRACTION_PARSE_FAILED", 503);
+      }
+
+      if (!result || typeof result !== "object" || Array.isArray(result)) {
+        return extractionUnavailable("LAB_EXTRACTION_PARSE_FAILED", 503);
       }
 
       const biomarkerKeys = [
-        "fastingBloodSugar", "HbA1c", "totalCholesterol", "ldl", "hdl", "triglycerides",
+        "fastingBloodSugar",
+        "HbA1c",
+        "totalCholesterol",
+        "ldl",
+        "hdl",
+        "triglycerides",
       ];
-      if (typeof result !== "object" || Array.isArray(result)) {
-        return extractionUnavailable();
-      }
       for (const name of biomarkerKeys) {
         if (!(name in result)) continue;
         const biomarker = result[name];
         if (
-          !biomarker || typeof biomarker !== "object" ||
-          typeof biomarker.value !== "number" || !Number.isFinite(biomarker.value) ||
-          typeof biomarker.unit !== "string" || biomarker.unit.trim() === ""
+          !biomarker ||
+          typeof biomarker !== "object" ||
+          typeof biomarker.value !== "number" ||
+          !Number.isFinite(biomarker.value) ||
+          typeof biomarker.unit !== "string" ||
+          biomarker.unit.trim() === ""
         ) {
-          console.warn("module=lab-extraction status=invalid-biomarker-schema");
-          return extractionUnavailable();
+          return extractionUnavailable("LAB_EXTRACTION_PARSE_FAILED", 503);
         }
       }
+
       const extractedKeys = biomarkerKeys.filter((name) => name in result);
-      if (extractedKeys.length === 0) return extractionUnavailable();
-      if (result.reportDate !== undefined && typeof result.reportDate !== "string") {
-        return extractionUnavailable();
+      if (extractedKeys.length === 0) {
+        return extractionUnavailable("LAB_EXTRACTION_EMPTY_RESULT", 503);
       }
+
+      if (result.reportDate !== undefined && typeof result.reportDate !== "string") {
+        return extractionUnavailable("LAB_EXTRACTION_PARSE_FAILED", 503);
+      }
+
+      const durationMs = Date.now() - startTime;
+      console.log(
+        JSON.stringify({
+          requestId,
+          mimeType: safeMimeType,
+          fileSizeBucket,
+          status: "extracted",
+          durationMs,
+        })
+      );
+
       return res.json({ ...result, status: "extracted" });
     } catch {
-      console.warn("module=lab-extraction status=extraction-unavailable");
-      return res.status(503).json({
-        status: "extraction-unavailable",
-        reasonCode: "OCR_SERVICE_UNAVAILABLE",
-        biomarkers: {},
-        manualEntryRequired: true,
-        message: "Automatic extraction is unavailable. Enter or review the values manually.",
-      });
+      return extractionUnavailable("LAB_EXTRACTION_PROVIDER_REJECTED", 503);
     }
   }
 );
