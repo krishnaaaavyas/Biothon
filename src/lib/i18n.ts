@@ -150,6 +150,13 @@ export const translations: Dict = {
         gu: "લાઇટ મોડ સક્રિય",
     },
     signOut: { en: "Sign Out", hi: "साइन आउट", gu: "સાઇન આઉટ" },
+    scanner_camera_failed_title: { en: "Camera Snapshot Failed", hi: "कैमरा स्नैपशॉट विफल रहा", gu: "કેમેરા સ્નેપશોટ નિષ્ફળ ગયો" },
+    scanner_image_failed_title: { en: "Image Analysis Failed", hi: "छवि विश्लेषण विफल रहा", gu: "ઇમેજ વિશ્લેષણ નિષ્ફળ ગયું" },
+    scanner_image_failed_msg: {
+      en: "Could not extract ingredients from image. You can try again, paste ingredients manually, or select a preset.",
+      hi: "छवि से सामग्री नहीं निकाली जा सकी। आप पुनः प्रयास कर सकते हैं, मैन्युअल रूप से सामग्री पेस्ट कर सकते हैं, या एक प्रीसेट चुन सकते हैं।",
+      gu: "ચિત્રમાંથી સામગ્રી કાઢી શકાઈ નથી. તમે ફરીથી પ્રયાસ કરી શકો છો, મેન્યુઅલી સામગ્રી પેસ્ટ કરી શકો છો, અથવા પ્રીસેટ પસંદ કરી શકો છો।",
+    },
     diabetesV2Title: {
         en: "Diabetes Risk Profile (V2 Engine)",
         hi: "मधुमेह जोखिम प्रोफ़ाइल (V2 इंजन)",
