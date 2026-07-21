@@ -7,11 +7,9 @@ import {
   RecommendationV2Schema,
   RegionalContextV2Schema,
   HealthContextSchema,
-  SafetyFlag,
-  HealthModuleResult,
 } from "../config/schemas-v2.js";
 import { isBackendFeatureEnabled } from "../config/feature-flags.js";
-import { diseaseModuleRegistry } from "../config/module-registry.js";
+import { evaluateHealthContext } from "../modules/assessment/assessment-v2.service.js";
 
 const router = Router();
 
@@ -80,131 +78,28 @@ router.post("/health-assessment", requireAuth, async (req: AuthenticatedRequest,
     bmi = 0;
   }
 
-  // Check red-flags
-  const safetyFlags: SafetyFlag[] = [];
-
-  const sys = assessment.systolicBP;
-  const dia = assessment.diastolicBP;
-
-  const hasValidSys = typeof sys === "number" && isFinite(sys);
-  const hasValidDia = typeof dia === "number" && isFinite(dia);
-
-  let isBPEmergency = false;
-  let bpAlertMessage = "";
-
-  if (hasValidSys && hasValidDia) {
-    if (sys >= 180 || dia >= 120) {
-      isBPEmergency = true;
-      bpAlertMessage = "A reported blood-pressure measurement requires immediate medical attention.";
-    }
-  } else if (hasValidSys) {
-    if (sys >= 180) {
-      isBPEmergency = true;
-      bpAlertMessage = "A reported blood-pressure measurement requires immediate medical attention.";
-    }
-  } else if (hasValidDia) {
-    if (dia >= 120) {
-      isBPEmergency = true;
-      bpAlertMessage = "A reported blood-pressure measurement requires immediate medical attention.";
-    }
-  }
-
-  if (isBPEmergency) {
-    safetyFlags.push({
-      flagType: "red-flag",
+  const orchestration = await evaluateHealthContext(context);
+  const moduleResults = orchestration.moduleResults;
+  const safetyFlags = orchestration.metadata.route === "emergency-safety-override"
+    ? [{
+      flagType: "red-flag" as const,
       moduleId: "hypertension",
-      message: bpAlertMessage,
+      message: "Reported health information requires prompt medical attention.",
       clinicalActionRequired: true,
-    });
-  }
-  if (
-    assessment.fastingBloodSugar &&
-    (assessment.fastingBloodSugar >= 250 || assessment.fastingBloodSugar <= 50)
-  ) {
-    safetyFlags.push({
-      flagType: "red-flag",
-      moduleId: "diabetes",
-      message: "A reported glucose measurement requires immediate medical attention.",
-      clinicalActionRequired: true,
-    });
-  }
-  const lowerSymptoms = (assessment.symptoms || "").toLowerCase();
-  if (lowerSymptoms.includes("chest pain") || lowerSymptoms.includes("shortness of breath")) {
-    safetyFlags.push({
-      flagType: "red-flag",
-      moduleId: "cardiovascular",
-      message: "Reported symptoms may indicate a medical emergency. Seek immediate medical attention.",
-      clinicalActionRequired: true,
-    });
-  }
-
-  const emergencyOverride = safetyFlags.some((flag) => flag.clinicalActionRequired);
-
-  if (emergencyOverride) {
-    try {
-      const docRef = db.collection("assessmentsV2").doc(uid);
-      const savePayload = {
-        ...context,
-        bmi,
-        safetyFlags,
-        moduleResults: [],
-        routingDecision: "emergency-safety-override",
-        urgentSafetyGuidance: ["Seek immediate medical attention or contact local emergency services."],
-        updatedAt: new Date().toISOString(),
-      };
-      await docRef.set(savePayload, { merge: true });
-      return res.json({
-        success: true,
-        message: "Emergency safety guidance returned.",
-        data: savePayload,
-      });
-    } catch {
-      console.error("V2 emergency assessment save failed status=database-error");
-      return res.status(500).json({ success: false, error: "Database Error: Failed to save safety results" });
-    }
-  }
-
-  // Run modules independently (partial failure handling)
-  const moduleResults: HealthModuleResult[] = [];
-  for (const moduleName of Object.keys(diseaseModuleRegistry)) {
-    const module = diseaseModuleRegistry[moduleName];
-    if (module.isEligible(context)) {
-      try {
-        const result = await module.evaluate(context);
-        moduleResults.push(result);
-      } catch (err: any) {
-        moduleResults.push({
-          moduleId: module.moduleId,
-          moduleVersion: module.version,
-          resultType: "screening-signal",
-          status: "failed",
-          evidenceCompleteness: 0,
-          confidenceLevel: "insufficient",
-          topContributors: [],
-          protectiveFactors: [],
-          missingInputs: [],
-          recommendedActions: [],
-          recommendedTests: [],
-          safetyFlags: [
-            {
-              flagType: "data-anomaly",
-              moduleId: module.moduleId,
-              message: `Evaluation failed: ${err.message || String(err)}`,
-              clinicalActionRequired: false,
-            },
-          ],
-        });
-      }
-    }
-  }
+    }]
+    : moduleResults.flatMap((result) => result.safetyFlags);
 
   try {
     const docRef = db.collection("assessmentsV2").doc(uid);
     const savePayload = {
       ...context,
       bmi,
-      safetyFlags: [...safetyFlags, ...moduleResults.flatMap((r) => r.safetyFlags)],
+      safetyFlags,
       moduleResults,
+      routingDecision: orchestration.metadata.route,
+      ...(orchestration.metadata.route === "emergency-safety-override"
+        ? { urgentSafetyGuidance: ["Seek immediate medical attention or contact local emergency services."] }
+        : {}),
       updatedAt: new Date().toISOString(),
     };
     await docRef.set(savePayload, { merge: true });

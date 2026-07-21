@@ -17,6 +17,7 @@ import expertReviewRoutes from "./routes/expertReview.routes.js";
 import v2Routes from "./routes/v2.routes.js";
 import { securityMiddleware } from "./middleware/security.js";
 import { validateLabUpload } from "./services/labUploadValidation.service.js";
+import { evaluateLegacyShadow } from "./modules/assessment/health-engine-v2-shadow.service.js";
 
 dotenv.config();
 
@@ -56,6 +57,14 @@ const ProfileSchema = z.object({
   language: z.enum(["en", "hi", "gu"]).optional().default("en"),
   labObservations: z.array(z.any()).optional(),
   bloodReportOnly: z.boolean().optional(),
+  knownHypertension: z.boolean().nullable().optional(),
+  takingAntihypertensiveMedication: z.boolean().nullable().optional(),
+  familyHistoryHypertension: z.boolean().nullable().optional(),
+  physicalActivityCategory: z.enum(["high", "moderate", "low"]).nullable().optional(),
+  systolicBP: z.number().min(70).max(260).optional(),
+  diastolicBP: z.number().min(40).max(160).optional(),
+  fastingBloodSugar: z.number().min(20).max(600).optional(),
+  urgentSymptoms: z.boolean().nullable().optional(),
   // Phase 1 Workout Personalization
   fitnessGoal: z.string().optional(),
   fitnessLevel: z.enum(["beginner", "intermediate", "advanced"]).optional(),
@@ -760,6 +769,9 @@ app.post("/api/risk/calculate", requireAuth, async (req: AuthenticatedRequest, r
     });
 
     (analysis as any).isAiEnriched = false;
+
+    const shadowStatus = await evaluateLegacyShadow(data, uid);
+    res.setHeader("X-Health-Engine-V2-Shadow", shadowStatus);
 
     return res.json({
       success: true,
