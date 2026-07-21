@@ -1,0 +1,68 @@
+{
+  "model_version": "lasi_hypertension_v1",
+  "approval_status": "approved_with_restrictions",
+  "configuration": "D_logistic_regression",
+  "feature_set": "D",
+  "features": [
+    "age",
+    "height_cm",
+    "weight_kg",
+    "sex",
+    "family_history_hypertension",
+    "physical_activity_category",
+    "smoking_category"
+  ],
+  "frozen_threshold": 0.23965717645991863,
+  "random_seed": 42,
+  "target": "undiagnosed_elevated_bp_screening_target",
+  "target_policy": "last_two_pairs_mean",
+  "locked_test_metrics": {
+    "row_count": 6446,
+    "positive_count": 1882,
+    "negative_count": 4564,
+    "prevalence": 0.2919640086875582,
+    "auroc": 0.6024820803385735,
+    "average_precision": 0.3595736652669047,
+    "brier_score": 0.2022600775380748,
+    "sensitivity": 0.8140276301806588,
+    "specificity": 0.313102541630149,
+    "ppv": 0.3282622669809299,
+    "npv": 0.8032602585722316,
+    "true_positive_count": 1532,
+    "true_negative_count": 1429,
+    "false_positive_count": 3135,
+    "false_negative_count": 350
+  },
+  "locked_test_calibration": {
+    "intercept": -0.14586901337031227,
+    "slope": 0.8458628166009474
+  },
+  "allowed_use": "Non-diagnostic screening-awareness prompt recommending an actual blood-pressure measurement.",
+  "approved_user_facing_interpretation": "Your answers suggest that checking your blood pressure with a validated measurement would be worthwhile. This is not a diagnosis.",
+  "prohibited_uses": [
+    "diagnosis",
+    "exact individual risk percentages",
+    "medication or treatment recommendations based on the model",
+    "emergency triage",
+    "replacing a validated blood-pressure measurement",
+    "claims that the user has hypertension",
+    "displaying the model output as clinical certainty"
+  ],
+  "no_exact_probability_display": true,
+  "confirmatory_blood_pressure_measurement_required": true,
+  "approved_for_diagnosis": false,
+  "approved_for_treatment_decisions": false,
+  "approved_for_screening_awareness": true,
+  "approval_rationale": "The frozen model met the prespecified locked-test sensitivity objective, but modest discrimination, low specificity and low positive predictive value require a non-diagnostic awareness-only use with confirmatory blood-pressure measurement.",
+  "known_limitations": [
+    "Locked-test AUROC indicates modest discrimination.",
+    "Low specificity produces many false-positive screening prompts.",
+    "Low positive predictive value prevents diagnostic interpretation.",
+    "The model was developed from LASI Wave 1 participants aged 45 years and older without a previous hypertension diagnosis.",
+    "The target is derived from survey blood-pressure measurements and is not a clinical hypertension diagnosis.",
+    "Generalizability beyond the development population has not been established."
+  ],
+  "decision_date": "2026-07-21",
+  "automatic_approval_performed": false,
+  "manual_approval_recorded": true
+}
