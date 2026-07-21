@@ -219,47 +219,36 @@ def _size_bands(values: pd.Series, minimum: int) -> dict[str, int | str]:
     return {key: suppress(value, minimum) for key, value in counts.items()}
 
 
-def build_outputs(joined: pd.DataFrame, joins: dict[str, int], minimum: int) -> dict[str, Any]:
-    missing_target_columns = [name for name in REQUIRED_TARGET_COLUMNS if name not in joined]
-    if missing_target_columns:
-        raise ValueError("Missing required hypertension target-source columns: " + ", ".join(missing_target_columns))
-    age = pd.to_numeric(joined["dm005"], errors="coerce")
-    diagnosis = pd.to_numeric(joined["ht002"], errors="coerce")
-    valid_age = age.notna() & np.isfinite(age) & age.ge(0)
-    age45 = valid_age & age.ge(45)
-    no_diagnosis = age45 & diagnosis.eq(2)
-    target_result = policy_b(joined.loc[no_diagnosis])
-    cohort_index = target_result.index[target_result["target"].notna()]
-    cohort = joined.loc[cohort_index]
-    target = target_result.loc[cohort_index, "target"]
-    predictors = derive_predictors(cohort)
-    flow = {
-        **joins,
-        "invalid_or_unknown_age": int((~valid_age).sum()),
-        "below_age_45": int((valid_age & age.lt(45)).sum()),
-        "previous_hypertension_diagnosis": int((age45 & diagnosis.eq(1)).sum()),
-        "unknown_diagnosis": int((age45 & ~diagnosis.isin([1, 2])).sum()),
-        "target_not_constructible": int(no_diagnosis.sum() - len(cohort)),
-    }
+def build_outputs(
+    joined: pd.DataFrame,
+    joins: dict[str, int],
+    minimum: int,
+) -> dict[str, Any]:
     cohort, predictors, target, eligibility = construct_target_cohort(joined)
+
     flow = {
         **joins,
         "invalid_or_unknown_age": eligibility["invalid_or_unknown_age"],
         "below_age_45": eligibility["below_age_45"],
-        "previous_hypertension_diagnosis": eligibility["previous_hypertension_diagnosis"],
+        "previous_hypertension_diagnosis": eligibility[
+            "previous_hypertension_diagnosis"
+        ],
         "unknown_diagnosis": eligibility["unknown_diagnosis"],
         "target_not_constructible": eligibility["target_not_constructible"],
         "final_target_constructible_cohort": len(cohort),
         "positive_target_count": int(target.eq(1).sum()),
         "negative_target_count": int(target.eq(0).sum()),
     }
+
     layers = {
-        "joined_population": len(joined), "valid_age_population": int(valid_age.sum()),
-        "age_45_plus_population": int(age45.sum()), "no_previous_hypertension_population": int(no_diagnosis.sum()),
-      
-        "joined_population": len(joined), "valid_age_population": eligibility["valid_age_population"],
-        "age_45_plus_population": eligibility["age_45_plus_population"], "no_previous_hypertension_population": eligibility["no_previous_hypertension_population"],
-        "approved_target_constructible_population": len(cohort), "predictor_derived_population": len(predictors),
+        "joined_population": len(joined),
+        "valid_age_population": eligibility["valid_age_population"],
+        "age_45_plus_population": eligibility["age_45_plus_population"],
+        "no_previous_hypertension_population": eligibility[
+            "no_previous_hypertension_population"
+        ],
+        "approved_target_constructible_population": len(cohort),
+        "predictor_derived_population": len(predictors),
     }
     missingness = []
     for name in PRODUCTION_PREDICTOR_ORDER:
