@@ -21,8 +21,11 @@ import logging
 import math
 from pathlib import Path
 from fastapi import FastAPI
-from pydantic import BaseModel, root_validator
-from typing import List, Optional, Literal
+from typing import Optional
+
+from app.core.model_registry import hypertension_model_state
+from app.modules.hypertension import evaluate_hypertension
+from app.schemas.health_context import HealthContext
 
 log = logging.getLogger(__name__)
 
@@ -111,88 +114,6 @@ except Exception as _load_exc:
     log.warning(
         "Model load failed (%s) — service will return model-unavailable.", _load_exc
     )
-
-
-# ---------------------------------------------------------------------------
-# Pydantic schemas
-# ---------------------------------------------------------------------------
-
-class Assessment(BaseModel):
-    age: int
-    gender: str
-    heightCm: float
-    weightKg: float
-    smoking: str
-    exercise: str
-    familyHistory: str = ""
-    symptoms: str = ""
-    alcohol: str = "never"
-    sleepHours: float = 7.0
-    # BP and glucose fields are Optional — no fabricated defaults
-    systolicBP: Optional[float] = None
-    diastolicBP: Optional[float] = None
-    heartRate: Optional[float] = None
-    fastingBloodSugar: Optional[float] = None
-    schemaVersion: str = "2.0.0"
-
-class LabObservation(BaseModel):
-    code: str
-    value: Optional[float]   # Optional: null means result pending / not yet available
-    unit: str
-    observedAt: str
-    isVerified: bool = False
-    verifiedBy: Optional[str] = None
-    source: Literal["ocr", "manual", "report", "unknown"] = "unknown"
-    plausibleRangePassed: bool = False
-    userConfirmed: bool = False
-    unitConfirmed: bool = False
-    verifiedByClinician: bool = False
-    extractionConfidence: Optional[float] = None
-    verificationStatus: Literal[
-        "unreviewed", "user-confirmed", "clinician-verified"
-    ] = "unreviewed"
-
-    @root_validator(pre=False, skip_on_failure=True)
-    def normalize_verification(cls, values):
-        values["userConfirmed"] = bool(
-            values.get("userConfirmed") or values.get("isVerified")
-        )
-        values["verifiedByClinician"] = bool(values.get("verifiedByClinician"))
-        values["verificationStatus"] = (
-            "clinician-verified" if values["verifiedByClinician"]
-            else "user-confirmed" if values["userConfirmed"]
-            else "unreviewed"
-        )
-        confidence = values.get("extractionConfidence")
-        if confidence is not None and not 0 <= confidence <= 1:
-            raise ValueError("extractionConfidence must be between 0 and 1")
-        code = values.get("code", "").lower().strip().replace("-", "_").replace(" ", "_")
-        value = values.get("value")
-        trusted_ranges = {
-            "fbs": (50.0, 400.0), "fasting_glucose": (50.0, 400.0),
-            "fasting_blood_sugar": (50.0, 400.0), "fpg": (50.0, 400.0),
-            "hba1c": (3.0, 18.0), "hb_a1c": (3.0, 18.0), "a1c": (3.0, 18.0),
-        }
-        bounds = trusted_ranges.get(code)
-        values["plausibleRangePassed"] = bool(
-            value is not None and math.isfinite(value) and
-            ((bounds[0] <= value <= bounds[1]) if bounds else value >= 0)
-        )
-        return values
-
-class RegionalContext(BaseModel):
-    language: str = "en"
-    preferredDietaryType: str = "vegetarian"
-    stateOrRegionCode: str = "IN"
-    customRegionalRules: List[str] = []
-    schemaVersion: str = "2.0.0"
-
-class HealthContext(BaseModel):
-    userId: str
-    assessment: Assessment
-    labObservations: List[LabObservation] = []
-    regionalContext: RegionalContext
-    schemaVersion: str = "2.0.0"
 
 
 # ---------------------------------------------------------------------------
@@ -372,6 +293,25 @@ def get_health():
         "service": "health-intelligence",
         "process": "running",
         "model_installed": _model_installed,
+        "models": {
+            "diabetes": {
+                "status": "loaded" if _model_installed else "unavailable",
+            },
+            "hypertension": {
+                "installed": hypertension_model_state.available,
+                "status": hypertension_model_state.status,
+                "modelVersion": hypertension_model_state.metadata.get(
+                    "model_version", "unassigned"
+                ),
+                "modelType": hypertension_model_state.metadata.get(
+                    "model_type", "unassigned"
+                ),
+                "approvedFeatureNames": list(
+                    hypertension_model_state.metadata.get("features", [])
+                ),
+                "reasonCode": hypertension_model_state.reason,
+            },
+        },
         "message": (
             "Research model loaded (RESEARCH_ONLY). Not for clinical use."
             if _model_installed
@@ -383,9 +323,13 @@ def get_health():
 def get_ready():
     return {
         "status": "ok",
-        "ready": False,
-        "reason": "APPROVED_MODEL_NOT_INSTALLED",
-        "reasonCode": "APPROVED_MODEL_NOT_INSTALLED",
+        "ready": True,
+        "reason": "SERVICE_READY_OPTIONAL_MODELS_REPORTED_SEPARATELY",
+        "reasonCode": "SERVICE_READY_OPTIONAL_MODELS_REPORTED_SEPARATELY",
+        "models": {
+            "diabetes": "loaded" if _model_installed else "unavailable",
+            "hypertension": hypertension_model_state.status,
+        },
     }
 
 @app.get("/models")
@@ -395,9 +339,31 @@ def get_models():
             "diabetes": {
                 "status": "loaded" if _model_installed else "unloaded",
                 "lifecycle_status": _model_metadata.get("lifecycle_status", "none"),
-            }
+            },
+            "hypertension": {
+                "installed": hypertension_model_state.available,
+                "status": hypertension_model_state.status,
+                "model_version": hypertension_model_state.metadata.get(
+                    "model_version", "unassigned"
+                ),
+                "approval_status": hypertension_model_state.metadata.get(
+                    "approval_status", "none"
+                ),
+                "model_type": hypertension_model_state.metadata.get(
+                    "model_type", "unassigned"
+                ),
+                "approved_feature_names": list(
+                    hypertension_model_state.metadata.get("features", [])
+                ),
+                "reason_code": hypertension_model_state.reason,
+            },
         }
     }
+
+
+@app.post("/v1/modules/hypertension/evaluate")
+def evaluate_hypertension_endpoint(context: HealthContext):
+    return evaluate_hypertension(context, hypertension_model_state)
 
 @app.post("/v1/modules/diabetes/evaluate")
 def evaluate_diabetes(context: HealthContext):

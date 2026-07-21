@@ -39,6 +39,7 @@ backend/.env
 .env
 .env.*
 !backend/.env.example
+!health-intelligence/.env.example
 
 # Python venv and data cache
 .venv/
