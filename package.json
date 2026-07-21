@@ -15,6 +15,7 @@
     "test": "vitest run && npm test --prefix backend",
     "test:coverage": "vitest run --coverage",
     "test:e2e": "playwright test",
+    "i18n:check": "npx tsx src/lib/i18n.check.ts",
     "verify": "npm run lint && npm run build && npm test && npm run test:e2e"
   },
   "dependencies": {
