@@ -58,6 +58,27 @@ def target_and_groups():
     return cohort[["hhid", "ssuid"]].reset_index(drop=True), target.reset_index(drop=True)
 
 
+def predictors_with_pandas_missing_values(rows: int = 36) -> pd.DataFrame:
+    """Synthetic predictors covering pandas nullable categorical dtypes."""
+    frame = pd.DataFrame(
+        {
+            "age": np.linspace(45.0, 80.0, rows),
+            "bmi": np.linspace(18.0, 34.0, rows),
+            "sex": pd.Series([1, 2, pd.NA] * (rows // 3), dtype="Int64"),
+            "family_history_hypertension": pd.Series(
+                [0, 1, pd.NA] * (rows // 3), dtype="Int8"
+            ),
+            "physical_activity_category": pd.Series(
+                ["high", "moderate", pd.NA] * (rows // 3), dtype="string"
+            ),
+            "smoking_category": pd.Series(
+                ["never", "former", pd.NA] * (rows // 3), dtype="object"
+            ),
+        }
+    )
+    return frame
+
+
 def test_splits_are_deterministic_group_safe_and_approximately_stratified():
     groups, target = target_and_groups()
     first = training.create_development_splits(groups, target, 42)
@@ -84,6 +105,63 @@ def test_preprocessing_is_inside_pipeline(model_name):
     assert isinstance(pipeline, Pipeline)
     assert "preprocessing" in pipeline.named_steps
     assert "classifier" in pipeline.named_steps
+
+
+def test_categorical_normalization_replaces_pd_na_without_changing_numeric_data():
+    predictors = predictors_with_pandas_missing_values()
+    categorical = predictors[[
+        "sex",
+        "family_history_hypertension",
+        "physical_activity_category",
+        "smoking_category",
+    ]]
+
+    normalized = training.normalize_categorical_for_sklearn(categorical)
+
+    assert all(dtype == object for dtype in normalized.dtypes)
+    assert not normalized.map(lambda value: value is pd.NA).any().any()
+    assert normalized.isna().any().all()
+    assert normalized["sex"].dropna().map(type).eq(str).all()
+    assert normalized["family_history_hypertension"].dropna().map(type).eq(str).all()
+    assert pd.api.types.is_float_dtype(predictors["age"])
+    assert pd.api.types.is_float_dtype(predictors["bmi"])
+
+
+@pytest.mark.parametrize("model_name", training.MODEL_NAMES)
+def test_candidate_models_accept_nullable_categorical_missing_values(model_name):
+    predictors = predictors_with_pandas_missing_values()
+    target = np.tile([0, 1], len(predictors) // 2)
+    pipeline = training.build_pipeline(model_name, training.FEATURE_SETS["C"])
+
+    pipeline.fit(predictors, target)
+    probabilities = pipeline.predict_proba(predictors)[:, 1]
+
+    assert np.isfinite(probabilities).all()
+    assert predictors.isna().any().any()
+
+
+def test_imputation_is_fitted_only_by_pipeline_on_training_rows():
+    predictors = predictors_with_pandas_missing_values()
+    training_rows = predictors.iloc[:24].copy()
+    validation_rows = predictors.iloc[24:].copy()
+    training_rows.loc[:, "age"] = np.arange(45.0, 69.0)
+    validation_rows.loc[:, "age"] = 999.0
+    target = np.tile([0, 1], len(training_rows) // 2)
+    pipeline = training.build_pipeline(
+        "logistic_regression", training.FEATURE_SETS["C"]
+    )
+
+    pipeline.fit(training_rows, target)
+    preprocessing = pipeline.named_steps["preprocessing"]
+    numeric_imputer = preprocessing.named_transformers_["numeric"].named_steps[
+        "imputer"
+    ]
+
+    assert numeric_imputer.statistics_[0] == pytest.approx(
+        training_rows["age"].median()
+    )
+    assert numeric_imputer.statistics_[0] != validation_rows["age"].median()
+    assert training_rows.isna().any().any()
 
 
 def test_threshold_selection_uses_validation_and_meets_target_when_possible():

@@ -153,6 +153,25 @@ def create_development_splits(
     return splits
 
 
+def normalize_categorical_for_sklearn(values: Any) -> Any:
+    """Normalize categorical values to strings and missing values to ``np.nan``.
+
+    ColumnTransformer applies this only to categorical predictors. Numeric
+    predictors therefore retain their numeric dtypes and continue through the
+    separate median-imputation branch.
+    """
+    if isinstance(values, (pd.DataFrame, pd.Series)):
+        normalized = values.astype(object).where(pd.notna(values), np.nan)
+        return normalized.map(
+            lambda value: str(value) if pd.notna(value) else np.nan
+        ).astype(object)
+    normalized = np.asarray(values, dtype=object)
+    return np.vectorize(
+        lambda value: str(value) if pd.notna(value) else np.nan,
+        otypes=[object],
+    )(normalized)
+
+
 def build_pipeline(
     model_name: str,
     features: tuple[str, ...],
@@ -175,7 +194,7 @@ def build_pipeline(
                         (
                             "object_dtype",
                             FunctionTransformer(
-                                lambda values: values.astype(object),
+                                normalize_categorical_for_sklearn,
                                 feature_names_out="one-to-one",
                             ),
                         ),
