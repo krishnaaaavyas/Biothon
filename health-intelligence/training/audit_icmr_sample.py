@@ -63,6 +63,73 @@ def validate_feature_policy(predictors: list, column_labels: dict = None) -> boo
                 raise ValueError(f"Feature Leakage Detected: Column '{col}' label ('{column_labels[col]}') contains forbidden keywords.")
     return True
 
+
+# Hypertension-specific leakage policy. Kept separate from the diabetes
+# policy above so the existing diabetes guard and forbidden list remain
+# unchanged.
+ALLOWED_HYPERTENSION_PREDICTORS = [
+    "v4", "age_years",
+    "v5", "sex",
+    "v7", "occupation",
+    "v8", "bmi",
+    "v9", "waist_cm",
+]
+
+FORBIDDEN_HYPERTENSION_COLUMNS = [
+    # Target itself.
+    "v38", "hypertension", "hypertension_composite",
+    # Directly define the hypertension target.
+    "v10", "systolic_bp",
+    "v11", "diastolic_bp",
+    # Redundant derived flags for allowed continuous predictors.
+    "v39", "abdominal_obesity",
+    "v40", "generalized_obesity",
+]
+
+
+def validate_feature_policy_hypertension(
+    predictors: list,
+    column_labels: dict = None,
+) -> bool:
+    """Validate predictors for a v38/hypertension_composite target.
+
+    Raises ValueError when a predictor directly defines the target, is a
+    redundant derived flag, or is outside the approved candidate set. In
+    particular, v41/dyslipidaemia is not an approved candidate because it is
+    73.8% missing in the current sample.
+    """
+    allowed = set(ALLOWED_HYPERTENSION_PREDICTORS)
+    forbidden = set(FORBIDDEN_HYPERTENSION_COLUMNS)
+
+    for col in predictors:
+        col_str = str(col).lower().strip()
+        if col_str in forbidden:
+            raise ValueError(
+                f"Feature Leakage Detected: Column '{col}' is forbidden for "
+                "the hypertension target."
+            )
+
+        if col_str not in allowed:
+            raise ValueError(
+                f"Feature Policy Violation: Column '{col}' is not an approved "
+                "hypertension candidate predictor."
+            )
+
+        if column_labels and col in column_labels:
+            label_str = (
+                str(column_labels[col]).lower().strip()
+                .replace("-", "_").replace(" ", "_")
+            )
+            if any(name in label_str for name in forbidden):
+                raise ValueError(
+                    f"Feature Leakage Detected: Column '{col}' label "
+                    f"('{column_labels[col]}') identifies a forbidden "
+                    "hypertension predictor."
+                )
+
+    return True
+
+
 def calculate_checksum(file_path: str) -> str:
     """Calculates SHA-256 checksum of a file."""
     sha256 = hashlib.sha256()

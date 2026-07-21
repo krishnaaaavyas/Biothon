@@ -110,12 +110,12 @@ async function runSemanticTests() {
     });
   }
 
-  // Verify that prohibited files do not exist in the active codebase
+  // ── Unconditionally prohibited files ──────────────────────────────────────
+  // These must never exist in the repository under any circumstances.
   const prohibitedFiles = [
     "health-intelligence/health-intelligence/data/diabetes_data.csv",
     "health-intelligence/data/diabetes_data.csv",
     "health-intelligence/health-intelligence/models/diabetes_model.joblib",
-    "health-intelligence/models/diabetes_model.joblib",
     "health-intelligence/training/generate_synthetic_data.py",
   ];
 
@@ -126,6 +126,75 @@ async function runSemanticTests() {
       totalViolations++;
     }
   });
+
+  // ── Conditional governance check for the research model artifact ───────────
+  // health-intelligence/models/diabetes_model.joblib is permitted ONLY when:
+  //   1. health-intelligence/models/diabetes_model_metadata.json exists alongside it.
+  //   2. metadata.lifecycle_status is "RESEARCH_ONLY" or "VALIDATION_CANDIDATE".
+  //   3. metadata.dataset_source contains "ICMR" (case-insensitive).
+  // If the model file is absent, no check is performed.
+  // If any condition fails, this is a governance violation (catches an
+  // undocumented or synthetic model silently re-appearing in the repo).
+  const ACCEPTED_LIFECYCLE_STATES = new Set(["RESEARCH_ONLY", "VALIDATION_CANDIDATE"]);
+  const researchModelPath   = path.join(projectRoot, "health-intelligence/models/diabetes_model.joblib");
+  const researchMetaPath    = path.join(projectRoot, "health-intelligence/models/diabetes_model_metadata.json");
+
+  if (fs.existsSync(researchModelPath)) {
+    console.log(`ℹ️  Research model artifact found — running governance check...`);
+
+    if (!fs.existsSync(researchMetaPath)) {
+      console.error(
+        `❌ Repo-Policy Violation: diabetes_model.joblib exists but ` +
+        `diabetes_model_metadata.json is missing. ` +
+        `Every model artifact must be accompanied by a metadata file.`
+      );
+      totalViolations++;
+    } else {
+      let metaParsed: Record<string, unknown> | null = null;
+      try {
+        metaParsed = JSON.parse(fs.readFileSync(researchMetaPath, "utf-8"));
+      } catch (e) {
+        console.error(
+          `❌ Repo-Policy Violation: diabetes_model_metadata.json exists but ` +
+          `could not be parsed as JSON: ${(e as Error).message}`
+        );
+        totalViolations++;
+      }
+
+      if (metaParsed !== null) {
+        const lifecycle    = typeof metaParsed["lifecycle_status"] === "string"
+          ? metaParsed["lifecycle_status"] as string
+          : "";
+        const datasetSource = typeof metaParsed["dataset_source"] === "string"
+          ? metaParsed["dataset_source"] as string
+          : "";
+
+        if (!ACCEPTED_LIFECYCLE_STATES.has(lifecycle)) {
+          console.error(
+            `❌ Repo-Policy Violation: diabetes_model_metadata.json has ` +
+            `lifecycle_status="${lifecycle}" which is not an accepted state ` +
+            `(${[...ACCEPTED_LIFECYCLE_STATES].join(" | ")}). ` +
+            `This may indicate an undocumented or synthetic model.`
+          );
+          totalViolations++;
+        } else {
+          console.log(`   ✓ lifecycle_status="${lifecycle}" — accepted.`);
+        }
+
+        if (!/icmr/i.test(datasetSource)) {
+          console.error(
+            `❌ Repo-Policy Violation: diabetes_model_metadata.json has ` +
+            `dataset_source="${datasetSource}" which does not reference "ICMR". ` +
+            `Only models trained on the approved ICMR-INDIAB dataset are permitted.`
+          );
+          totalViolations++;
+        } else {
+          console.log(`   ✓ dataset_source="${datasetSource}" — references ICMR.`);
+        }
+      }
+    }
+  }
+
 
   console.log("==================================================");
   if (totalViolations > 0) {
