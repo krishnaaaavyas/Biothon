@@ -21,6 +21,7 @@ import {
 import SplitText from "@/components/ui/split-text";
 import { ShapeGrid } from "@/components/ui/shape-grid";
 import { generatePersonalizedPlans } from "@/lib/personalization-engine";
+import { generateHealthPriorities, type HealthPriority } from "@/lib/priority-engine";
 
 export const Route = createFileRoute("/_app/action-plan")({
   component: ActionPlanPage,
@@ -186,34 +187,48 @@ function ActionPlanPage() {
             </CardTitle>
           </CardHeader>
           <CardContent className="pt-2">
-            {result?.actionPriorities && result.actionPriorities.length > 0 ? (
-              <div className="grid gap-3 sm:grid-cols-3">
-                {result.actionPriorities.slice(0, 3).map((p, i) => {
-                  if (!p || typeof p.action !== "string" || typeof p.estimatedImpact !== "number") {
-                    return null;
-                  }
-                  return (
+            {(() => {
+              const engineInput = {
+                ...(profile || {}),
+                diabetesRiskCategory: result?.risk?.diabetes ? (result.risk.diabetes > 50 ? "high" : result.risk.diabetes > 25 ? "moderate" : "low") : undefined,
+                hypertensionRiskCategory: result?.risk?.hypertension ? (result.risk.hypertension > 50 ? "high" : result.risk.hypertension > 25 ? "moderate" : "low") : undefined,
+              };
+              const priorities = generateHealthPriorities(engineInput);
+              if (priorities.length === 0) return null;
+
+              return (
+                <div className="grid gap-3 sm:grid-cols-3">
+                  {priorities.slice(0, 3).map((p, i) => (
                     <div
-                      key={i}
-                      className="flex items-start gap-3.5 rounded-xl border border-border bg-surface-muted/50 p-4"
+                      key={p.id}
+                      className="flex flex-col justify-between gap-2.5 rounded-xl border border-border bg-surface-muted/50 p-4"
                     >
-                      <span className="font-display text-lg font-black text-teal shrink-0">
-                        {i + 1}
-                      </span>
-                      <div className="min-w-0">
-                        <p className="text-sm font-bold text-foreground leading-snug">{p.action}</p>
-                        <p className="text-xs text-teal mt-1 font-semibold uppercase tracking-wider font-mono">
-                          {tr("benefitRiskDrop", currentLang).replace(
-                            "{impact}",
-                            Math.abs(p.estimatedImpact).toString(),
-                          )}
-                        </p>
+                      <div className="flex items-start gap-3">
+                        <span className="font-display text-lg font-black text-teal shrink-0">
+                          {i + 1}
+                        </span>
+                        <div className="min-w-0">
+                          <p className="text-sm font-bold text-foreground leading-snug">{p.title}</p>
+                          <p className="text-xs text-muted-foreground mt-1 leading-normal">{p.reason}</p>
+                        </div>
+                      </div>
+                      <div className="flex flex-wrap gap-1.5 pt-1 border-t border-border/20">
+                        <Badge variant="outline" className={`text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 ${
+                          p.severity === "high" ? "bg-rose-500/10 text-rose-600 border-rose-500/20" : "bg-amber-500/10 text-amber-600 border-amber-500/20"
+                        }`}>
+                          {p.severity} severity
+                        </Badge>
+                        {p.evidence.length > 0 && (
+                          <Badge variant="secondary" className="text-[10px] font-mono px-2 py-0.5">
+                            {p.evidence[0]}
+                          </Badge>
+                        )}
                       </div>
                     </div>
-                  );
-                })}
-              </div>
-            ) : (
+                  ))}
+                </div>
+              );
+            })() || (
               <div className="grid gap-3 sm:grid-cols-3">
                 <div className="flex items-start gap-3.5 rounded-xl border border-border bg-surface-muted/50 p-4">
                   <span className="font-display text-lg font-black text-teal shrink-0">1</span>
