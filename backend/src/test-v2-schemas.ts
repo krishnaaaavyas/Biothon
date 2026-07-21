@@ -264,6 +264,18 @@ async function testV2Schemas() {
   const fastApiPort = (fastApiServer.address() as any).port;
   process.env.FASTAPI_URL = `http://localhost:${fastApiPort}`;
 
+  const profileScreeningContext = {
+    ...validContext,
+    assessment: {
+      ...validAssessment,
+      systolicBP: undefined,
+      diastolicBP: undefined,
+      fastingBloodSugar: undefined,
+      heartRate: undefined,
+    },
+    labObservations: [],
+  };
+
   // 7. E2E API - FastAPI Timeout produces model-unavailable
   await runTest("API - POST /health-assessment returns model-unavailable on FastAPI timeout", async () => {
     process.env.HEALTH_ENGINE_V2_ENABLED = "true";
@@ -293,7 +305,7 @@ async function testV2Schemas() {
         "Content-Type": "application/json",
         Authorization: "Bearer mock-uid-test-user-123",
       },
-      body: JSON.stringify(validContext),
+      body: JSON.stringify(profileScreeningContext),
     });
 
     if (res.status !== 200) {
@@ -322,7 +334,7 @@ async function testV2Schemas() {
         "Content-Type": "application/json",
         Authorization: "Bearer mock-uid-test-user-123",
       },
-      body: JSON.stringify(validContext),
+      body: JSON.stringify(profileScreeningContext),
     });
 
     if (res.status !== 200) {
@@ -348,7 +360,7 @@ async function testV2Schemas() {
         "Content-Type": "application/json",
         Authorization: "Bearer mock-uid-test-user-123",
       },
-      body: JSON.stringify(validContext),
+      body: JSON.stringify(profileScreeningContext),
     });
 
     if (res.status !== 200) {

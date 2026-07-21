@@ -107,6 +107,45 @@ async function testV1Invariance() {
     if (!data.analysis.diabetesRisk || !data.analysis.heartRisk) {
       throw new Error("Missing original V1 clinical risk results!");
     }
+    const responseKeys = Object.keys(data).sort().join(",");
+    if (responseKeys !== "analysis,assessmentId,success") {
+      throw new Error(`V1 successful response shape changed: ${responseKeys}`);
+    }
+    if (res.headers.get("x-health-engine-v2-shadow") !== "disabled") {
+      throw new Error("Expected disabled V2 shadow response header by default");
+    }
+    if (JSON.stringify(data).includes("screeningProbability")) {
+      throw new Error("V2 probability leaked into the V1 response");
+    }
+  });
+
+  await runTest("V2 shadow failure does not break or reshape V1", async () => {
+    process.env.HEALTH_ENGINE_V2_SHADOW_ENABLED = "true";
+    process.env.FASTAPI_URL = "http://127.0.0.1:1";
+    try {
+      const res = await fetch(`${baseUrl}/api/risk/calculate`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: "Bearer mock-uid-test-user-123",
+        },
+        body: JSON.stringify(testPayload),
+      });
+      const data: any = await res.json();
+      if (res.status !== 200) throw new Error(`Expected HTTP 200, got ${res.status}`);
+      if (Object.keys(data).sort().join(",") !== "analysis,assessmentId,success") {
+        throw new Error("V2 shadow failure changed the V1 response shape");
+      }
+      if (res.headers.get("x-health-engine-v2-shadow") !== "unavailable") {
+        throw new Error("V2 shadow failure was not safely reported as unavailable");
+      }
+      if (JSON.stringify(data).includes("screeningProbability")) {
+        throw new Error("V2 probability leaked into V1");
+      }
+    } finally {
+      process.env.HEALTH_ENGINE_V2_SHADOW_ENABLED = "false";
+      delete process.env.FASTAPI_URL;
+    }
   });
 
   // TEST 2: POST /api/profile ignores & strips mlRisk

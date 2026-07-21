@@ -1,4 +1,9 @@
 import { z } from "zod";
+import {
+  HEALTH_CONTEXT_SCHEMA_VERSION,
+  HEALTH_MODULE_STATUSES,
+  SCREENING_SIGNALS,
+} from "../modules/shared/health-module.contracts.js";
 
 // V2 Health Assessment Schema (extending demo physiological parameters)
 export const HealthAssessmentV2Schema = z.object({
@@ -16,7 +21,7 @@ export const HealthAssessmentV2Schema = z.object({
   diastolicBP: z.number().min(40).max(130).optional(),
   heartRate: z.number().min(30).max(200).optional(),
   fastingBloodSugar: z.number().min(50).max(400).optional(),
-  schemaVersion: z.string().default("2.0"),
+  schemaVersion: z.literal(HEALTH_CONTEXT_SCHEMA_VERSION).default(HEALTH_CONTEXT_SCHEMA_VERSION),
 });
 
 // V2 Laboratory Reports & Biomarkers Schema
@@ -33,7 +38,7 @@ export const LabReportV2Schema = z.object({
   thyroidTSH: z.number().min(0.01).max(50).optional(),
   isVerified: z.boolean().default(false),
   verifiedBy: z.string().optional(),
-  schemaVersion: z.string().default("2.0"),
+  schemaVersion: z.literal(HEALTH_CONTEXT_SCHEMA_VERSION).default(HEALTH_CONTEXT_SCHEMA_VERSION),
 });
 
 // V2 Recommendations Schema (Diet, Exercise, Action plan)
@@ -57,7 +62,7 @@ export const RecommendationV2Schema = z.object({
   }),
   clinicalReferralNeeded: z.boolean().default(false),
   physicianGuidanceNotes: z.string().max(2000).default(""),
-  schemaVersion: z.string().default("2.0"),
+  schemaVersion: z.literal(HEALTH_CONTEXT_SCHEMA_VERSION).default(HEALTH_CONTEXT_SCHEMA_VERSION),
 });
 
 // V2 Regional Context Schema
@@ -66,7 +71,7 @@ export const RegionalContextV2Schema = z.object({
   preferredDietaryType: z.enum(["vegetarian", "non-vegetarian", "vegan"]),
   stateOrRegionCode: z.string().max(10).default("IN"),
   customRegionalRules: z.array(z.string()).default([]),
-  schemaVersion: z.string().default("2.0"),
+  schemaVersion: z.literal(HEALTH_CONTEXT_SCHEMA_VERSION).default(HEALTH_CONTEXT_SCHEMA_VERSION),
 });
 
 export type HealthAssessmentV2 = z.infer<typeof HealthAssessmentV2Schema>;
@@ -155,24 +160,10 @@ export const HealthModuleResultSchema = z.object({
     "screening-eligibility",
     "referral-priority",
   ]),
-  status: z.enum([
-    "completed",
-    "insufficient-information",
-    "outside-intended-population",
-    "conflicting-evidence",
-    "measurement-requires-verification",
-    "model-unavailable",
-    "failed",
-    // Retain backward-compatible parsing:
-    "insufficient-data",
-    "unavailable",
-  ]),
+  status: z.enum(HEALTH_MODULE_STATUSES),
   score: z.number().min(0).max(100).optional(),
   riskTier: z.enum(["lower", "moderate", "elevated"]).optional(),
-  screeningSignal: z.enum([
-    "elevated-screening-signal",
-    "below-screening-threshold",
-  ]).optional(),
+  screeningSignal: z.enum(SCREENING_SIGNALS).optional(),
   evidenceCompleteness: z.number().min(0).max(1),
   confidenceLevel: z.enum([
     "insufficient",
@@ -203,7 +194,7 @@ export const RegionalContextSchema = z.object({
   preferredDietaryType: z.enum(["vegetarian", "non-vegetarian", "vegan"]),
   stateOrRegionCode: z.string().max(10).default("IN"),
   customRegionalRules: z.array(z.string()).default([]),
-  schemaVersion: z.string().default("2.0.0"),
+  schemaVersion: z.literal(HEALTH_CONTEXT_SCHEMA_VERSION).default(HEALTH_CONTEXT_SCHEMA_VERSION),
 });
 
 export const HealthContextSchema = z.object({
@@ -223,11 +214,16 @@ export const HealthContextSchema = z.object({
     diastolicBP: z.number().min(40).max(130).optional(),
     heartRate: z.number().min(30).max(200).optional(),
     fastingBloodSugar: z.number().min(50).max(400).optional(),
-    schemaVersion: z.string().default("2.0.0"),
+    knownHypertension: z.boolean().nullable().optional(),
+    takingAntihypertensiveMedication: z.boolean().nullable().optional(),
+    familyHistoryHypertension: z.boolean().nullable().optional(),
+    physicalActivityCategory: z.enum(["high", "moderate", "low"]).nullable().optional(),
+    urgentSymptoms: z.boolean().nullable().optional(),
+    schemaVersion: z.literal(HEALTH_CONTEXT_SCHEMA_VERSION).default(HEALTH_CONTEXT_SCHEMA_VERSION),
   }),
   labObservations: z.array(LabObservationSchema).default([]),
   regionalContext: RegionalContextSchema,
-  schemaVersion: z.string().default("2.0.0"),
+  schemaVersion: z.literal(HEALTH_CONTEXT_SCHEMA_VERSION).default(HEALTH_CONTEXT_SCHEMA_VERSION),
 });
 
 export const ModelArtifactManifestSchema = z.object({
