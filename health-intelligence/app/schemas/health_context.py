@@ -6,6 +6,20 @@ from typing import List, Literal, Optional
 from pydantic import BaseModel, root_validator
 
 
+HEALTH_CONTEXT_SCHEMA_VERSION = "2.0.0"
+HEALTH_MODULE_STATUSES = (
+    "completed", "model-unavailable", "outside-intended-population",
+    "insufficient-information", "measurement-requires-verification",
+    "conflicting-evidence", "failed", "insufficient-data", "unavailable",
+)
+SCREENING_SIGNALS = (
+    "elevated-screening-signal", "below-screening-threshold",
+    "blood-pressure-measurement-recommended", "no-profile-screening-prompt",
+    "not-evaluated",
+)
+SAFETY_FLAG_TYPES = ("red-flag", "contraindication", "data-anomaly")
+
+
 class Assessment(BaseModel):
     age: int
     gender: str
@@ -26,7 +40,7 @@ class Assessment(BaseModel):
     familyHistoryHypertension: Optional[bool] = None
     physicalActivityCategory: Optional[Literal["high", "moderate", "low"]] = None
     urgentSymptoms: Optional[bool] = None
-    schemaVersion: str = "2.0.0"
+    schemaVersion: Literal["2.0.0"] = HEALTH_CONTEXT_SCHEMA_VERSION
 
 
 class LabObservation(BaseModel):
@@ -80,7 +94,7 @@ class RegionalContext(BaseModel):
     preferredDietaryType: str = "vegetarian"
     stateOrRegionCode: str = "IN"
     customRegionalRules: List[str] = []
-    schemaVersion: str = "2.0.0"
+    schemaVersion: Literal["2.0.0"] = HEALTH_CONTEXT_SCHEMA_VERSION
 
 
 class HealthContext(BaseModel):
@@ -88,4 +102,4 @@ class HealthContext(BaseModel):
     assessment: Assessment
     labObservations: List[LabObservation] = []
     regionalContext: RegionalContext
-    schemaVersion: str = "2.0.0"
+    schemaVersion: Literal["2.0.0"] = HEALTH_CONTEXT_SCHEMA_VERSION
