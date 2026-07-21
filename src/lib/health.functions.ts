@@ -13,6 +13,32 @@ const InputSchema = z.object({
   familyHistory: z.string().max(500).default(""),
   symptoms: z.string().max(1000).default(""),
   language: z.enum(["en", "hi", "gu"]).default("en"),
+  labObservations: z.array(z.any()).optional(),
+  // Phase 1 Workout Personalization
+  fitnessGoal: z.string().optional(),
+  fitnessLevel: z.enum(["beginner", "intermediate", "advanced"]).optional(),
+  sittingHours: z.number().optional(),
+  medicalConditions: z.array(z.string()).optional(),
+  workoutDaysPerWeek: z.number().optional(),
+  workoutDuration: z.number().optional(),
+  exerciseLocation: z.enum(["home", "gym", "outdoor"]).optional(),
+  equipment: z.enum(["none", "bands", "dumbbells", "gym"]).optional(),
+  // Phase 1 Diet Personalization
+  dietType: z.enum(["vegetarian", "eggetarian", "non-vegetarian", "vegan", "jain", "satvik", "no-onion-garlic"]).optional(),
+  lactoseIntolerant: z.boolean().optional(),
+  foodAllergies: z.string().optional(),
+  regionalCuisine: z.string().optional(),
+  budget: z.enum(["low", "medium", "flexible"]).optional(),
+  cookingTime: z.number().optional(),
+  mealTiming: z.string().optional(),
+  weightGoal: z.enum(["lose", "gain", "maintain"]).optional(),
+  // Extra Assessment Questions
+  sleepHours: z.string().optional(),
+  stressLevel: z.enum(["low", "medium", "high"]).optional(),
+  waterIntake: z.string().optional(),
+  occupation: z.string().optional(),
+  tobaccoUse: z.string().optional(),
+  excludedFoods: z.array(z.string()).optional(),
 });
 
 const GeminiResultSchema = z.object({
@@ -473,4 +499,61 @@ export async function assessIngredientsText({
 
   const result = await response.json();
   return IngredientReportSchema.parse(result);
+}
+
+export interface ExtractedLabReport {
+  fastingBloodSugar?: { value: number; unit: string };
+  HbA1c?: { value: number; unit: string };
+  totalCholesterol?: { value: number; unit: string };
+  ldl?: { value: number; unit: string };
+  hdl?: { value: number; unit: string };
+  triglycerides?: { value: number; unit: string };
+  reportDate?: string;
+}
+
+export async function assessLabReportImage({
+  base64Image,
+  mimeType,
+}: {
+  base64Image: string;
+  mimeType: string;
+}): Promise<ExtractedLabReport> {
+  const contents = [
+    {
+      role: "user",
+      parts: [
+        {
+          inlineData: {
+            mimeType,
+            data: base64Image,
+          },
+        },
+      ],
+    },
+  ];
+
+  let idToken = "mock-uid-guest";
+  try {
+    if (auth.currentUser) {
+      idToken = await auth.currentUser.getIdToken();
+    }
+  } catch (err) {
+    console.warn("Failed to retrieve ID token", err);
+  }
+
+  const response = await fetch(`${API_URL}/api/lab-report/analyze`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${idToken}`,
+    },
+    body: JSON.stringify({ contents }),
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(errorText || "Lab report analysis failed");
+  }
+
+  return response.json();
 }

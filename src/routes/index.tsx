@@ -33,9 +33,15 @@ import {
   BookOpen,
   Check,
   Plus,
+  Droplet,
+  Gauge,
 } from "lucide-react";
 import { useAuth } from "@/contexts/auth-context";
 import { useLanguage, tr } from "@/lib/i18n";
+import { Threads } from "@/components/ui/threads";
+import SplitText from "@/components/ui/split-text";
+import { LogoLoop } from "@/components/ui/logo-loop";
+import CountUp from "@/components/ui/count-up";
 
 export const Route = createFileRoute("/")({
   component: Landing,
@@ -47,20 +53,10 @@ function Landing() {
   const currentLang = useLanguage();
 
   useEffect(() => {
-    document.title = "HealthGuard — Health Awareness & Risk Assessment";
+    document.title = "HealthGuard — Evidence-Aware Preventive Health Intelligence";
   }, []);
 
-  useEffect(() => {
-    if (!loading && user && hasCompletedAssessment !== null) {
-      if (hasCompletedAssessment === true) {
-        navigate({ to: "/dashboard", replace: true });
-      } else {
-        navigate({ to: "/assessment", replace: true });
-      }
-    }
-  }, [user, loading, hasCompletedAssessment, navigate]);
-
-  if (loading || user) {
+  if (loading) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-background">
         <div className="flex flex-col items-center gap-3">
@@ -76,15 +72,30 @@ function Landing() {
       <SiteHeader />
 
       {/* Hero */}
-      <section className="relative overflow-hidden border-b border-border">
-        <div className="absolute inset-0 bg-grid opacity-60 pointer-events-none" />
-        <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-teal/40 to-transparent" />
-        <div className="relative mx-auto grid max-w-7xl gap-12 px-6 py-20 lg:grid-cols-12 lg:py-24 items-center">
-          {/* Left side: Content & CTAs */}
-          <div className="lg:col-span-7 flex flex-col justify-center">
-            <h1 className="font-display text-4xl font-extrabold leading-[1.1] tracking-tight text-foreground sm:text-5xl lg:text-[52px]">
-              {tr("homeTitle", currentLang)}
-            </h1>
+      <section className="relative overflow-hidden border-b border-border bg-background py-10 lg:py-14">
+        {/* Threads Background */}
+        <div className="absolute inset-0 z-0 opacity-35 pointer-events-none">
+          <Threads
+            color={[0.2392, 0.6980, 0.6980]}
+            amplitude={1.4}
+            distance={0.3}
+            enableMouseInteraction={true}
+          />
+        </div>
+        <div className="absolute inset-0 bg-grid opacity-40 pointer-events-none z-0" />
+        <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-teal/40 to-transparent z-0" />
+        <div className="relative z-10 mx-auto max-w-[1440px] px-4 items-center">
+          <div className="max-w-3xl flex flex-col justify-center">
+            <SplitText
+              text={tr("homeTitle", currentLang)}
+              className="font-display text-4xl font-extrabold leading-[1.1] tracking-tight text-foreground sm:text-5xl lg:text-[54px] lg:leading-[1.05]"
+              delay={35}
+              duration={0.6}
+              ease="power3.out"
+              splitType="chars"
+              tag="h1"
+              textAlign="left"
+            />
             <p className="mt-5 max-w-xl text-base leading-relaxed text-muted-foreground">
               {tr("homeSubtitle", currentLang)}
             </p>
@@ -108,6 +119,22 @@ function Landing() {
                 asChild
                 size="lg"
                 variant="outline"
+                className="h-12 px-6 text-base font-semibold border-teal/20 text-teal hover:bg-teal/5 hover:border-teal/45 hover:text-teal hover:-translate-y-0.5 transition-all duration-300"
+              >
+                {user ? (
+                  <Link to="/assessment" search={{ step: 5 }}>
+                    Analyze Blood Report
+                  </Link>
+                ) : (
+                  <Link to="/login" search={{ redirect: "/assessment?step=5" }}>
+                    Analyze Blood Report
+                  </Link>
+                )}
+              </Button>
+              <Button
+                asChild
+                size="lg"
+                variant="ghost"
                 className="h-12 px-6 text-base font-semibold hover:bg-accent/40 hover:-translate-y-0.5 transition-all duration-300"
               >
                 <Link to="/about">{tr("learnMore", currentLang)}</Link>
@@ -122,74 +149,12 @@ function Landing() {
               </span>
             </div>
           </div>
-
-          {/* Right side: Modern, minimal visual showcase of focus areas */}
-          <div className="lg:col-span-5 flex items-center justify-center">
-            <div className="relative w-full max-w-[420px] py-6 space-y-4">
-              {/* Vibrant gradients and background glows */}
-              <div className="absolute -inset-10 rounded-full bg-gradient-to-tr from-teal/20 via-primary/5 to-teal/10 blur-3xl opacity-75 pointer-events-none" />
-
-              {/* Card 1: Type 2 Diabetes */}
-              <div className="relative overflow-hidden rounded-2xl border border-border/80 bg-surface/90 p-5 shadow-[0_4px_20px_rgba(0,0,0,0.02)] backdrop-blur-md transition-all duration-300 hover:-translate-y-0.5 hover:shadow-[0_8px_30px_rgba(0,0,0,0.04)] hover:border-teal/30 group">
-                <div className="absolute left-0 top-0 bottom-0 w-1.5 bg-gradient-to-b from-teal to-teal/60" />
-                <div className="flex gap-4 items-center">
-                  <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-teal/10 text-teal transition-colors duration-300 group-hover:bg-teal group-hover:text-primary-foreground">
-                    <Brain className="h-5.5 w-5.5" />
-                  </div>
-                  <div>
-                    <h3 className="font-display text-sm font-bold text-foreground">
-                      {tr("diabetes", currentLang)}
-                    </h3>
-                    <p className="text-[11px] text-muted-foreground mt-0.5 leading-relaxed">
-                      {tr("diabetesDesc", currentLang)}
-                    </p>
-                  </div>
-                </div>
-              </div>
-
-              {/* Card 2: Hypertension */}
-              <div className="relative overflow-hidden rounded-2xl border border-border/80 bg-surface/90 p-5 shadow-[0_4px_20px_rgba(0,0,0,0.02)] backdrop-blur-md transition-all duration-300 hover:-translate-y-0.5 hover:shadow-[0_8px_30px_rgba(0,0,0,0.04)] hover:border-teal/30 group">
-                <div className="absolute left-0 top-0 bottom-0 w-1.5 bg-gradient-to-b from-teal to-teal/60" />
-                <div className="flex gap-4 items-center">
-                  <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-teal/10 text-teal transition-colors duration-300 group-hover:bg-teal group-hover:text-primary-foreground">
-                    <Activity className="h-5.5 w-5.5" />
-                  </div>
-                  <div>
-                    <h3 className="font-display text-sm font-bold text-foreground">
-                      {tr("hypertension", currentLang)}
-                    </h3>
-                    <p className="text-[11px] text-muted-foreground mt-0.5 leading-relaxed">
-                      {tr("hypertensionDesc", currentLang)}
-                    </p>
-                  </div>
-                </div>
-              </div>
-
-              {/* Card 3: Heart Disease */}
-              <div className="relative overflow-hidden rounded-2xl border border-border/80 bg-surface/90 p-5 shadow-[0_4px_20px_rgba(0,0,0,0.02)] backdrop-blur-md transition-all duration-300 hover:-translate-y-0.5 hover:shadow-[0_8px_30px_rgba(0,0,0,0.04)] hover:border-teal/30 group">
-                <div className="absolute left-0 top-0 bottom-0 w-1.5 bg-gradient-to-b from-teal to-teal/60" />
-                <div className="flex gap-4 items-center">
-                  <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-teal/10 text-teal transition-colors duration-300 group-hover:bg-teal group-hover:text-primary-foreground">
-                    <Heart className="h-5.5 w-5.5" />
-                  </div>
-                  <div>
-                    <h3 className="font-display text-sm font-bold text-foreground">
-                      {tr("heartDisease", currentLang)}
-                    </h3>
-                    <p className="text-[11px] text-muted-foreground mt-0.5 leading-relaxed">
-                      {tr("heartDiseaseDesc", currentLang)}
-                    </p>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
         </div>
       </section>
 
       {/* Why HealthGuard? */}
       <section className="border-b border-border bg-surface">
-        <div className="mx-auto max-w-7xl px-6 py-12">
+        <div className="mx-auto max-w-[1440px] px-4 py-8">
           <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-6">
             <div className="max-w-xs shrink-0">
               <Badge
@@ -209,62 +174,126 @@ function Landing() {
         </div>
       </section>
 
-      {/* Simple 3-Step Guide Section */}
+      {/* Evidence-Aware Screening Framework Section */}
       <section className="border-b border-border bg-surface-muted/30">
-        <div className="mx-auto max-w-7xl px-6 py-20">
-          <div className="max-w-2xl mb-12">
+        <div className="mx-auto max-w-[1440px] px-4 py-10">
+          <div className="max-w-3xl mb-12">
             <Badge
               variant="secondary"
               className="rounded-full bg-teal/10 text-teal border border-teal/20"
             >
               {tr("howItHelps", currentLang)}
             </Badge>
-            <h2 className="mt-4 font-display text-3xl font-bold tracking-tight text-foreground">
-              {tr("threeStepExplanation", currentLang)}
+            <h2 className="mt-4 font-display text-3xl font-extrabold tracking-tight text-foreground sm:text-4xl">
+              {tr("featureSectionTitle", currentLang)}
             </h2>
-            <p className="mt-2 text-muted-foreground text-sm">{tr("threeStepDesc", currentLang)}</p>
+            <p className="mt-3 text-muted-foreground text-sm sm:text-base leading-relaxed">
+              {tr("featureSectionDesc", currentLang)}
+            </p>
           </div>
-          <div className="grid gap-8 md:grid-cols-3">
+          <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
             {[
               {
-                step: "Step 1",
-                title: tr("step1Title", currentLang),
-                desc: tr("step1Desc", currentLang),
+                icon: ClipboardList,
+                title: tr("featEvidenceTitle", currentLang),
+                desc: tr("featEvidenceDesc", currentLang),
+                color: "teal",
               },
               {
-                step: "Step 2",
-                title: tr("step2Title", currentLang),
-                desc: tr("step2Desc", currentLang),
+                icon: Stethoscope,
+                title: tr("featLabTitle", currentLang),
+                desc: tr("featLabDesc", currentLang),
+                color: "purple",
               },
               {
-                step: "Step 3",
-                title: tr("step3Title", currentLang),
-                desc: tr("step3Desc", currentLang),
+                icon: BookOpen,
+                title: tr("featResearchTitle", currentLang),
+                desc: tr("featResearchDesc", currentLang),
+                color: "indigo",
               },
-            ].map((s) => (
-              <Card
-                key={s.step}
-                className="border-border bg-surface shadow-card-soft hover:shadow-md transition-all duration-300"
-              >
-                <CardContent className="p-6 space-y-3">
-                  <div className="text-xs font-bold text-teal uppercase tracking-widest">
-                    {s.step}
-                  </div>
-                  <h3 className="font-display text-lg font-bold text-foreground leading-snug">
-                    {s.title}
-                  </h3>
-                  <p className="text-xs leading-relaxed text-muted-foreground">{s.desc}</p>
-                </CardContent>
-              </Card>
-            ))}
+              {
+                icon: Activity,
+                title: tr("featRuleEngineTitle", currentLang),
+                desc: tr("featRuleEngineDesc", currentLang),
+                color: "orange",
+              },
+              {
+                icon: Users,
+                title: tr("featIndiaContextTitle", currentLang),
+                desc: tr("featIndiaContextDesc", currentLang),
+                color: "blue",
+              },
+              {
+                icon: Brain,
+                title: tr("featAIExplanationTitle", currentLang),
+                desc: tr("featAIExplanationDesc", currentLang),
+                color: "green",
+              },
+            ].map((f, i) => {
+              const gradients: Record<string, string> = {
+                teal: "linear-gradient(135deg, hsl(174, 75%, 45%), hsl(174, 75%, 35%))",
+                slate: "linear-gradient(135deg, hsl(215, 20%, 50%), hsl(215, 20%, 40%))",
+                petrol: "linear-gradient(135deg, hsl(195, 50%, 48%), hsl(195, 50%, 38%))",
+                emerald: "linear-gradient(135deg, hsl(150, 45%, 45%), hsl(150, 45%, 35%))",
+                indigo: "linear-gradient(135deg, hsl(225, 40%, 52%), hsl(225, 40%, 42%))",
+                darkSlate: "linear-gradient(135deg, hsl(220, 15%, 40%), hsl(220, 15%, 30%))",
+              };
+
+              // Map original generic names to refined matching themes
+              const colorMap: Record<string, string> = {
+                teal: "teal",
+                purple: "slate",
+                indigo: "indigo",
+                orange: "darkSlate",
+                blue: "petrol",
+                green: "emerald",
+              };
+              const themeColor = colorMap[f.color] || "teal";
+
+              return (
+                <Card
+                  key={i}
+                  className="group/card border-border/80 bg-surface shadow-card-soft hover:shadow-elevated hover:border-teal/30 hover:-translate-y-0.5 transition-all duration-300"
+                >
+                  <CardContent className="p-6 space-y-4">
+                    <div
+                      className="relative w-14 h-14 select-none"
+                      style={{ perspective: "20rem", transformStyle: "preserve-3d" }}
+                    >
+                      <span
+                        className="absolute inset-0 rounded-2xl shadow-sm transition-all duration-300 group-hover/card:translate-x-[4px] group-hover/card:translate-y-[4px] group-hover/card:scale-[0.95]"
+                        style={{
+                          background: gradients[themeColor],
+                        }}
+                      />
+                      <span
+                        className="absolute inset-0 rounded-2xl bg-surface/50 border border-border/80 backdrop-blur-md flex items-center justify-center transition-all duration-300 group-hover/card:translate-x-[-3px] group-hover/card:translate-y-[-3px] group-hover/card:scale-[1.02] shadow-sm dark:bg-card/50"
+                        style={{
+                          backdropFilter: "blur(8px)",
+                          WebkitBackdropFilter: "blur(8px)",
+                        }}
+                      >
+                        <f.icon className="h-6 w-6 text-foreground" />
+                      </span>
+                    </div>
+                    <div className="space-y-1.5">
+                      <h3 className="font-display text-base font-bold text-foreground leading-snug">
+                        {f.title}
+                      </h3>
+                      <p className="text-xs leading-relaxed text-muted-foreground">{f.desc}</p>
+                    </div>
+                  </CardContent>
+                </Card>
+              );
+            })}
           </div>
         </div>
       </section>
 
       {/* FAQ */}
       <section className="border-b border-border bg-surface">
-        <div className="mx-auto grid max-w-7xl gap-12 px-6 py-20 lg:grid-cols-12">
-          <div className="lg:col-span-4 flex flex-col justify-center">
+        <div className="mx-auto grid max-w-[1440px] gap-12 px-4 py-10 lg:grid-cols-12">
+          <div className="lg:col-span-4 flex flex-col justify-center items-center text-center lg:items-start lg:text-left">
             <Badge variant="secondary" className="rounded-full w-fit">
               FAQ
             </Badge>
@@ -310,11 +339,11 @@ function Landing() {
                   a: tr("faq6A", currentLang),
                 },
               ].map((f, i) => (
-                <AccordionItem key={i} value={`item-${i}`} className="border-border/80">
-                  <AccordionTrigger className="text-left text-sm font-semibold hover:text-teal hover:no-underline py-3">
+                <AccordionItem key={i} value={`item-${i}`} className="border-border/80 last:border-b-0">
+                  <AccordionTrigger className="text-left text-base sm:text-lg font-bold hover:text-teal hover:no-underline py-4">
                     {f.q}
                   </AccordionTrigger>
-                  <AccordionContent className="text-xs leading-relaxed text-muted-foreground pb-4">
+                  <AccordionContent className="text-sm sm:text-base leading-7 text-muted-foreground pb-4">
                     {f.a}
                   </AccordionContent>
                 </AccordionItem>
@@ -323,10 +352,9 @@ function Landing() {
           </div>
         </div>
       </section>
-
       {/* Why Prevention Matters */}
       <section className="border-t border-border bg-surface-muted/10">
-        <div className="mx-auto max-w-7xl px-6 py-20">
+        <div className="mx-auto max-w-[1440px] px-4 pt-10 pb-8">
           <div className="text-center max-w-3xl mx-auto mb-16 space-y-4">
             <Badge
               variant="secondary"
@@ -334,19 +362,27 @@ function Landing() {
             >
               {tr("publicHealthEvidence", currentLang)}
             </Badge>
-            <h2 className="font-display text-3xl font-bold tracking-tight text-foreground sm:text-4xl">
-              {tr("whyPreventionMatters", currentLang)}
-            </h2>
+            <SplitText
+              text={tr("whyPreventionMatters", currentLang)}
+              className="font-display text-3xl font-bold tracking-tight text-foreground sm:text-4xl"
+              delay={35}
+              duration={0.6}
+              ease="power3.out"
+              splitType="chars"
+              tag="h2"
+              textAlign="center"
+            />
             <p className="text-muted-foreground text-sm leading-relaxed">
               {tr("whyPreventionMattersDesc", currentLang)}
             </p>
           </div>
-
-          <div className="grid gap-8 md:grid-cols-3 mb-16">
+          <div className="grid gap-8 md:grid-cols-3">
             {/* Stat Card 1: Cardiovascular Disease */}
             <Card className="border border-border/80 bg-surface shadow-[0_2px_8px_rgba(0,0,0,0.02)] hover:border-teal/30 transition-all duration-300">
               <CardContent className="p-6 space-y-4">
-                <div className="font-display text-4xl font-extrabold text-teal">80%</div>
+                <div className="font-display text-4xl font-extrabold text-teal">
+                  <CountUp to={80} duration={1.5} />%
+                </div>
                 <div className="space-y-2">
                   <h3 className="font-display text-base font-bold text-foreground">
                     {tr("preventableHeartConditions", currentLang)}
@@ -361,7 +397,9 @@ function Landing() {
             {/* Stat Card 2: Hypertension */}
             <Card className="border border-border/80 bg-surface shadow-[0_2px_8px_rgba(0,0,0,0.02)] hover:border-teal/30 transition-all duration-300">
               <CardContent className="p-6 space-y-4">
-                <div className="font-display text-4xl font-extrabold text-teal">46%</div>
+                <div className="font-display text-4xl font-extrabold text-teal">
+                  <CountUp to={46} duration={1.5} />%
+                </div>
                 <div className="space-y-2">
                   <h3 className="font-display text-base font-bold text-foreground">
                     {tr("undiagnosedHypertension", currentLang)}
@@ -376,7 +414,9 @@ function Landing() {
             {/* Stat Card 3: Type 2 Diabetes */}
             <Card className="border border-border/80 bg-surface shadow-[0_2px_8px_rgba(0,0,0,0.02)] hover:border-teal/30 transition-all duration-300">
               <CardContent className="p-6 space-y-4">
-                <div className="font-display text-4xl font-extrabold text-teal">58%</div>
+                <div className="font-display text-4xl font-extrabold text-teal">
+                  <CountUp to={58} duration={1.5} />%
+                </div>
                 <div className="space-y-2">
                   <h3 className="font-display text-base font-bold text-foreground">
                     {tr("reducedDiabetesRisk", currentLang)}
@@ -388,8 +428,55 @@ function Landing() {
               </CardContent>
             </Card>
           </div>
+        </div>
+      </section>
 
-          {/* Natural transition to assessment */}
+      {/* Scroll Velocity Marquee - Full Screen Edge-to-Edge */}
+      <div className="py-6 w-full overflow-hidden select-none bg-surface-muted/10 border-y border-border/10">
+        <LogoLoop
+          logos={[
+            "Lifestyle Assessment",
+            "Symptoms",
+            "Blood Pressure",
+            "Blood Reports",
+            "Diabetes Screening",
+            "Hypertension Screening",
+            "Anaemia Screening",
+            "Evidence-Based Analysis",
+            "Personalized Health Insights",
+            "AI Explanation",
+            "Preventive Healthcare",
+          ].flatMap((text) => [
+            {
+              node: (
+                <span className="text-lg md:text-xl font-bold uppercase tracking-wider text-teal/40 font-display whitespace-nowrap transition-colors duration-300 hover:text-teal cursor-default">
+                  {text}
+                </span>
+              ),
+              title: text,
+            },
+            {
+              node: (
+                <span className="text-lg md:text-xl font-bold uppercase tracking-wider text-teal/40 font-display select-none cursor-default">
+                  •
+                </span>
+              ),
+              title: "separator",
+            },
+          ])}
+          speed={60}
+          direction="left"
+          logoHeight={28}
+          gap={36}
+          pauseOnHover={false}
+          scaleOnHover
+          fadeOut
+          fadeOutColor="var(--color-background)"
+        />
+      </div>
+
+      <section className="bg-surface-muted/10 pt-8 pb-10">
+        <div className="mx-auto max-w-[1440px] px-4">
           <div className="border border-border bg-surface rounded-2xl p-8 max-w-4xl mx-auto text-center space-y-6 shadow-sm">
             <div className="space-y-2 max-w-2xl mx-auto">
               <h3 className="font-display text-xl font-bold text-foreground">
@@ -419,6 +506,22 @@ function Landing() {
                 asChild
                 size="lg"
                 variant="outline"
+                className="h-11 px-6 text-sm font-semibold border-teal/20 text-teal hover:bg-teal/5 hover:border-teal/45 hover:text-teal"
+              >
+                {user ? (
+                  <Link to="/assessment" search={{ step: 5 }}>
+                    Analyze Blood Report
+                  </Link>
+                ) : (
+                  <Link to="/login" search={{ redirect: "/assessment?step=5" }}>
+                    Analyze Blood Report
+                  </Link>
+                )}
+              </Button>
+              <Button
+                asChild
+                size="lg"
+                variant="ghost"
                 className="h-11 px-6 text-sm font-semibold hover:bg-accent/40"
               >
                 <Link to="/about">{tr("readMethodology", currentLang)}</Link>

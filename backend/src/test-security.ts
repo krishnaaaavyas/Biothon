@@ -1,16 +1,17 @@
 import express from "express";
-import { app } from "./server.js";
 import { db } from "./firebase-admin.js";
+
+// Set test environment before importing server to prevent automatic listening on port 5000
+process.env.NODE_ENV = "test";
+process.env.ENABLE_MOCK_AUTH = "true";
+process.env.ENABLE_MOCK_EXPERT_SIGNUP = "true";
+
+const { app } = await import("./server.js");
 
 async function testSecurity() {
   console.log("==================================================");
   console.log("HEALTHGUARD AI PHASE A2 & A3 SECURITY TESTS");
   console.log("==================================================");
-
-  // Set test environment
-  process.env.NODE_ENV = "test";
-  process.env.ENABLE_MOCK_AUTH = "true";
-  process.env.ENABLE_MOCK_EXPERT_SIGNUP = "true";
 
   // Start listener on a random port
   const server = app.listen(0);

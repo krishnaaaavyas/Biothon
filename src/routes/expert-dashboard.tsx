@@ -1,4 +1,5 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { ThemeToggle } from "@/components/ui/theme-toggle";
 import { useState, useEffect, useRef } from "react";
 import { useAuth } from "@/contexts/auth-context";
 import {
@@ -22,7 +23,7 @@ import {
   MessageSquare,
   User,
   ArrowLeft,
-  HeartPulse,
+  ShieldCheck,
   Activity,
   TrendingUp,
   AlertTriangle,
@@ -511,8 +512,11 @@ function ExpertDashboardPage() {
       {/* Clinician Header */}
       <header className="sticky top-0 z-30 flex h-16 items-center gap-3 border-b border-border bg-background/85 px-6 backdrop-blur">
         <Link to="/dashboard" className="flex items-center gap-2 mr-2">
-          <div className="grid h-8 w-8 place-items-center rounded-lg bg-teal text-white">
-            <HeartPulse className="h-4.5 w-4.5" strokeWidth={2.4} />
+          <div className="relative h-8 w-8 shrink-0 select-none glass-logo">
+            <span className="glass-logo__back" />
+            <span className="glass-logo__front">
+              <ShieldCheck className="h-4.5 w-4.5 text-teal" strokeWidth={2.4} />
+            </span>
           </div>
           <span className="font-display font-bold text-sm tracking-wide">
             HealthGuard Expert Portal
@@ -523,6 +527,8 @@ function ExpertDashboardPage() {
         </span>
 
         <div className="ml-auto flex items-center gap-3">
+          <ThemeToggle />
+          <div className="h-4 w-px bg-border mx-1" />
           <Button
             asChild
             variant="ghost"
@@ -542,7 +548,7 @@ function ExpertDashboardPage() {
       </header>
 
       {/* Main clinical dashboard layout */}
-      <main className="flex-1 p-6 md:p-8 max-w-7xl mx-auto w-full grid gap-8 md:grid-cols-3">
+      <main className="flex-1 p-4 md:p-6 max-w-[1600px] mx-auto w-full grid gap-8 md:grid-cols-3">
         {/* Left column: List of pending & active reviews */}
         <div className="space-y-6 md:col-span-1">
           {/* Active Reviews (Reviews Accepted by this expert) */}

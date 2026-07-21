@@ -12,7 +12,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { HeartPulse, Loader2, Mail, Lock, ArrowRight } from "lucide-react";
+import { ShieldCheck, Loader2, Mail, Lock, ArrowRight } from "lucide-react";
 import { z } from "zod";
 import { useLanguage, tr } from "@/lib/i18n";
 
@@ -46,7 +46,7 @@ function LoginPage() {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         navigate({ to: redirect as any });
       } else if (hasCompletedAssessment === true) {
-        navigate({ to: "/dashboard" });
+        navigate({ to: "/action-plan" });
       } else {
         navigate({ to: "/assessment" });
       }
@@ -86,8 +86,11 @@ function LoginPage() {
         {/* Brand Logo Header */}
         <div className="mb-8 flex flex-col items-center text-center">
           <Link to="/" className="flex items-center gap-2.5">
-            <div className="grid h-10 w-10 place-items-center rounded-lg bg-primary text-primary-foreground">
-              <HeartPulse className="h-5 w-5" strokeWidth={2.4} />
+            <div className="relative h-10 w-10 shrink-0 select-none glass-logo">
+              <span className="glass-logo__back" />
+              <span className="glass-logo__front">
+                <ShieldCheck className="h-5 w-5 text-teal" strokeWidth={2.4} />
+              </span>
             </div>
             <div className="text-left leading-tight">
               <div className="font-display text-xl font-bold tracking-tight text-foreground">

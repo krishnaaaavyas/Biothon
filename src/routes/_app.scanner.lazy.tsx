@@ -28,6 +28,9 @@ import {
   assessIngredientsText,
   type IngredientReport,
 } from "@/lib/health.functions";
+import SplitText from "@/components/ui/split-text";
+import { ShapeGrid } from "@/components/ui/shape-grid";
+
 
 export const Route = createLazyFileRoute("/_app/scanner")({
   component: ScannerPage,
@@ -584,157 +587,176 @@ function ScannerPage() {
   };
 
   return (
-    <div className="mx-auto max-w-7xl px-6 py-10 lg:py-14">
+    <div className="relative w-full min-h-[calc(100vh-3.5rem)] overflow-hidden flex flex-col justify-start isolate">
+      {/* Background Grid */}
+      <div className="absolute inset-0 -z-10 opacity-70">
+        <ShapeGrid
+          speed={0.2}
+          squareSize={40}
+          direction="diagonal"
+          borderColor="rgba(20, 184, 166, 0.08)"
+          hoverFillColor="rgba(20, 184, 166, 0.15)"
+          shape="square"
+          hoverTrailAmount={4}
+        />
+      </div>
+
+      <div className="mx-auto max-w-7xl px-4 sm:px-6 py-6 lg:py-8 w-full">
       {/* Header */}
-      <div className="mb-8">
+      <div className="mb-6">
         <Badge
           variant="secondary"
           className="rounded-full bg-teal/10 text-teal border border-teal/20 hover:bg-teal/20"
         >
           {tr("wellnessTool", currentLang)}
         </Badge>
-        <h1 className="mt-3 font-display text-3xl font-bold tracking-tight sm:text-4xl">
-          {tr("ingredientsScanner", currentLang)}
-        </h1>
-        <p className="mt-2 max-w-2xl text-muted-foreground text-sm leading-relaxed">
+        <SplitText
+          text={tr("ingredientsScanner", currentLang)}
+          className="mt-2 font-display text-2xl sm:text-3xl font-bold tracking-tight"
+          delay={35}
+          duration={0.6}
+          ease="power3.out"
+          splitType="chars"
+          tag="h1"
+          textAlign="left"
+        />
+        <p className="mt-1.5 max-w-2xl text-muted-foreground text-sm leading-relaxed">
           {tr("scannerSubtitle", currentLang)}
         </p>
       </div>
 
-      <div className="grid gap-8 lg:grid-cols-12">
-        {/* Input Column (Left) */}
-        <div className="space-y-6 lg:col-span-5">
-          {/* Upload Dropzone */}
-          <Card className="border-border bg-surface shadow-card-soft overflow-hidden">
-            <CardHeader className="pb-3 border-b border-border/40 flex flex-row items-center justify-between gap-4">
-              <CardTitle className="text-sm font-semibold text-foreground flex items-center gap-2">
-                <Upload className="h-4 w-4 text-teal" />
-                {tr("scanPhoto", currentLang)}
-              </CardTitle>
-              {!isCameraActive ? (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={startCamera}
-                  disabled={isScanning}
-                  className="h-8 gap-1.5 text-xs border-teal/20 text-teal hover:bg-teal/5 cursor-pointer font-semibold rounded-full"
-                >
-                  <Camera className="h-3.5 w-3.5" /> {tr("cameraScan", currentLang)}
-                </Button>
-              ) : (
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={stopCamera}
-                  className="h-8 text-xs text-red-500 hover:bg-red-50 cursor-pointer font-semibold"
-                >
-                  {tr("closeCamera", currentLang)}
-                </Button>
-              )}
-            </CardHeader>
-            <CardContent className="p-6">
-              {isCameraActive ? (
-                <div className="space-y-4">
-                  <div className="relative overflow-hidden rounded-xl bg-black aspect-video border border-border">
-                    <video
-                      ref={videoRef}
-                      autoPlay
-                      playsInline
-                      className="w-full h-full object-cover"
-                    />
-                    <div className="absolute inset-0 border-2 border-dashed border-teal/40 pointer-events-none rounded-xl m-4" />
-                  </div>
-                  <Button
-                    onClick={captureFrame}
-                    disabled={isScanning}
-                    className="w-full h-10 bg-teal text-white hover:bg-teal/90 gap-2 font-semibold text-xs rounded-lg cursor-pointer"
-                  >
-                    <Camera className="h-4 w-4" /> {tr("captureScanIngredients", currentLang)}
-                  </Button>
-                </div>
-              ) : (
-                <div className="flex flex-col items-center justify-center border-2 border-dashed border-border/80 rounded-xl p-8 bg-surface-muted/10 hover:bg-surface-muted/20 transition-colors relative group cursor-pointer">
-                  <input
-                    type="file"
-                    accept="image/*"
-                    onChange={handleFileUpload}
-                    className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
-                    disabled={isScanning}
+      {/* 2×2 aligned grid — each row shares the same height across both columns */}
+      <div className="grid gap-5 lg:grid-cols-2 lg:grid-rows-[auto_auto] items-stretch">
+
+        {/* Row 1, Col 1 — Scan Ingredient Label */}
+        <Card className="border-border bg-surface shadow-card-soft overflow-hidden flex flex-col min-h-[280px]">
+          <CardHeader className="py-3 px-4 border-b border-border/40 flex flex-row items-center justify-between gap-4 shrink-0">
+            <CardTitle className="text-sm font-semibold text-foreground flex items-center gap-2">
+              <Upload className="h-4 w-4 text-teal" />
+              {tr("scanPhoto", currentLang)}
+            </CardTitle>
+            {!isCameraActive ? (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={startCamera}
+                disabled={isScanning}
+                className="h-8 gap-1.5 text-xs border-teal/20 text-teal hover:bg-teal/5 cursor-pointer font-semibold rounded-full"
+              >
+                <Camera className="h-3.5 w-3.5" /> {tr("cameraScan", currentLang)}
+              </Button>
+            ) : (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={stopCamera}
+                className="h-8 text-xs text-red-500 hover:bg-red-50 cursor-pointer font-semibold"
+              >
+                {tr("closeCamera", currentLang)}
+              </Button>
+            )}
+          </CardHeader>
+          <CardContent className="p-4 flex-1 flex flex-col">
+            {isCameraActive ? (
+              <div className="space-y-4">
+                <div className="relative overflow-hidden rounded-xl bg-black aspect-video border border-border">
+                  <video
+                    ref={videoRef}
+                    autoPlay
+                    playsInline
+                    className="w-full h-full object-cover"
                   />
-                  <div className="h-12 w-12 rounded-full bg-teal/10 text-teal flex items-center justify-center mb-3 group-hover:scale-105 transition-transform duration-300">
-                    <ScanLine className="h-6 w-6" />
-                  </div>
-                  <p className="text-xs font-semibold text-foreground text-center">
-                    {selectedFile ? selectedFile.name : tr("clickOrDragPhoto", currentLang)}
-                  </p>
-                  <p className="text-[10px] text-muted-foreground mt-1 text-center">
-                    {tr("supportsFormats", currentLang)}
-                  </p>
+                  <div className="absolute inset-0 border-2 border-dashed border-teal/40 pointer-events-none rounded-xl m-4" />
                 </div>
-              )}
-            </CardContent>
-          </Card>
-
-          {/* Quick Presets */}
-          <Card className="border-border bg-surface shadow-card-soft">
-            <CardHeader className="pb-3 border-b border-border/40">
-              <CardTitle className="text-sm font-semibold text-foreground flex items-center gap-2">
-                <Sparkles className="h-4 w-4 text-teal" />
-                {tr("indianFoodPresets", currentLang)}
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="p-4">
-              <div className="flex flex-wrap gap-2">
-                {Object.keys(PRESETS).map((presetKey) => (
-                  <Button
-                    key={presetKey}
-                    variant="outline"
-                    size="sm"
-                    onClick={() => handlePresetSelect(presetKey)}
-                    disabled={isScanning}
-                    className="text-xs border-border/80 hover:bg-accent/40 hover:text-teal font-medium rounded-full transition-all duration-200"
-                  >
-                    {presetKey}
-                  </Button>
-                ))}
+                <Button
+                  onClick={captureFrame}
+                  disabled={isScanning}
+                  className="w-full h-10 bg-teal text-white hover:bg-teal/90 gap-2 font-semibold text-xs rounded-lg cursor-pointer"
+                >
+                  <Camera className="h-4 w-4" /> {tr("captureScanIngredients", currentLang)}
+                </Button>
               </div>
-            </CardContent>
-          </Card>
-
-          {/* Manual Text Input */}
-          <Card className="border-border bg-surface shadow-card-soft">
-            <CardHeader className="pb-3 border-b border-border/40">
-              <CardTitle className="text-sm font-semibold text-foreground flex items-center gap-2">
-                <FileText className="h-4 w-4 text-teal" />
-                {tr("textInput", currentLang)}
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="p-5">
-              <form onSubmit={handleTextSubmit} className="space-y-4">
-                <Textarea
-                  value={rawText}
-                  onChange={(e) => setRawText(e.target.value)}
-                  placeholder={tr("ingredientsPlaceholder", currentLang)}
-                  rows={4}
-                  className="text-xs border-border/80 bg-surface/50 transition-all duration-200 focus:border-teal focus:ring-teal focus-visible:ring-teal"
+            ) : (
+              <div className="flex-1 flex flex-col items-center justify-center border-2 border-dashed border-border/80 rounded-xl p-6 bg-surface-muted/10 hover:bg-surface-muted/20 transition-colors relative group cursor-pointer">
+                <input
+                  type="file"
+                  accept="image/*"
+                  onChange={handleFileUpload}
+                  className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
                   disabled={isScanning}
                 />
-                <Button
-                  type="submit"
-                  disabled={isScanning || !rawText.trim()}
-                  className="w-full h-10 bg-primary text-primary-foreground hover:bg-primary/95 shadow-sm font-semibold text-xs rounded-lg transition-all duration-200"
-                >
-                  {tr("analyzeIngredients", currentLang)}
-                </Button>
-              </form>
-            </CardContent>
-          </Card>
-        </div>
+                <div className="h-12 w-12 rounded-full bg-teal/10 text-teal flex items-center justify-center mb-3 group-hover:scale-105 transition-transform duration-300">
+                  <ScanLine className="h-6 w-6" />
+                </div>
+                <p className="text-xs font-semibold text-foreground text-center">
+                  {selectedFile ? selectedFile.name : tr("clickOrDragPhoto", currentLang)}
+                </p>
+                <p className="text-[10px] text-muted-foreground mt-1 text-center">
+                  {tr("supportsFormats", currentLang)}
+                </p>
+              </div>
+            )}
+          </CardContent>
+        </Card>
 
-        {/* Report Column (Right) */}
-        <div className="lg:col-span-7 flex flex-col justify-start">
+        {/* Row 1, Col 2 — Paste Ingredient List */}
+        <Card className="border-border bg-surface shadow-card-soft flex flex-col min-h-[280px]">
+          <CardHeader className="py-3 px-4 border-b border-border/40 shrink-0">
+            <CardTitle className="text-sm font-semibold text-foreground flex items-center gap-2">
+              <FileText className="h-4 w-4 text-teal" />
+              {tr("textInput", currentLang)}
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="p-4 pt-3 flex-1 flex flex-col">
+            <form onSubmit={handleTextSubmit} className="flex flex-col flex-1 gap-3">
+              <Textarea
+                value={rawText}
+                onChange={(e) => setRawText(e.target.value)}
+                placeholder={tr("ingredientsPlaceholder", currentLang)}
+                className="flex-1 resize-none text-xs border-border/80 bg-surface/50 transition-all duration-200 focus:border-teal focus:ring-teal focus-visible:ring-teal"
+                disabled={isScanning}
+              />
+              <Button
+                type="submit"
+                disabled={isScanning || !rawText.trim()}
+                className="w-full h-10 bg-primary text-primary-foreground hover:bg-primary/95 shadow-sm font-semibold text-xs rounded-lg transition-all duration-200 shrink-0"
+              >
+                {tr("analyzeIngredients", currentLang)}
+              </Button>
+            </form>
+          </CardContent>
+        </Card>
+
+        {/* Row 2, Col 1 — Indian Food Presets */}
+        <Card className="border-border bg-surface shadow-card-soft h-full">
+          <CardHeader className="py-3 px-4 border-b border-border/40">
+            <CardTitle className="text-sm font-semibold text-foreground flex items-center gap-2">
+              <Sparkles className="h-4 w-4 text-teal" />
+              {tr("indianFoodPresets", currentLang)}
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="p-4 pt-3">
+            <div className="flex flex-wrap gap-2">
+              {Object.keys(PRESETS).map((presetKey) => (
+                <Button
+                  key={presetKey}
+                  variant="outline"
+                  size="sm"
+                  onClick={() => handlePresetSelect(presetKey)}
+                  disabled={isScanning}
+                  className="text-xs border-border/80 hover:bg-accent/40 hover:text-teal font-medium rounded-full transition-all duration-200"
+                >
+                  {presetKey}
+                </Button>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Row 2, Col 2 — Scan Results / Empty State */}
+        <div className="h-full">
           {isScanning && (
-            <Card className="border-border bg-surface shadow-card-soft w-full h-[400px] flex items-center justify-center p-8">
+            <Card className="border-border bg-surface shadow-card-soft w-full h-full min-h-[140px] flex items-center justify-center p-8">
               <div className="flex flex-col items-center gap-4 text-center">
                 <Loader2 className="h-10 w-10 animate-spin text-teal" />
                 <div>
@@ -750,15 +772,15 @@ function ScannerPage() {
           )}
 
           {!isScanning && !report && (
-            <Card className="border-border bg-surface shadow-card-soft border-dashed w-full h-[400px] flex items-center justify-center p-8">
-              <div className="flex flex-col items-center gap-3 text-center">
-                <div className="h-12 w-12 rounded-full bg-teal/10 text-teal flex items-center justify-center mb-1">
-                  <ScanLine className="h-6 w-6" />
+            <Card className="border-border bg-surface shadow-card-soft border-dashed w-full h-full min-h-[140px] flex items-center justify-center p-6">
+              <div className="flex flex-col items-center gap-2 text-center">
+                <div className="h-10 w-10 rounded-full bg-teal/10 text-teal flex items-center justify-center">
+                  <ScanLine className="h-5 w-5" />
                 </div>
-                <h3 className="font-display text-base font-bold text-foreground">
+                <h3 className="font-display text-sm font-bold text-foreground">
                   {tr("noFoodsScanned", currentLang)}
                 </h3>
-                <p className="text-xs text-muted-foreground max-w-xs leading-relaxed">
+                <p className="text-xs text-muted-foreground max-w-[200px] leading-relaxed">
                   {tr("uploadFoodLabel", currentLang)}
                 </p>
               </div>
@@ -986,8 +1008,8 @@ function ScannerPage() {
               </div>
 
               {/* Recommended Healthy Alternatives */}
-              {((report.betterAlternatives && report.betterAlternatives.length > 0) ||
-                (report.alternatives && report.alternatives.length > 0)) && (
+              {(((report as any).betterAlternatives && (report as any).betterAlternatives.length > 0) ||
+                ((report as any).alternatives && (report as any).alternatives.length > 0)) && (
                 <Card className="border-border bg-surface shadow-card-soft">
                   <CardHeader className="pb-3 border-b border-border/40">
                     <CardTitle className="text-sm font-semibold text-foreground flex items-center gap-2">
@@ -1000,10 +1022,10 @@ function ScannerPage() {
                       {tr("alternativesSub", currentLang)}
                     </p>
                     <div className="grid gap-3 sm:grid-cols-3">
-                      {(report.betterAlternatives && report.betterAlternatives.length > 0
-                        ? report.betterAlternatives
-                        : report.alternatives
-                      ).map((alt, idx) => (
+                      {((report as any).betterAlternatives && (report as any).betterAlternatives.length > 0
+                        ? (report as any).betterAlternatives
+                        : (report as any).alternatives
+                      ).map((alt: any, idx: number) => (
                         <div
                           key={idx}
                           className="flex items-center gap-2.5 rounded-xl border border-border bg-surface-muted/30 p-3 hover:bg-accent/10 transition-all cursor-default"
@@ -1088,6 +1110,7 @@ function ScannerPage() {
           )}
         </div>
       </div>
+    </div>
     </div>
   );
 }

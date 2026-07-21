@@ -1,9 +1,10 @@
 import { Link, useRouterState } from "@tanstack/react-router";
-import { HeartPulse, Menu, User, ChevronDown } from "lucide-react";
+import { ShieldCheck, Menu, User, ChevronDown } from "lucide-react";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { LanguageSwitcher } from "@/components/language-switcher";
+import { ThemeToggle } from "@/components/ui/theme-toggle";
 import { useAuth } from "@/contexts/auth-context";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
@@ -38,13 +39,16 @@ export function SiteHeader() {
 
   return (
     <header className="sticky top-0 z-40 border-b border-border bg-background/80 backdrop-blur supports-[backdrop-filter]:bg-background/70">
-      <div className="mx-auto flex max-w-7xl items-center justify-between px-6 py-4">
+      <div className="mx-auto flex max-w-[1440px] items-center justify-between px-4 py-4">
         <Link
           to="/"
           className="flex items-center gap-2.5 group/brand transition-transform duration-200"
         >
-          <div className="grid h-9 w-9 place-items-center rounded-lg bg-teal text-white shadow-[0_0_12px_rgba(61,178,178,0.25)] transition-transform duration-300 group-hover/brand:scale-105">
-            <HeartPulse className="h-4.5 w-4.5" strokeWidth={2.4} />
+          <div className="relative h-9 w-9 shrink-0 select-none glass-logo">
+            <span className="glass-logo__back" />
+            <span className="glass-logo__front">
+              <ShieldCheck className="h-5 w-5 text-teal" strokeWidth={2.4} />
+            </span>
           </div>
           <div className="leading-tight">
             <div className="font-display text-[15px] font-bold tracking-tight text-foreground">
@@ -56,7 +60,7 @@ export function SiteHeader() {
           </div>
         </Link>
 
-        <nav className="hidden items-center gap-1 md:flex">
+        <nav className="hidden items-center gap-1.5 md:flex">
           {nav.map((n) => {
             const active = pathname === n.to;
             const linkProps =
@@ -68,23 +72,24 @@ export function SiteHeader() {
                 key={n.to}
                 // eslint-disable-next-line @typescript-eslint/no-explicit-any
                 {...(linkProps as any)}
-                className={`relative rounded-md px-3 py-2 text-xs font-semibold uppercase tracking-wider transition-colors duration-200 ${
-                  active ? "text-teal font-bold" : "text-muted-foreground hover:text-foreground"
+                className={`relative rounded-full px-4 py-1.5 text-xs font-semibold uppercase tracking-wider transition-all duration-300 border ${
+                  active
+                    ? "bg-teal/10 text-teal border-teal/20 shadow-[0_2px_8px_-2px_rgba(60,176,176,0.15)]"
+                    : "text-muted-foreground hover:text-foreground hover:bg-secondary/60 border-transparent"
                 }`}
               >
                 {tr(n.labelKey, currentLang)}
-                {active && (
-                  <span className="absolute bottom-[-1px] left-1/2 -translate-x-1/2 w-1 h-1 rounded-full bg-teal shadow-[0_0_6px_var(--teal)]" />
-                )}
               </Link>
             );
           })}
         </nav>
 
         <div className="hidden items-center md:flex">
+          <ThemeToggle />
+          <div className="h-4 w-px bg-border mx-3.5" />
           <LanguageSwitcher />
 
-          <div className="h-4 w-px bg-border mx-4" />
+          <div className="h-4 w-px bg-border mx-3.5" />
 
           {loading ? (
             <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground/50 select-none animate-pulse">
@@ -127,7 +132,7 @@ export function SiteHeader() {
                 </DropdownMenuLabel>
                 <DropdownMenuSeparator className="border-border" />
                 <DropdownMenuItem asChild className="cursor-pointer">
-                  <Link to="/dashboard">{tr("riskDashboard", currentLang)}</Link>
+                  <Link to="/action-plan">{tr("actionPlan", currentLang)}</Link>
                 </DropdownMenuItem>
                 <DropdownMenuItem asChild className="cursor-pointer">
                   <Link to="/profile">{tr("myProfile", currentLang)}</Link>
@@ -179,16 +184,17 @@ export function SiteHeader() {
                 );
               })}
               <div className="mt-4 grid gap-2">
-                <div className="flex justify-start">
+                <div className="flex items-center justify-between px-2 py-1">
                   <LanguageSwitcher />
+                  <ThemeToggle />
                 </div>
                 {loading ? (
                   <div className="h-10 w-full animate-pulse rounded-md bg-muted/60" />
                 ) : user ? (
                   <>
                     <Button asChild variant="outline">
-                      <Link to="/dashboard" onClick={() => setOpen(false)}>
-                        {tr("riskDashboard", currentLang)}
+                      <Link to="/action-plan" onClick={() => setOpen(false)}>
+                        {tr("actionPlan", currentLang)}
                       </Link>
                     </Button>
                     <Button asChild variant="outline">

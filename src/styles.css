@@ -2,6 +2,7 @@
 @source "../src";
 @import "tw-animate-css";
 @plugin "@tailwindcss/typography";
+@import "./components/ui/glass-icons.css";
 
 @custom-variant dark (&:is(.dark *));
 
@@ -52,8 +53,8 @@
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-ring: var(--sidebar-ring);
 
-  --font-display: "Space Grotesk", ui-sans-serif, system-ui, sans-serif;
-  --font-sans: "DM Sans", ui-sans-serif, system-ui, sans-serif;
+  --font-display: "Space Grotesk", "Noto Sans Devanagari", "Noto Sans Gujarati", ui-sans-serif, system-ui, sans-serif;
+  --font-sans: "DM Sans", "Noto Sans Devanagari", "Noto Sans Gujarati", ui-sans-serif, system-ui, sans-serif;
 }
 
 :root {
@@ -121,41 +122,50 @@
 }
 
 .dark {
-  --background: oklch(0.18 0.03 258);
-  --foreground: oklch(0.97 0.008 240);
-  --surface: oklch(0.22 0.04 258);
-  --surface-muted: oklch(0.24 0.04 258);
-  --card: oklch(0.22 0.04 258);
-  --card-foreground: oklch(0.97 0.008 240);
-  --popover: oklch(0.22 0.04 258);
-  --popover-foreground: oklch(0.97 0.008 240);
-  --primary: oklch(0.7 0.1 200);
-  --primary-foreground: oklch(0.18 0.03 258);
-  --secondary: oklch(0.28 0.04 258);
-  --secondary-foreground: oklch(0.97 0.008 240);
-  --muted: oklch(0.28 0.04 258);
-  --muted-foreground: oklch(0.75 0.02 240);
-  --accent: oklch(0.3 0.06 200);
-  --accent-foreground: oklch(0.97 0.008 240);
-  --destructive: oklch(0.65 0.22 25);
+  --background: oklch(0.11 0.01 240);
+  --foreground: oklch(0.88 0.008 240);
+  --surface: oklch(0.14 0.012 240);
+  --surface-muted: oklch(0.17 0.012 240);
+  --card: oklch(0.14 0.012 240);
+  --card-foreground: oklch(0.88 0.008 240);
+  --popover: oklch(0.14 0.012 240);
+  --popover-foreground: oklch(0.88 0.008 240);
+  --primary: oklch(0.62 0.07 200);
+  --primary-foreground: oklch(0.11 0.01 240);
+  --secondary: oklch(0.18 0.012 240);
+  --secondary-foreground: oklch(0.88 0.008 240);
+  --muted: oklch(0.18 0.012 240);
+  --muted-foreground: oklch(0.65 0.01 240);
+  --accent: oklch(0.16 0.015 200);
+  --accent-foreground: oklch(0.88 0.008 240);
+  --destructive: oklch(0.60 0.20 25);
   --destructive-foreground: oklch(0.99 0 0);
-  --border: oklch(1 0 0 / 10%);
-  --input: oklch(1 0 0 / 12%);
-  --ring: oklch(0.7 0.1 200);
+  --border: oklch(0.20 0.012 240 / 70%);
+  --input: oklch(0.17 0.012 240 / 80%);
+  --ring: oklch(0.62 0.07 200);
 
-  --sidebar: oklch(0.22 0.04 258);
-  --sidebar-foreground: oklch(0.97 0.008 240);
-  --sidebar-primary: oklch(0.7 0.1 200);
-  --sidebar-primary-foreground: oklch(0.18 0.03 258);
-  --sidebar-accent: oklch(0.3 0.06 200);
-  --sidebar-accent-foreground: oklch(0.97 0.008 240);
-  --sidebar-border: oklch(1 0 0 / 10%);
-  --sidebar-ring: oklch(0.7 0.1 200);
+  --sidebar: oklch(0.12 0.01 240);
+  --sidebar-foreground: oklch(0.88 0.008 240);
+  --sidebar-primary: oklch(0.62 0.07 200);
+  --sidebar-primary-foreground: oklch(0.11 0.01 240);
+  --sidebar-accent: oklch(0.16 0.015 200);
+  --sidebar-accent-foreground: oklch(0.88 0.008 240);
+  --sidebar-border: oklch(0.20 0.012 240 / 65%);
+  --sidebar-ring: oklch(0.62 0.07 200);
+
+  --chart-1: oklch(0.62 0.07 200);
+  --chart-2: oklch(0.52 0.08 200);
+  --chart-3: oklch(0.62 0.11 155);
+  --chart-4: oklch(0.70 0.12 70);
+  --chart-5: oklch(0.55 0.18 25);
 }
 
 @layer base {
   * {
     border-color: var(--color-border);
+    transition-property: color, background-color, border-color, text-decoration-color, fill, stroke;
+    transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+    transition-duration: 200ms;
   }
   body {
     background-color: var(--color-background);
@@ -187,4 +197,13 @@
 }
 .shadow-elevated {
   box-shadow: var(--shadow-elevated);
+}
+
+/* Indic Script Font Overrides for Hindi (Devanagari) & Gujarati */
+html[lang="hi"], html[lang="hi"] body, html[lang="hi"] *, html[lang="hi"] h1, html[lang="hi"] h2, html[lang="hi"] h3, html[lang="hi"] h4 {
+  font-family: "Noto Sans Devanagari", ui-sans-serif, system-ui, sans-serif !important;
+}
+
+html[lang="gu"], html[lang="gu"] body, html[lang="gu"] *, html[lang="gu"] h1, html[lang="gu"] h2, html[lang="gu"] h3, html[lang="gu"] h4 {
+  font-family: "Noto Sans Gujarati", ui-sans-serif, system-ui, sans-serif !important;
 }

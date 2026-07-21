@@ -1,0 +1,69 @@
+.flowing-menu-container {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+.flowing-menu-item {
+  position: relative;
+  width: 100%;
+  border-bottom: 1px solid var(--border);
+  overflow: hidden;
+  cursor: default;
+  user-select: none;
+  background-color: transparent;
+}
+
+.flowing-menu-item:first-child {
+  border-top: 1px solid var(--border);
+}
+
+.flowing-menu-text {
+  position: relative;
+  z-index: 10;
+  display: block;
+  font-family: var(--font-display);
+  font-weight: 700;
+  color: var(--foreground);
+  text-align: center;
+  transition: color 0.3s ease;
+}
+
+.flowing-menu-marquee {
+  position: absolute;
+  inset: 0;
+  z-index: 20;
+  background-color: var(--teal);
+  display: flex;
+  align-items: center;
+  overflow: hidden;
+  opacity: 0;
+  transition: opacity 0.3s cubic-bezier(0.25, 1, 0.5, 1);
+  pointer-events: none;
+}
+
+.flowing-menu-item:hover .flowing-menu-marquee {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.flowing-menu-marquee-inner {
+  display: flex;
+  align-items: center;
+  white-space: nowrap;
+}
+
+.flowing-menu-link {
+  font-family: var(--font-display);
+  font-weight: 900;
+  text-transform: uppercase;
+  color: white;
+  text-decoration: none;
+  transition: opacity 0.2s ease, transform 0.2s ease;
+  display: inline-block;
+}
+
+.flowing-menu-link:hover {
+  opacity: 0.85;
+  transform: scale(1.05);
+}

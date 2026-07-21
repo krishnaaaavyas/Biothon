@@ -3,6 +3,8 @@ import { Outlet, Link, createRootRouteWithContext } from "@tanstack/react-router
 import { type ReactNode } from "react";
 import { AuthProvider } from "@/contexts/auth-context";
 import { LanguageProvider } from "@/contexts/language-context";
+import { ThemeProvider } from "@/contexts/theme-context";
+import ClickSpark from "@/components/ui/click-spark";
 
 function NotFoundComponent() {
   return (
@@ -70,12 +72,21 @@ function RootComponent() {
 
   return (
     <QueryClientProvider client={queryClient}>
-      <LanguageProvider>
-        <AuthProvider>
-          {/* Required: nested routes render here. Removing <Outlet /> breaks all child routes. */}
-          <Outlet />
-        </AuthProvider>
-      </LanguageProvider>
+      <ThemeProvider>
+        <LanguageProvider>
+          <AuthProvider>
+            {/* Required: nested routes render here. Removing <Outlet /> breaks all child routes. */}
+            <ClickSpark
+              sparkSize={10}
+              sparkRadius={15}
+              sparkCount={8}
+              duration={400}
+            >
+              <Outlet />
+            </ClickSpark>
+          </AuthProvider>
+        </LanguageProvider>
+      </ThemeProvider>
     </QueryClientProvider>
   );
 }

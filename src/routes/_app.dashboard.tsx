@@ -6,33 +6,7 @@ import { useLanguage, tr } from "@/lib/i18n";
 export const Route = createFileRoute("/_app/dashboard")({});
 
 export function EmptyState() {
-  const navigate = useNavigate();
-  const currentLang = useLanguage();
-  return (
-    <div className="mx-auto max-w-xl px-6 py-24 text-center flex flex-col items-center justify-center animate-fade-in">
-      <div className="mx-auto grid h-14 w-14 place-items-center rounded-2xl bg-accent text-teal shadow-card-soft">
-        <ArrowRight className="h-7 w-7 text-teal" />
-      </div>
-      <h1 className="mt-6 font-display text-2xl font-bold tracking-tight text-foreground">
-        {tr("emptyStateTitle", currentLang)}
-      </h1>
-      <p className="mt-2 text-sm text-muted-foreground leading-relaxed max-w-md">
-        {tr("emptyStateDesc", currentLang)}
-      </p>
-
-      <Button
-        type="button"
-        onClick={() => {
-          console.log("Start Assessment clicked");
-          navigate({ to: "/assessment" });
-        }}
-        className="mt-8 gap-2 bg-primary text-primary-foreground hover:bg-primary/90 shadow-md transition-all font-semibold px-6 py-2 h-11 cursor-pointer"
-      >
-        <span>{tr("startAssessment", currentLang)}</span>
-        <ArrowRight className="h-4 w-4" />
-      </Button>
-    </div>
-  );
+  return null;
 }
 
 export function LedgerTable({

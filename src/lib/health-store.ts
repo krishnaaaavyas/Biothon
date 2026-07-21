@@ -3,6 +3,7 @@ import type { HealthResult } from "./health.functions";
 import type { Lang } from "./i18n";
 import { auth } from "./firebase";
 import { onAuthStateChanged } from "firebase/auth";
+import type { LabObservation } from "./schemas-v2";
 
 export const KEY_RESULT = "hg.result.v1";
 export const KEY_PROFILE = "hg.profile.v1";
@@ -38,6 +39,37 @@ export type Profile = {
   symptoms: string;
   schemaVersion?: number;
   engineVersion?: string;
+  labObservations?: LabObservation[];
+  bloodReportOnly?: boolean;
+
+  // Workout Personalization
+  fitnessGoal?: string;
+  fitnessLevel?: "beginner" | "intermediate" | "advanced";
+  sittingHours?: number;
+  medicalConditions?: string[];
+  workoutDaysPerWeek?: number;
+  workoutDuration?: number;
+  exerciseLocation?: "home" | "gym" | "outdoor";
+  equipment?: "none" | "bands" | "dumbbells" | "gym";
+
+  // Diet Personalization
+  dietType?: "vegetarian" | "eggetarian" | "non-vegetarian" | "vegan" | "jain" | "satvik" | "no-onion-garlic";
+  lactoseIntolerant?: boolean;
+  foodAllergies?: string;
+  regionalCuisine?: string;
+  budget?: "low" | "medium" | "flexible";
+  cookingTime?: number;
+  mealTiming?: string;
+  weightGoal?: "lose" | "gain" | "maintain";
+  
+  // Extra Assessment Questions
+  sleepHours?: string;
+  stressLevel?: "low" | "medium" | "high";
+  waterIntake?: string;
+  occupation?: string;
+  alcohol?: string;
+  tobaccoUse?: string;
+  excludedFoods?: string[];
 };
 
 export type StoredResult = HealthResult & {
@@ -62,6 +94,7 @@ export function readProfileCompatibility(raw: any): Profile | null {
     ...raw,
     schemaVersion: raw.schemaVersion ?? 1,
     engineVersion: raw.engineVersion ?? "legacy",
+    labObservations: raw.labObservations ?? [],
   };
 }
 
