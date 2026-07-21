@@ -1,22 +1,12 @@
-export type TimelineCode = "today" | "this_week" | "this_month" | "long_term";
 export type RecommendationTimeline = "Today" | "This Week" | "This Month";
 
 export interface ExplainedRecommendation {
   id: string;
-  actionCode: string;
-  whyCode: string;
-  evidenceCodes: string[];
-  expectedBenefitCode: string;
-  timelineCode: TimelineCode;
-  actionParams?: Record<string, any>;
-  whyParams?: Record<string, any>;
-  benefitParams?: Record<string, any>;
-  // Legacy string properties for backward compatibility
-  action: string;
-  why: string;
-  evidence: string[];
-  expectedBenefit: string;
-  timeline: RecommendationTimeline;
+  action: string;             // 1. What should the user do?
+  why: string;                // 2. Why is it recommended?
+  evidence: string[];         // 3. Which evidence triggered it? (Grounded in actual user data)
+  expectedBenefit: string;    // 4. Expected benefit
+  timeline: RecommendationTimeline; // 5. Timeline ("Today", "This Week", "This Month")
 }
 
 export interface ExplanationEngineInput {
@@ -25,7 +15,7 @@ export interface ExplanationEngineInput {
   heightCm?: number;
   weightKg?: number;
   bmi?: number;
-  exercise?: string;
+  exercise?: string; // "none" | "light" | "moderate" | "active"
   workoutDaysPerWeek?: number;
   smoking?: string;
   alcohol?: string;
@@ -44,17 +34,21 @@ export interface ExplanationEngineInput {
   [key: string]: any;
 }
 
-const TIMELINE_WEIGHT: Record<TimelineCode, number> = {
-  today: 4,
-  this_week: 3,
-  this_month: 2,
-  long_term: 1,
+const TIMELINE_WEIGHT: Record<RecommendationTimeline, number> = {
+  Today: 3,
+  "This Week": 2,
+  "This Month": 1,
 };
 
+/**
+ * Derives Grounded Recommendation Explanations.
+ * Strictly enforces Top 3 Priorities Gating and 5 Mandatory Explanation Fields.
+ */
 export function generateExplainedRecommendations(input: ExplanationEngineInput): ExplainedRecommendation[] {
   const candidates: ExplainedRecommendation[] = [];
   const p = input || {};
 
+  // Compute BMI if missing
   let bmi = p.bmi;
   if (!bmi && typeof p.heightCm === "number" && p.heightCm > 0 && typeof p.weightKg === "number" && p.weightKg > 0) {
     bmi = Number((p.weightKg / Math.pow(p.heightCm / 100, 2)).toFixed(1));
@@ -77,76 +71,80 @@ export function generateExplainedRecommendations(input: ExplanationEngineInput):
 
   const isSedentary = p.exercise === "none" || p.workoutDaysPerWeek === 0;
 
-  // 1. Walk 20 minutes
+  // ─────────────────────────────────────────────────────────────
+  // Rule 1: Physical Activity (Walk 20 minutes)
+  // Triggered when sedentary or low physical activity
+  // ─────────────────────────────────────────────────────────────
   if (isSedentary || p.exercise === "light") {
-    const evidenceCodes = [isSedentary ? "evidence.sedentaryLifestyle" : "evidence.lightActivity"];
-    if (isDiabeticRisk) evidenceCodes.push("evidence.diabetesRisk");
+    const evidenceList: string[] = [];
+    if (isSedentary) evidenceList.push("Sedentary lifestyle.");
+    else evidenceList.push("Light physical activity level.");
+
+    if (isDiabeticRisk) evidenceList.push("Diabetes screening risk.");
 
     candidates.push({
       id: "walk-20-min",
-      actionCode: "recommendations.action.walk20Min",
-      whyCode: "recommendations.why.lowActivity",
-      evidenceCodes,
-      expectedBenefitCode: isDiabeticRisk ? "recommendations.benefit.improvesDiabetesScreening" : "recommendations.benefit.cardioEndurance",
-      timelineCode: "today",
       action: "Walk 20 minutes",
       why: "Low physical activity.",
-      evidence: ["Sedentary lifestyle."],
+      evidence: evidenceList,
       expectedBenefit: isDiabeticRisk ? "Improves diabetes screening." : "Establishes baseline cardiovascular fitness.",
       timeline: "Today",
     });
   }
 
-  // 2. Reduce salt
+  // ─────────────────────────────────────────────────────────────
+  // Rule 2: Salt / Sodium Reduction (Reduce salt)
+  // Triggered when hypertension screening or elevated BP is present
+  // ─────────────────────────────────────────────────────────────
   if (isHypertensiveRisk) {
-    const evidenceCodes: string[] = ["evidence.bloodPressureEvidence"];
-    if (p.hypertensionRiskCategory) evidenceCodes.push(`evidence.hypertensionRisk_${p.hypertensionRiskCategory}`);
+    const evidenceList: string[] = [];
+    if (typeof p.systolic === "number" && typeof p.diastolic === "number") {
+      evidenceList.push(`Blood pressure ${p.systolic}/${p.diastolic} mmHg evidence.`);
+    } else {
+      evidenceList.push("Blood pressure evidence.");
+    }
 
-    const bpString = typeof p.systolic === "number" && typeof p.diastolic === "number"
-      ? `Blood pressure ${p.systolic}/${p.diastolic} mmHg evidence.`
-      : "Blood pressure evidence.";
+    if (p.hypertensionRiskCategory) {
+      evidenceList.push(`${p.hypertensionRiskCategory} hypertension screening.`);
+    }
 
     candidates.push({
       id: "reduce-salt",
-      actionCode: "recommendations.action.reduceSalt",
-      whyCode: "recommendations.why.elevatedHypertensionScreening",
-      evidenceCodes,
-      expectedBenefitCode: "recommendations.benefit.supportsBloodPressureManagement",
-      timelineCode: "this_week",
       action: "Reduce salt",
       why: "Elevated hypertension screening.",
-      evidence: [bpString],
+      evidence: evidenceList,
       expectedBenefit: "Supports blood pressure management.",
       timeline: "This Week",
     });
   }
 
-  // 3. Low Glycemic Meals
+  // ─────────────────────────────────────────────────────────────
+  // Rule 3: Glycemic Control (Switch to low-glycemic fiber meals)
+  // Triggered when glucose or prediabetes screening is elevated
+  // ─────────────────────────────────────────────────────────────
   if (isDiabeticRisk) {
+    const evidenceList: string[] = [];
+    if (fastingGlucose) evidenceList.push(`Fasting blood sugar ${fastingGlucose} mg/dL.`);
+    if (hba1cVal) evidenceList.push(`HbA1c ${hba1cVal}%.`);
+    if (p.diabetesRiskCategory) evidenceList.push(`${p.diabetesRiskCategory} diabetes screening.`);
+
     candidates.push({
       id: "low-glycemic-meals",
-      actionCode: "recommendations.action.lowGlycemicMeals",
-      whyCode: "recommendations.why.elevatedDiabetesScreening",
-      evidenceCodes: ["evidence.glucoseMarkers"],
-      expectedBenefitCode: "recommendations.benefit.moderatesGlucoseSpikes",
-      timelineCode: "today",
       action: "Switch to low-glycemic fiber meals",
       why: "Elevated diabetes risk or glucose screening markers.",
-      evidence: ["Fasting glucose markers."],
+      evidence: evidenceList,
       expectedBenefit: "Moderates glucose spikes and enhances insulin sensitivity.",
       timeline: "Today",
     });
   }
 
-  // 4. Tobacco Cessation
+  // ─────────────────────────────────────────────────────────────
+  // Rule 4: Tobacco Cessation (Stop tobacco smoking)
+  // Triggered ONLY if current smoker
+  // ─────────────────────────────────────────────────────────────
   if (p.smoking === "current") {
     candidates.push({
       id: "stop-smoking",
-      actionCode: "recommendations.action.stopSmoking",
-      whyCode: "recommendations.why.tobaccoUse",
-      evidenceCodes: ["evidence.currentSmokerStatus"],
-      expectedBenefitCode: "recommendations.benefit.reducesCardioRisk",
-      timelineCode: "today",
       action: "Stop tobacco smoking",
       why: "Current tobacco use elevates vascular and cardiac risk.",
       evidence: ["Current smoker status."],
@@ -155,79 +153,78 @@ export function generateExplainedRecommendations(input: ExplanationEngineInput):
     });
   }
 
-  // 5. Caloric Deficit
+  // ─────────────────────────────────────────────────────────────
+  // Rule 5: Weight Optimization (Follow a structured caloric deficit)
+  // Triggered ONLY if BMI >= 25
+  // ─────────────────────────────────────────────────────────────
   if (bmi && bmi >= 25) {
+    const isObese = bmi >= 30;
     candidates.push({
       id: "calorie-deficit",
-      actionCode: "recommendations.action.calorieDeficit",
-      whyCode: "recommendations.why.overweightBmi",
-      evidenceCodes: ["evidence.bmiOverweight"],
-      expectedBenefitCode: "recommendations.benefit.reducesArterialStrain",
-      timelineCode: "this_month",
       action: "Follow a structured caloric deficit",
       why: "BMI in overweight or obesity range.",
-      evidence: ["BMI evidence."],
+      evidence: [`BMI ${bmi} (${isObese ? "Class I/II Obesity" : "Overweight"}).`],
       expectedBenefit: "Reduces systemic arterial strain and insulin resistance.",
       timeline: "This Month",
     });
   }
 
-  // 6. Alcohol Moderation
+  // ─────────────────────────────────────────────────────────────
+  // Rule 6: Alcohol Moderation (Limit alcohol consumption)
+  // Triggered ONLY if regular or heavy drinker
+  // ─────────────────────────────────────────────────────────────
   if (p.alcohol === "regular" || p.alcohol === "heavy") {
     candidates.push({
       id: "moderate-alcohol",
-      actionCode: "recommendations.action.moderateAlcohol",
-      whyCode: "recommendations.why.regularAlcohol",
-      evidenceCodes: ["evidence.alcoholConsumption"],
-      expectedBenefitCode: "recommendations.benefit.lowersBpVariability",
-      timelineCode: "this_week",
       action: "Limit alcohol consumption",
       why: "Regular alcohol consumption contributes to BP fluctuations.",
-      evidence: ["Alcohol consumption evidence."],
+      evidence: [`${p.alcohol} alcohol consumption.`],
       expectedBenefit: "Lowers blood pressure variability.",
       timeline: "This Week",
     });
   }
 
-  // 7. Symptom Evaluation
+  // ─────────────────────────────────────────────────────────────
+  // Rule 7: Symptom Clinical Review
+  // Triggered ONLY if symptoms reported
+  // ─────────────────────────────────────────────────────────────
   if (p.symptoms && typeof p.symptoms === "string" && p.symptoms.trim().length > 0) {
     candidates.push({
       id: "symptom-review",
-      actionCode: "recommendations.action.symptomReview",
-      whyCode: "recommendations.why.reportedSymptoms",
-      evidenceCodes: ["evidence.reportedSymptoms"],
-      expectedBenefitCode: "recommendations.benefit.evaluatesPhysiologicalTriggers",
-      timelineCode: "today",
       action: "Consult a physician for reported symptoms",
       why: "Reported symptoms require clinical evaluation.",
-      evidence: ["Reported symptoms evidence."],
+      evidence: [`Reported symptoms: ${p.symptoms}.`],
       expectedBenefit: "Evaluates underlying physiological triggers.",
       timeline: "Today",
     });
   }
 
-  // 8. Missing Evidence
+  // ─────────────────────────────────────────────────────────────
+  // Rule 8: Complete Missing Evidence
+  // Triggered ONLY if missing evidence exists
+  // ─────────────────────────────────────────────────────────────
   const missing = p.missingEvidence || [];
   const needsBp = !p.systolic && !p.diastolic;
   if (missing.length > 0 || needsBp) {
+    const evidenceList: string[] = [];
+    if (needsBp) evidenceList.push("Missing blood pressure reading.");
+    missing.forEach((item) => {
+      if (!evidenceList.includes(item)) evidenceList.push(item);
+    });
+
     candidates.push({
       id: "complete-missing-evidence",
-      actionCode: "recommendations.action.recordMissingReadings",
-      whyCode: "recommendations.why.incompleteProfile",
-      evidenceCodes: ["evidence.missingReading"],
-      expectedBenefitCode: "recommendations.benefit.increasesClinicalConfidence",
-      timelineCode: "this_week",
       action: "Record missing blood pressure and lab readings",
       why: "Incomplete physiological profile reduces assessment confidence.",
-      evidence: ["Missing evidence."],
+      evidence: evidenceList,
       expectedBenefit: "Increases clinical evidence confidence.",
       timeline: "This Week",
     });
   }
 
-  // Sort candidates by timeline urgency
-  candidates.sort((a, b) => TIMELINE_WEIGHT[b.timelineCode] - TIMELINE_WEIGHT[a.timelineCode]);
+  // Sort candidates by timeline urgency: Today (3) > This Week (2) > This Month (1)
+  candidates.sort((a, b) => TIMELINE_WEIGHT[b.timeline] - TIMELINE_WEIGHT[a.timeline]);
 
-  // TOP 3 PRIORITIES GATING
+  // TOP 3 PRIORITIES GATING (Strict Constraint)
   return candidates.slice(0, 3);
 }
