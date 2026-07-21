@@ -1,5 +1,7 @@
 import express from "express";
+import sharp from "sharp";
 import { db } from "./firebase-admin.js";
+import { createRateLimiter } from "./middleware/security.js";
 
 // Set test environment before importing server to prevent automatic listening on port 5000
 process.env.NODE_ENV = "test";
@@ -281,10 +283,16 @@ async function testSecurity() {
   });
 
   const httpFetch = global.fetch;
-  const labRequest = () => httpFetch(`${baseUrl}/lab-report/analyze`, {
+  const validPng = (await sharp({
+    create: { width: 1, height: 1, channels: 3, background: "white" },
+  }).png().toBuffer()).toString("base64");
+  const labRequest = (data = validPng, mimeType = "image/png", consent?: boolean) => httpFetch(`${baseUrl}/lab-report/analyze`, {
     method: "POST",
     headers: { "Content-Type": "application/json", Authorization: "Bearer mock-uid-patient-A" },
-    body: JSON.stringify({ contents: [{ role: "user", parts: [{ text: "synthetic fixture" }] }] }),
+    body: JSON.stringify({
+      contents: [{ role: "user", parts: [{ inlineData: { mimeType, data } }] }],
+      ...(consent === undefined ? {} : { externalProcessingConsent: consent }),
+    }),
   });
 
   await runTest("Lab extraction - Missing Gemini configuration returns safe 503", async () => {
@@ -337,6 +345,96 @@ async function testSecurity() {
         throw new Error("Valid extraction contract changed");
       }
     } finally { global.fetch = originalFetch; }
+  });
+
+  await runTest("Security - Blocked CORS origin is rejected", async () => {
+    const res = await httpFetch(`${baseUrl}/health`, { headers: { Origin: "https://blocked.example" } });
+    if (res.status < 400) throw new Error(`Blocked origin returned ${res.status}`);
+  });
+
+  await runTest("Security - Local CORS origin is accepted", async () => {
+    const res = await httpFetch(`${baseUrl}/health`, { headers: { Origin: "http://localhost:5173" } });
+    if (res.headers.get("access-control-allow-origin") !== "http://localhost:5173") {
+      throw new Error("Local development origin was not accepted");
+    }
+  });
+
+  await runTest("Security - Rate limiter returns 429", async () => {
+    const previous = process.env.RATE_LIMIT_MAX_REQUESTS;
+    process.env.RATE_LIMIT_MAX_REQUESTS = "2";
+    const isolated = express();
+    isolated.use(createRateLimiter());
+    isolated.get("/", (_req, res) => res.json({ ok: true }));
+    const listener = isolated.listen(0);
+    const isolatedPort = (listener.address() as any).port;
+    try {
+      await httpFetch(`http://localhost:${isolatedPort}/`);
+      await httpFetch(`http://localhost:${isolatedPort}/`);
+      const limited = await httpFetch(`http://localhost:${isolatedPort}/`);
+      if (limited.status !== 429) throw new Error(`Expected 429, got ${limited.status}`);
+    } finally {
+      listener.close();
+      if (previous === undefined) delete process.env.RATE_LIMIT_MAX_REQUESTS;
+      else process.env.RATE_LIMIT_MAX_REQUESTS = previous;
+    }
+  });
+
+  await runTest("Security - Ordinary JSON body over 1 MB is rejected", async () => {
+    const res = await httpFetch(`${baseUrl}/profile`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: "Bearer mock-uid-patient-A" },
+      body: JSON.stringify({ padding: "x".repeat(1024 * 1024 + 1) }),
+    });
+    if (res.status !== 413) throw new Error(`Expected 413, got ${res.status}`);
+  });
+
+  await runTest("Lab upload - Malformed base64 is rejected", async () => {
+    const res = await labRequest("%%%not-base64%%%", "image/png");
+    if (res.status !== 400) throw new Error(`Expected 400, got ${res.status}`);
+  });
+
+  await runTest("Lab upload - MIME and signature mismatch is rejected", async () => {
+    const pdf = Buffer.from("%PDF-1.4\nsynthetic").toString("base64");
+    const res = await labRequest(pdf, "image/png");
+    if (res.status !== 400) throw new Error(`Expected 400, got ${res.status}`);
+  });
+
+  await runTest("Lab upload - Excessive image dimensions are rejected", async () => {
+    const previous = process.env.LAB_REPORT_MAX_WIDTH;
+    process.env.LAB_REPORT_MAX_WIDTH = "1";
+    const image = await sharp({ create: { width: 2, height: 1, channels: 3, background: "white" } }).png().toBuffer();
+    try {
+      const res = await labRequest(image.toString("base64"), "image/png");
+      if (res.status !== 400) throw new Error(`Expected 400, got ${res.status}`);
+    } finally {
+      if (previous === undefined) delete process.env.LAB_REPORT_MAX_WIDTH;
+      else process.env.LAB_REPORT_MAX_WIDTH = previous;
+    }
+  });
+
+  await runTest("Auth - Production rejects mock authentication", async () => {
+    const previous = process.env.NODE_ENV;
+    process.env.NODE_ENV = "production";
+    try {
+      const res = await httpFetch(`${baseUrl}/profile`, { headers: { Authorization: "Bearer mock-uid-patient-A" } });
+      if (res.status < 400) throw new Error("Production accepted mock authentication");
+    } finally { process.env.NODE_ENV = previous; }
+  });
+
+  await runTest("Lab processing - Required consent blocks Gemini", async () => {
+    const previous = process.env.REQUIRE_EXTERNAL_PROCESSING_CONSENT;
+    process.env.REQUIRE_EXTERNAL_PROCESSING_CONSENT = "true";
+    let geminiCalls = 0;
+    const originalFetch = global.fetch;
+    global.fetch = async () => { geminiCalls++; return new Response("{}"); };
+    try {
+      const res = await labRequest(validPng, "image/png");
+      if (res.status !== 422 || geminiCalls !== 0) throw new Error("Missing consent did not block external processing");
+    } finally {
+      global.fetch = originalFetch;
+      if (previous === undefined) delete process.env.REQUIRE_EXTERNAL_PROCESSING_CONSENT;
+      else process.env.REQUIRE_EXTERNAL_PROCESSING_CONSENT = previous;
+    }
   });
 
   server.close();

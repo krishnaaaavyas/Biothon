@@ -38,6 +38,7 @@ backend/dist/
 backend/.env
 .env
 .env.*
+!backend/.env.example
 
 # Python venv and data cache
 .venv/

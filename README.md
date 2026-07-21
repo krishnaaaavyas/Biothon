@@ -1,6 +1,4 @@
 
-<<<<<<< HEAD
-=======
 **AI-Powered Preventive Health Awareness & Risk Assessment Portal**
 
 HealthGuard AI is a modern, patient-first web application designed to help individuals evaluate their metabolic and cardiovascular risk factors before symptoms manifest. Leveraging **Gemini AI**, evidence-based clinical guidelines, and a beautiful, high-performance user interface, HealthGuard AI empowers users to identify chronic health risks (Type 2 Diabetes, Hypertension, and Heart Disease) in under 10 minutes and receive immediate, personalized, and actionable lifestyle guidance.
@@ -634,4 +632,3 @@ V2 code is isolated behind backend boundaries and disabled by default. No V2 res
 ---
 
 **Made with ❤️ for preventive health.**
->>>>>>> upstream/main

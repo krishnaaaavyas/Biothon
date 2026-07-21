@@ -1,5 +1,4 @@
 import express from "express";
-import cors from "cors";
 import dotenv from "dotenv";
 import { z } from "zod";
 import { db } from "./firebase-admin.js";
@@ -16,15 +15,21 @@ import { PredictionService } from "./services/prediction.service.js";
 import { BehaviorService } from "./services/behavior.service.js";
 import expertReviewRoutes from "./routes/expertReview.routes.js";
 import v2Routes from "./routes/v2.routes.js";
+import { securityMiddleware } from "./middleware/security.js";
+import { validateLabUpload } from "./services/labUploadValidation.service.js";
 
 dotenv.config();
 
 export const app = express();
 const PORT = process.env.PORT || 5000;
 
-// Enable CORS and JSON body parsing
-app.use(cors({ origin: "*" }));
-app.use(express.json());
+app.use(securityMiddleware);
+const configuredLabMaxBytes = Number.parseInt(process.env.LAB_REPORT_MAX_BYTES || "", 10);
+const labMaxBytes = Number.isFinite(configuredLabMaxBytes) && configuredLabMaxBytes > 0
+  ? configuredLabMaxBytes
+  : 10 * 1024 * 1024;
+app.use("/api/lab-report/analyze", express.json({ limit: `${Math.max(labMaxBytes * 2, 1024)}b` }));
+app.use(express.json({ limit: "1mb" }));
 
 // Mount Expert Review Routes
 app.use("/api/expert-review", expertReviewRoutes);
@@ -1533,6 +1538,22 @@ app.post(
         return res.status(400).json({ error: "Bad Request: Missing contents array" });
       }
 
+      const processingEnabled = process.env.GEMINI_LAB_PROCESSING_ENABLED !== "false";
+      if (!processingEnabled) {
+        return res.status(503).json({ error: "LAB_EXTERNAL_PROCESSING_DISABLED" });
+      }
+      const consentRequired = process.env.REQUIRE_EXTERNAL_PROCESSING_CONSENT
+        ? process.env.REQUIRE_EXTERNAL_PROCESSING_CONSENT === "true"
+        : process.env.NODE_ENV === "production";
+      if (consentRequired && req.body.externalProcessingConsent !== true) {
+        return res.status(422).json({ error: "EXTERNAL_PROCESSING_CONSENT_REQUIRED" });
+      }
+      try {
+        await validateLabUpload(contents);
+      } catch (validationError: any) {
+        return res.status(400).json({ error: validationError.message || "LAB_UPLOAD_INVALID" });
+      }
+
       let result: any = null;
       const key = process.env.GEMINI_API_KEY;
       const extractionUnavailable = () => res.status(503).json({
@@ -2326,6 +2347,17 @@ app.get("/api/risk/drivers", requireAuth, async (req: AuthenticatedRequest, res)
     console.error("Risk drivers API error:", err);
     return res.status(500).json({ error: "Internal Server Error: Failed to analyze risk drivers" });
   }
+});
+
+// Keep parser and CORS failures controlled and free of request contents.
+app.use((err: any, _req: express.Request, res: express.Response, next: express.NextFunction) => {
+  if (err?.type === "entity.too.large") {
+    return res.status(413).json({ error: "REQUEST_BODY_TOO_LARGE" });
+  }
+  if (err?.message === "CORS_ORIGIN_NOT_ALLOWED") {
+    return res.status(403).json({ error: "CORS_ORIGIN_NOT_ALLOWED" });
+  }
+  return next(err);
 });
 
 // Start the server

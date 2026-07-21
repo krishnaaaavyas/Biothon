@@ -30,6 +30,10 @@ RESTRICTED_DIRECTORY_NAMES = {
     "evaluation-output",
 }
 
+APPROVED_PRIVATE_PLACEHOLDER = (
+    "health-intelligence", "private-data", ".gitkeep"
+)
+
 PARTICIPANT_EXPORT_EXTENSIONS = {
     ".csv", ".tsv", ".json", ".jsonl", ".ndjson",
 }
@@ -98,6 +102,8 @@ def filename_violations(path: str | Path) -> list[str]:
     candidate = Path(str(path))
     suffix = candidate.suffix.lower()
     parts = _normalized_parts(path)
+    if parts == APPROVED_PRIVATE_PLACEHOLDER:
+        return []
     reasons = []
 
     if suffix in RESTRICTED_EXTENSIONS:
