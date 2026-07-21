@@ -441,7 +441,6 @@ function Landing() {
             "Blood Reports",
             "Diabetes Screening",
             "Hypertension Screening",
-            "Anaemia Screening",
             "Evidence-Based Analysis",
             "Personalized Health Insights",
             "AI Explanation",
