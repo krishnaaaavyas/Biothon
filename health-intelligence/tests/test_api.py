@@ -302,16 +302,14 @@ class TestDiabetesAPI(unittest.TestCase):
             )
         )
 
-    def test_ready_endpoint_reports_not_ready(self):
-        """Verify ready endpoint reports not ready for inference with a stable
-        reason code (this endpoint is hardcoded APPROVED_MODEL_NOT_INSTALLED
-        regardless of model state and is not expected to change until a
-        validated production model is released)."""
+    def test_ready_endpoint_reports_process_ready_and_model_states(self):
+        """Process readiness is independent of optional model availability."""
         response = self.client.get("/ready")
         self.assertEqual(response.status_code, 200)
         data = response.json()
-        self.assertEqual(data["ready"], False)
-        self.assertEqual(data["reason"], "APPROVED_MODEL_NOT_INSTALLED")
+        self.assertEqual(data["ready"], True)
+        self.assertIn("diabetes", data["models"])
+        self.assertIn("hypertension", data["models"])
 
 
 if __name__ == "__main__":
