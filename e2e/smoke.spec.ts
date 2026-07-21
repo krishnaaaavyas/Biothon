@@ -4,7 +4,7 @@ test.describe("HealthGuard AI E2E Smoke Suite", () => {
   test("Full User Session Flow", async ({ page }) => {
     // 1. LANDING PAGE LOAD
     console.log("Step 1: Navigating to landing page...");
-    await page.goto("/");
+    await page.goto("/", { waitUntil: "domcontentloaded" });
     await expect(page).toHaveTitle(/HealthGuard/);
     
     const branding = page.locator("text=HealthGuard").first();
@@ -27,70 +27,86 @@ test.describe("HealthGuard AI E2E Smoke Suite", () => {
 
     await page.click('button[type="submit"]');
 
-    // 3. WIZARD ASSESSMENT
-    console.log("Step 4: Completing assessment questionnaire...");
-    // Wait for redirect to assessment page
+    // 3. ASSESSMENT CHOICE
+    console.log("Step 4: Choosing the questionnaire assessment path...");
     await page.waitForURL("**/assessment**", { timeout: 15000 });
+    await expect(
+      page.getByRole("heading", { name: /tell us about your health/i }),
+    ).toBeVisible();
 
-    // Step 1: Demographics (Default values: age 35, weight 72, height 170)
-    await expect(page.locator("text=Step 1 of 4")).toBeVisible();
-    await page.click("button:has-text('Continue')");
+    const startAssessment = page.getByRole("button", {
+      name: /^start assessment$/i,
+    });
+    await expect(startAssessment).toBeVisible();
+    await startAssessment.click();
 
-    // Step 2: Lifestyle (Default values: never smoked, light exercise)
-    await expect(page.locator("text=Step 2 of 4")).toBeVisible();
-    await page.click("button:has-text('Continue')");
+    // 4. QUESTIONNAIRE
+    console.log("Step 5: Completing assessment questionnaire...");
 
-    // Step 3: Family History
-    await expect(page.locator("text=Step 3 of 4")).toBeVisible();
-    await page.fill('textarea[name="familyHistory"]', "Mother has type 2 diabetes");
-    await page.click("button:has-text('Continue')");
+    // Basic Profile (default demographic values are already populated)
+    await expect(
+      page.getByRole("button", { name: /stay healthy/i }),
+    ).toBeVisible();
+    await page.getByRole("button", { name: /^continue$/i }).click();
 
-    // Step 4: Symptoms & Submission
-    await expect(page.locator("text=Step 4 of 4")).toBeVisible();
-    await page.fill('textarea[name="symptoms"]', "Occasional thirst and dry mouth");
-    
-    // Disclaimers verification
-    const disclaimer = page.locator("text=educational health risk assessments");
-    await expect(disclaimer).toBeVisible();
+    // Health Info
+    await expect(
+      page.getByRole("button", { name: /^no medical conditions$/i }),
+    ).toBeVisible();
+    await page.getByPlaceholder(/mother.*type 2 diabetes/i).fill(
+      "Mother has type 2 diabetes",
+    );
+    await page.getByPlaceholder(/occasional fatigue/i).fill(
+      "Occasional thirst and dry mouth",
+    );
+    await page.getByRole("button", { name: /^continue$/i }).click();
+
+    // Lifestyle
+    await expect(
+      page.getByRole("button", { name: /^no equipment$/i }),
+    ).toBeVisible();
+    await page.getByRole("button", { name: /^continue$/i }).click();
+
+    // Diet Preferences & Submission
+    await expect(page.getByRole("checkbox", { name: /^paneer$/i })).toBeVisible();
+    await expect(
+      page.getByText(/educational health risk assessments/i),
+    ).toBeVisible();
 
     console.log("Submitting assessment wizard...");
-    await page.click("button:has-text('Generate')");
+    const riskCalculation = page.waitForResponse((response) =>
+      response.url().endsWith("/api/risk/calculate"),
+    );
+    await page.getByRole("button", { name: /^generate plan$/i }).click();
+    await expect((await riskCalculation).ok()).toBeTruthy();
 
-    // 4. VERIFY RESULTS RENDERED
-    console.log("Step 5: Verifying dashboard risk results render...");
-    await page.waitForURL("**/dashboard**", { timeout: 15000 });
-    
-    // Assert 3 V1 clinical condition risk cards
-    await expect(page.locator("text=Diabetes")).toBeVisible();
-    await expect(page.locator("text=Heart Disease")).toBeVisible();
-    await expect(page.locator("text=Hypertension")).toBeVisible();
+    // 5. VERIFY CURRENT POST-ASSESSMENT RESULTS
+    console.log("Step 6: Verifying action plan renders...");
+    await page.waitForURL("**/action-plan**", { timeout: 15000 });
+    await expect(
+      page.getByRole("heading", { name: /^action plan$/i }),
+    ).toBeVisible();
+    await expect(
+      page.getByRole("heading", { name: /^weekly meal planner$/i }),
+    ).toBeVisible();
+    await expect(
+      page.getByRole("heading", { name: /^weekly workout plan$/i }),
+    ).toBeVisible();
+    await expect(page.getByText(/this week's top actions/i)).toBeVisible();
 
     // Verify lack of ML risk cards/claims
-    const mlCard = page.locator("text=Machine Learning");
+    const mlCard = page.getByText(/machine learning/i);
     await expect(mlCard).not.toBeVisible();
 
-    // 5. INSPECT LIFESTYLE IMPACT & ACTION PRIORITIES CARDS
-    console.log("Step 6: Inspecting dashboard details...");
-    await expect(page.locator("text=Lifestyle Impact")).toBeVisible();
-    await expect(page.locator("text=Action Priorities")).toBeVisible();
-    await expect(page.locator("text=Expert Review")).toBeVisible();
-
-    // 6. PDF REPORT DOWNLOAD TRIGGER
-    console.log("Step 7: Testing PDF report download trigger...");
-    const downloadPromise = page.waitForEvent("download");
-    await page.click("button:has-text('Download Report')");
-    const download = await downloadPromise;
-    expect(download.suggestedFilename()).toContain("healthguard-report");
-
-    // 7. LOGOUT FLOW & STORAGE CLEANUP
-    console.log("Step 8: Logging out...");
-    // Click Avatar dropdown
-    await page.click("button:has-text('Smoke Test Patient')");
-    // Click Log Out
-    await page.click("text=Log Out");
+    // 6. LOGOUT FLOW & STORAGE CLEANUP
+    console.log("Step 7: Logging out...");
+    await page.getByRole("button", { name: /smoke test patient/i }).click();
+    await page.getByText(/^log out$/i).click();
 
     // Wait for redirect to home or login page
-    await page.waitForURL(/.*login|.*/, { timeout: 10000 });
+    await page.waitForURL((url) =>
+      url.pathname === "/" || url.pathname === "/login",
+    );
 
     // Assert local storage keys are cleaned up
     const localStorageKeys = await page.evaluate(() => Object.keys(localStorage));

@@ -57,6 +57,19 @@ def test_restricted_directory_names_fail():
         assert checker.filename_violations(f"{directory}/notes.txt")
 
 
+def test_only_exact_private_data_placeholder_is_allowed():
+    assert checker.filename_violations(
+        "health-intelligence/private-data/.gitkeep"
+    ) == []
+    assert checker.filename_violations("private-data/.gitkeep")
+    assert checker.filename_violations(
+        "health-intelligence/private-data/other.txt"
+    )
+    assert checker.filename_violations(
+        "other/health-intelligence/private-data/.gitkeep"
+    )
+
+
 def test_approved_variable_mentions_are_allowed():
     text = "Approved schema fields include prim_key and hba1c."
     assert checker.inspect_entry("training/audit.py", text) == []
