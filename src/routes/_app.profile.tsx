@@ -351,7 +351,7 @@ function ProfilePage() {
                   onClick={() =>
                     hasBloodReport
                       ? navigate({ to: "/report" })
-                      : navigate({ to: "/assessment", search: { mode: "retake", step: 5 } })
+                      : navigate({ to: "/assessment", search: { mode: "blood" } })
                   }
                   variant="outline"
                   className="border-border/60 hover:bg-accent/40 text-foreground font-semibold text-xs h-8 px-4 rounded-lg cursor-pointer inline-flex items-center gap-1"
@@ -398,7 +398,7 @@ function ProfilePage() {
                 variant="outline"
                 className="h-10 text-xs border-border/60 hover:bg-teal/5 hover:border-teal/30 hover:text-teal font-semibold rounded-xl flex items-center justify-center gap-2 cursor-pointer transition-all duration-200"
               >
-                <Link to="/assessment" search={{ mode: "retake", step: 5 }}>
+                <Link to="/assessment" search={{ mode: "blood" }}>
                   <UploadCloud className="h-4 w-4 shrink-0 text-teal/80" />
                   {tr("uploadReportBtn", currentLang)}
                 </Link>

@@ -19,7 +19,7 @@ const decodeBase64 = (data: unknown) => {
   if (typeof data !== "string" || data.length === 0 || data.length % 4 !== 0) {
     throw new Error("LAB_UPLOAD_MALFORMED_BASE64");
   }
-  if (!/^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$/.test(data)) {
+  if (!/^[A-Za-z0-9+/]+={0,2}$/.test(data)) {
     throw new Error("LAB_UPLOAD_MALFORMED_BASE64");
   }
   return Buffer.from(data, "base64");
