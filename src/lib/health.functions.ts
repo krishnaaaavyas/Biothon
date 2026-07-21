@@ -525,6 +525,17 @@ export async function assessLabReportImage({
   mimeType: string;
   externalProcessingConsent?: boolean;
 }): Promise<ExtractedLabReport> {
+  const normMime = (mimeType || "").toLowerCase();
+  if (normMime.includes("heic") || normMime.includes("heif")) {
+    return {
+      status: "extraction-unavailable",
+      reasonCode: "LAB_FILE_UNSUPPORTED",
+      observations: [],
+      manualEntryAllowed: true,
+      message: "HEIC/HEIF image format is not supported. Please upload a PDF, JPG, or PNG.",
+    };
+  }
+
   const contents = [
     {
       role: "user",

@@ -8,6 +8,8 @@ import { Download, ClipboardList, Activity, Check } from "lucide-react";
 import { EmptyState, LedgerTable, RiskLedgerTable } from "./_app.dashboard";
 import { useLanguage, tr, translations } from "@/lib/i18n";
 import { toast } from "sonner";
+import { calculateEvidenceSummary } from "@/lib/evidence-summary";
+import { EvidenceSummaryCard } from "@/components/EvidenceSummaryCard";
 
 const CHART_GREEN = "oklch(0.62 0.13 155)";
 const CHART_AMBER = "oklch(0.74 0.15 70)";
@@ -131,6 +133,9 @@ function ReportPage() {
         <div className="grid gap-6 md:grid-cols-12">
           {/* Left Column: Summary and Indicators */}
           <div className="md:col-span-8 space-y-6">
+            <EvidenceSummaryCard
+              summary={calculateEvidenceSummary(profile, labs, labs.map((l: any) => l.code))}
+            />
             {/* Overall Status Card */}
             <Card className="border-border bg-surface shadow-card-soft">
               <CardContent className="p-6 flex items-center justify-between">

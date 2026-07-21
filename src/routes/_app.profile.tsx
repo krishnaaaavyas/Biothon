@@ -2,6 +2,8 @@ import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { useLanguage, tr } from "@/lib/i18n";
 import { useAuth } from "@/contexts/auth-context";
+import { calculateProfileCompleteness } from "@/lib/evidence-summary";
+import { ProfileCompletenessCard } from "@/components/ProfileCompletenessCard";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -300,7 +302,7 @@ function ProfilePage() {
 
               <div className="pt-2">
                 <Button
-                  onClick={() => navigate({ to: "/assessment", search: { mode: "reassess" } })}
+                  onClick={() => navigate({ to: "/assessment", search: { mode: "reassess", step: 1 } })}
                   className="bg-teal text-white hover:bg-teal/90 font-semibold text-xs h-8 px-4 rounded-lg cursor-pointer inline-flex items-center gap-1"
                 >
                   {tr("reassess", currentLang)} <ArrowRight className="h-3 w-3" />
@@ -351,7 +353,7 @@ function ProfilePage() {
                   onClick={() =>
                     hasBloodReport
                       ? navigate({ to: "/report" })
-                      : navigate({ to: "/assessment", search: { mode: "blood" } })
+                      : navigate({ to: "/assessment", search: { mode: "blood", step: 1 } })
                   }
                   variant="outline"
                   className="border-border/60 hover:bg-accent/40 text-foreground font-semibold text-xs h-8 px-4 rounded-lg cursor-pointer inline-flex items-center gap-1"
@@ -362,6 +364,13 @@ function ProfilePage() {
             </CardContent>
           </Card>
         </div>
+
+        {/* Health Profile Completeness Card */}
+        {profile && (
+          <ProfileCompletenessCard
+            completeness={calculateProfileCompleteness(profile, profile.labObservations)}
+          />
+        )}
 
         {/* Quick Actions */}
         <Card className="border-border/60 bg-surface/50 shadow-card-soft backdrop-blur-sm">

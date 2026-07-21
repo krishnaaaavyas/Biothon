@@ -375,10 +375,29 @@ async function testSecurity() {
   });
 
   await runTest("Lab extraction - Unsupported MIME type returns LAB_FILE_UNSUPPORTED", async () => {
-    const res = await labRequest("plain text data", "text/plain");
+    const validBase64Text = Buffer.from("plain text data").toString("base64");
+    const res = await labRequest(validBase64Text, "text/plain");
     const body: any = await res.json();
     if (res.status !== 400 || body.reasonCode !== "LAB_FILE_UNSUPPORTED") {
       throw new Error(`Expected 400 LAB_FILE_UNSUPPORTED, got ${res.status} ${body.reasonCode}`);
+    }
+  });
+
+  await runTest("Lab extraction - HEIC/HEIF format returns LAB_FILE_UNSUPPORTED", async () => {
+    const heicMagic = Buffer.from([0x00, 0x00, 0x00, 0x18, 0x66, 0x74, 0x79, 0x70, 0x68, 0x65, 0x69, 0x63]);
+    const res = await labRequest(heicMagic.toString("base64"), "image/heic");
+    const body: any = await res.json();
+    if (res.status !== 400 || body.reasonCode !== "LAB_FILE_UNSUPPORTED") {
+      throw new Error(`Expected 400 LAB_FILE_UNSUPPORTED, got ${res.status} ${body.reasonCode}`);
+    }
+  });
+
+  await runTest("Lab extraction - Encrypted PDF returns LAB_PDF_UNREADABLE", async () => {
+    const pdfEncrypted = Buffer.from("%PDF-1.4\n1 0 obj\n<< /Encrypt 2 0 R >>\nendobj\ntrailer\n<< /Root 1 0 R >>\n%%EOF");
+    const res = await labRequest(pdfEncrypted.toString("base64"), "application/pdf");
+    const body: any = await res.json();
+    if (res.status !== 400 || body.reasonCode !== "LAB_PDF_UNREADABLE") {
+      throw new Error(`Expected 400 LAB_PDF_UNREADABLE, got ${res.status} ${body.reasonCode}`);
     }
   });
 

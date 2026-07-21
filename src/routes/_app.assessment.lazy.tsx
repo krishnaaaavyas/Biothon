@@ -27,6 +27,8 @@ import { isConfigured, db, auth } from "@/lib/firebase";
 import { doc, getDoc, setDoc, serverTimestamp } from "firebase/firestore";
 import { useAuth } from "@/contexts/auth-context";
 import { profileSyncService } from "@/lib/profile-sync";
+import { calculateEvidenceSummary } from "@/lib/evidence-summary";
+import { EvidenceSummaryCard } from "@/components/EvidenceSummaryCard";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -1673,10 +1675,10 @@ function AssessmentPage() {
                     {/* Checklist progress */}
                     <div className="bg-surface-muted/30 border border-border/40 rounded-2xl p-4 text-left space-y-3.5">
                       {[
-                        "Detecting biomarkers",
-                        "Extracting values",
-                        "Checking units",
-                        "Preparing analysis"
+                        "Uploading report file...",
+                        "Extracting biomarkers with Gemini AI...",
+                        "Validating clinical ranges & units...",
+                        "Ready for review"
                       ].map((task, idx) => {
                         const active = processingIndex === idx;
                         const completed = processingIndex > idx;
@@ -2053,6 +2055,17 @@ function AssessmentPage() {
                       </div>
                     </div>
                   )}
+                </div>
+
+                {/* Evidence Quality & Confidence Summary */}
+                <div className="mt-4">
+                  <EvidenceSummaryCard
+                    summary={calculateEvidenceSummary(
+                      form.getValues(),
+                      form.watch("labObservations"),
+                      (form.watch("labObservations") || []).map((o: any) => o.code)
+                    )}
+                  />
                 </div>
               </div>
             )}
