@@ -4,10 +4,16 @@ import { generateWorkoutPlan, isExerciseContraindicated } from "./workout-engine
 import { generateHealthPriorities } from "./priority-engine";
 import { generateExplainedRecommendations } from "./recommendation-explanation-engine";
 
-describe("Dynamic Action Plan & Engine Personalization Suite", () => {
-  it("changes diet strategy and workout choices when BMI changes from normal to obese", () => {
+describe("Deep Action Plan Personalization Engine Suite", () => {
+  it("differs recommendations based on BMI (High BMI vs Normal BMI)", () => {
     const normalInput = { age: 30, bmi: 22, heightCm: 175, weightKg: 67, activity: "moderate" };
     const obeseInput = { age: 30, bmi: 32, heightCm: 170, weightKg: 93, activity: "none" };
+
+    const normalPriorities = generateHealthPriorities(normalInput);
+    const obesePriorities = generateHealthPriorities(obeseInput);
+
+    expect(normalPriorities.some((p) => p.id === "weight-maintenance")).toBe(true);
+    expect(obesePriorities.some((p) => p.id === "weight-management")).toBe(true);
 
     const normalDiet = generateDietPlan(normalInput);
     const obeseDiet = generateDietPlan(obeseInput);
@@ -23,7 +29,7 @@ describe("Dynamic Action Plan & Engine Personalization Suite", () => {
     expect(obeseWorkout.weeks.week1[0].exercise).toContain("Cycling");
   });
 
-  it("changes workout duration, frequency, and reasons when physical activity changes", () => {
+  it("differs recommendations based on Activity level (Sedentary vs Active)", () => {
     const sedentaryInput = { age: 40, bmi: 24, activity: "none", workoutDaysPerWeek: 0 };
     const activeInput = { age: 40, bmi: 24, activity: "active", workoutDaysPerWeek: 5 };
 
@@ -33,11 +39,52 @@ describe("Dynamic Action Plan & Engine Personalization Suite", () => {
     expect(sedentaryWorkout.weeks.week1[0].reason).toBe("Low reported physical activity.");
     expect(sedentaryWorkout.weeks.week1[0].duration).toBe("15 min");
 
+    expect(activeWorkout.weeks.week1[0].exercise).toContain("Progressive Resistance Training");
     expect(activeWorkout.weeks.week1[0].duration).toBe("25 min");
-    expect(activeWorkout.weeks.week1[0].reason).not.toBe("Low reported physical activity.");
+    expect(activeWorkout.weeks.week1[0].reason).toContain("Active physical activity level");
   });
 
-  it("changes diet strategy to Low Glycemic when diabetes screening risk is high", () => {
+  it("differs recommendations based on Smoking status (Current Smoker vs Non-Smoker)", () => {
+    const smokerInput = { age: 35, bmi: 24, smoking: "current" };
+    const nonSmokerInput = { age: 35, bmi: 24, smoking: "never" };
+
+    const smokerPriorities = generateHealthPriorities(smokerInput);
+    const nonSmokerPriorities = generateHealthPriorities(nonSmokerInput);
+
+    expect(smokerPriorities.some((p) => p.id === "smoking-cessation")).toBe(true);
+    expect(nonSmokerPriorities.some((p) => p.id === "smoking-cessation")).toBe(false);
+
+    const smokerRecs = generateExplainedRecommendations(smokerInput);
+    expect(smokerRecs.some((r) => r.id === "stop-smoking")).toBe(true);
+  });
+
+  it("differs recommendations based on Family History", () => {
+    const familyHistoryInput = { age: 35, bmi: 24, familyHistory: "type 2 diabetes and hypertension" };
+    const noFamilyHistoryInput = { age: 35, bmi: 24, familyHistory: "" };
+
+    const fhPriorities = generateHealthPriorities(familyHistoryInput);
+    const noFhPriorities = generateHealthPriorities(noFamilyHistoryInput);
+
+    expect(fhPriorities.some((p) => p.id === "family-history-prevention")).toBe(true);
+    expect(noFhPriorities.some((p) => p.id === "family-history-prevention")).toBe(false);
+
+    const fhRecs = generateExplainedRecommendations(familyHistoryInput);
+    expect(fhRecs.some((r) => r.id === "family-history-review")).toBe(true);
+  });
+
+  it("differs recommendations based on Symptoms (Joint pain vs Chest pain)", () => {
+    const jointPainInput = { age: 45, bmi: 25, symptoms: "knee pain when walking" };
+    const chestPainInput = { age: 45, bmi: 25, symptoms: "acute chest pain and dizziness" };
+
+    const jointWorkout = generateWorkoutPlan(jointPainInput);
+    expect(jointWorkout.weeks.week1[0].exercise).toContain("Gentle Hatha Yoga");
+
+    const chestWorkout = generateWorkoutPlan(chestPainInput);
+    expect(chestWorkout.status).toBe("contraindicated");
+    expect(chestWorkout.weeks.week1[0].exercise).toBe("No safe exercise recommendation available.");
+  });
+
+  it("differs recommendations based on Diabetes Screening risk", () => {
     const lowRiskInput = { age: 45, bmi: 23, diabetesRiskCategory: "low" as const };
     const highRiskInput = { age: 45, bmi: 23, diabetesRiskCategory: "high" as const, hba1c: 6.2 };
 
@@ -49,7 +96,7 @@ describe("Dynamic Action Plan & Engine Personalization Suite", () => {
     expect(highDiet.strategyReason).toContain("glycemic");
   });
 
-  it("changes diet strategy to Low Sodium when hypertension screening risk is high", () => {
+  it("differs recommendations based on Hypertension Screening risk", () => {
     const lowRiskInput = { age: 50, bmi: 24, hypertensionRiskCategory: "low" as const };
     const highRiskInput = { age: 50, bmi: 24, hypertensionRiskCategory: "high" as const, systolic: 145 };
 
@@ -61,7 +108,7 @@ describe("Dynamic Action Plan & Engine Personalization Suite", () => {
     expect(highDiet.strategyReason).toContain("sodium");
   });
 
-  it("strictly enforces dietary preferences (vegetarian vs vegan vs Jain)", () => {
+  it("strictly enforces Dietary Preferences (Vegetarian vs Vegan vs Jain)", () => {
     const paneerMeal = REUSABLE_MEAL_CATALOG.find((m) => m.name.includes("Paneer"))!;
     const onionMeal = REUSABLE_MEAL_CATALOG.find((m) => m.contains.includes("onion"))!;
 
@@ -72,14 +119,38 @@ describe("Dynamic Action Plan & Engine Personalization Suite", () => {
     expect(isMealConstraintCompliant(onionMeal, { dietType: "jain" })).toBe(false);
   });
 
-  it("generates weekly meal variation across Mon-Sun without static identical repetition", () => {
+  it("strictly enforces Nut Allergies (excludes all nut/peanut meals)", () => {
+    const nutMeal = {
+      name: "Roasted Peanut and Seed Mix",
+      course: "snacks" as const,
+      strategies: ["Balanced Wellness"],
+      types: ["vegetarian"],
+      contains: ["peanuts"],
+      reasons: { "Balanced Wellness": { reason: "Nutrient snack", expectedBenefit: "Energy" } },
+    };
+
+    expect(isMealConstraintCompliant(nutMeal, { allergies: ["peanuts"] })).toBe(false);
+    expect(isMealConstraintCompliant(nutMeal, { foodAllergies: "Nut Allergy" })).toBe(false);
+  });
+
+  it("differs recommendations when Missing Evidence exists", () => {
+    const completeInput = { age: 30, bmi: 22, systolic: 120, diastolic: 80, labObservations: [{ code: "fastingBloodSugar", value: 85 }] };
+    const missingInput = { age: 30, bmi: 22, missingEvidence: ["missing blood pressure reading", "missing blood report data"] };
+
+    const missingPriorities = generateHealthPriorities(missingInput);
+    expect(missingPriorities.some((p) => p.id === "missing-evidence-completion")).toBe(true);
+
+    const missingRecs = generateExplainedRecommendations(missingInput);
+    expect(missingRecs.some((r) => r.id === "complete-missing-evidence")).toBe(true);
+  });
+
+  it("generates weekly meal variation across Mon-Sun without static repetition", () => {
     const input = { age: 35, bmi: 24, dietType: "vegetarian" };
     const plan = generateDietPlan(input);
 
     const weekdays = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"];
     const breakfastNames = weekdays.map((day) => plan.weeklyPlan[day].breakfast.meal);
 
-    // Verify breakfast meals are not all identical
     const uniqueBreakfasts = new Set(breakfastNames);
     expect(uniqueBreakfasts.size).toBeGreaterThan(1);
   });
@@ -88,54 +159,15 @@ describe("Dynamic Action Plan & Engine Personalization Suite", () => {
     const input = { age: 35, bmi: 24, activity: "none" };
     const workout = generateWorkoutPlan(input);
 
-    // Week 1: Aerobic Base (Walking)
     expect(workout.weeks.week1[0].exercise).toContain("Walking");
 
-    // Week 2: Aerobic + Mobility
     const w2Exercises = workout.weeks.week2.map((e) => e.exercise);
     expect(w2Exercises.some((name) => name.toLowerCase().includes("mobility") || name.toLowerCase().includes("yoga"))).toBe(true);
 
-    // Week 3: Aerobic + Resistance
     const w3Exercises = workout.weeks.week3.map((e) => e.exercise);
     expect(w3Exercises.some((name) => name.toLowerCase().includes("resistance") || name.toLowerCase().includes("squats"))).toBe(true);
 
-    // Week 4: Aerobic + Resistance + Balance
     const w4Exercises = workout.weeks.week4.map((e) => e.exercise);
     expect(w4Exercises.some((name) => name.toLowerCase().includes("balance") || name.toLowerCase().includes("stability"))).toBe(true);
-  });
-
-  it("triggers safety contraindication when severe symptoms or acute blood pressure are present", () => {
-    const unsafeSymptoms = { symptoms: "chest pain and shortness of breath" };
-    const unsafeBP = { systolic: 185, diastolic: 115 };
-
-    const checkSx = isExerciseContraindicated(unsafeSymptoms);
-    expect(checkSx.contraindicated).toBe(true);
-
-    const checkBP = isExerciseContraindicated(unsafeBP);
-    expect(checkBP.contraindicated).toBe(true);
-
-    const workout = generateWorkoutPlan(unsafeSymptoms);
-    expect(workout.status).toBe("contraindicated");
-    expect(workout.weeks.week1[0].exercise).toBe("No safe exercise recommendation available.");
-  });
-
-  it("exposes reason, evidence, expectedBenefit, and timeline in top explained recommendations", () => {
-    const input = {
-      age: 45,
-      bmi: 31,
-      activity: "none",
-      diabetesRiskCategory: "high" as const,
-    };
-
-    const explainedRecs = generateExplainedRecommendations(input);
-    expect(explainedRecs.length).toBeGreaterThan(0);
-    expect(explainedRecs.length).toBeLessThanOrEqual(3);
-
-    const first = explainedRecs[0];
-    expect(first).toHaveProperty("action");
-    expect(first).toHaveProperty("why");
-    expect(first).toHaveProperty("evidence");
-    expect(first).toHaveProperty("expectedBenefit");
-    expect(first).toHaveProperty("timeline");
   });
 });

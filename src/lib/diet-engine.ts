@@ -788,12 +788,32 @@ export function isMealConstraintCompliant(meal: MealTemplate, input: DietEngineI
     ...(input.foodAllergies ? input.foodAllergies.split(",").map((s) => s.trim()) : []),
   ].map((s) => s.toLowerCase()).filter(Boolean);
 
+  // Nut Allergy Filter
+  const hasNutAllergy =
+    allExclusions.some((e) => e.includes("nut") || e.includes("peanut")) ||
+    (input.foodAllergies || "").toLowerCase().includes("nut") ||
+    (input.foodAllergies || "").toLowerCase().includes("peanut");
+
+  if (hasNutAllergy) {
+    if (
+      meal.contains.includes("nuts") ||
+      meal.contains.includes("peanuts") ||
+      meal.contains.includes("almonds") ||
+      meal.contains.includes("cashews") ||
+      meal.name.toLowerCase().includes("peanut") ||
+      meal.name.toLowerCase().includes("nut") ||
+      meal.name.toLowerCase().includes("cashew") ||
+      meal.name.toLowerCase().includes("almond")
+    ) {
+      return false;
+    }
+  }
+
+  // 4. General Allergies & Excluded Foods
   for (const exclusion of allExclusions) {
-    // Direct match against meal contains tags
     if (meal.contains.some((ingredient) => ingredient.toLowerCase() === exclusion)) {
       return false;
     }
-    // Substring match against meal name
     if (meal.name.toLowerCase().includes(exclusion)) {
       return false;
     }

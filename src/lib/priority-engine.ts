@@ -147,6 +147,42 @@ export function generateHealthPriorities(input: PriorityEngineInput): HealthPrio
       expectedBenefit: isObese ? "high" : "moderate",
       category: "lifestyle",
     });
+  } else if (bmi && bmi >= 18.5 && bmi < 25) {
+    priorities.push({
+      id: "weight-maintenance",
+      title: "Maintain healthy body weight",
+      severity: "low",
+      evidence: [`BMI ${bmi} (Normal weight range)`],
+      reason: "BMI is within the healthy reference range. Maintain current energy balance and physical activity.",
+      expectedBenefit: "moderate",
+      category: "prevention",
+    });
+  }
+
+  // Family History Prevention Priority
+  if (p.familyHistory && typeof p.familyHistory === "string" && p.familyHistory.trim().length > 0) {
+    priorities.push({
+      id: "family-history-prevention",
+      title: `Targeted prevention for family history of ${p.familyHistory}`,
+      severity: "moderate",
+      evidence: [`family history: ${p.familyHistory}`],
+      reason: "Familial predisposition increases baseline risk for metabolic and cardiovascular conditions.",
+      expectedBenefit: "high",
+      category: "prevention",
+    });
+  }
+
+  // Age 45+ Tailored Screening Priority
+  if (p.age && p.age >= 45) {
+    priorities.push({
+      id: "age-tailored-screening",
+      title: "Regular cardiovascular and metabolic screening for age 45+",
+      severity: "moderate",
+      evidence: [`age ${p.age} years`],
+      reason: "Age over 45 increases clinical recommendation for periodic vascular and glycemic evaluation.",
+      expectedBenefit: "high",
+      category: "screening",
+    });
   }
 
   // ─────────────────────────────────────────────────────────────
