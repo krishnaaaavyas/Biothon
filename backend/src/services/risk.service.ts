@@ -1,3 +1,5 @@
+import { Evidence, EvidenceBuilder, RawProfileInput } from "./evidenceBuilder.service.js";
+
 export interface UserProfile {
   age: number;
   gender: "male" | "female" | "other";
@@ -610,9 +612,26 @@ export class RiskService {
   }
 
   /**
-   * Run the full Risk Analysis pipeline
+   * Run the full Risk Analysis pipeline from a normalized Evidence object
    */
-  static analyze(profile: UserProfile): CompleteRiskAnalysis {
+  static analyze(input: Evidence | UserProfile): CompleteRiskAnalysis {
+    const evidence: Evidence =
+      input && typeof input === "object" && "demographics" in input && "anthropometrics" in input
+        ? (input as Evidence)
+        : EvidenceBuilder.fromQuestionnaire(input as RawProfileInput);
+
+    const profile: UserProfile = {
+      age: evidence.demographics.age,
+      gender: evidence.demographics.gender,
+      heightCm: evidence.anthropometrics.heightCm,
+      weightKg: evidence.anthropometrics.weightKg,
+      smoking: evidence.lifestyle.smoking,
+      exercise: evidence.lifestyle.exercise,
+      familyHistory: evidence.familyHistory.historyText,
+      symptoms: evidence.symptoms.rawText,
+      alcohol: evidence.lifestyle.alcohol || null,
+    };
+
     const { bmi, category: bmiCategory } = this.calculateBMI(profile.heightCm, profile.weightKg);
 
     const diabetesRisk = this.calculateDiabetesRisk(profile, bmi);

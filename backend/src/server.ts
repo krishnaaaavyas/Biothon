@@ -19,6 +19,7 @@ import { securityMiddleware } from "./middleware/security.js";
 import { validateLabUpload } from "./services/labUploadValidation.service.js";
 import { evaluateLegacyShadow } from "./modules/assessment/health-engine-v2-shadow.service.js";
 import { validateProductionConfig, getSystemReadiness } from "./services/startupValidation.js";
+import { EvidenceBuilder } from "./services/evidenceBuilder.service.js";
 
 import sharp from "sharp";
 
@@ -489,19 +490,9 @@ app.post("/api/profile", requireAuth, async (req: AuthenticatedRequest, res) => 
     const existingDoc = await docRef.get();
     let existingResult = existingDoc.exists ? existingDoc.data()?.result : null;
 
-    // Recalculate risk automatically when profile is updated
-    const analysis = RiskService.analyze({
-      age: data.age,
-      gender: data.gender,
-      heightCm: data.heightCm,
-      weightKg: data.weightKg,
-      smoking: data.smoking,
-      exercise: data.exercise,
-      familyHistory: data.familyHistory,
-      symptoms: data.symptoms,
-      alcohol: data.alcohol || null,
-      diseases: data.diseases || null,
-    });
+    // Construct unified evidence object and recalculate risk automatically when profile is updated
+    const evidence = EvidenceBuilder.fromHybrid(data, data.labObservations || []);
+    const analysis = RiskService.analyze(evidence);
 
     const updatedData: any = {
       age: data.age,
@@ -654,19 +645,9 @@ app.post("/api/risk/calculate", requireAuth, async (req: AuthenticatedRequest, r
     }
 
     const data = parsed.data;
-    // Call RiskService to perform all the clinical calculations
-    const analysis = RiskService.analyze({
-      age: data.age,
-      gender: data.gender,
-      heightCm: data.heightCm,
-      weightKg: data.weightKg,
-      smoking: data.smoking,
-      exercise: data.exercise,
-      familyHistory: data.familyHistory,
-      symptoms: data.symptoms,
-      alcohol: data.alcohol || null,
-      diseases: data.diseases || null,
-    });
+    const evidence = EvidenceBuilder.fromHybrid(data, data.labObservations || []);
+    // Call RiskService with normalized evidence object
+    const analysis = RiskService.analyze(evidence);
 
     // Generate immediate deterministic fallback plans (extremely fast)
     const deterministic = RiskService.generateDeterministicPlans(
@@ -809,20 +790,10 @@ app.post("/api/risk/advice", requireAuth, async (req: AuthenticatedRequest, res)
     }
 
     const data = parsed.data;
+    const evidence = EvidenceBuilder.fromHybrid(data, data.labObservations || []);
 
-    // Run clinical calculations briefly to get clean scores for prompt
-    const analysis = RiskService.analyze({
-      age: data.age,
-      gender: data.gender,
-      heightCm: data.heightCm,
-      weightKg: data.weightKg,
-      smoking: data.smoking,
-      exercise: data.exercise,
-      familyHistory: data.familyHistory,
-      symptoms: data.symptoms,
-      alcohol: data.alcohol || null,
-      diseases: data.diseases || null,
-    });
+    // Run clinical calculations briefly using normalized evidence object
+    const analysis = RiskService.analyze(evidence);
 
     // Call AIService (which uses AbortController & 20s timeout)
     const enriched = await AIService.generateFullAdvice(
@@ -2474,7 +2445,8 @@ app.post("/api/progress/log", requireAuth, async (req: AuthenticatedRequest, res
       diseases: profileData.diseases || null,
     };
 
-    const analysis = RiskService.analyze(updatedProfileInput);
+    const evidence = EvidenceBuilder.fromHybrid(updatedProfileInput, profileData.labObservations || []);
+    const analysis = RiskService.analyze(evidence);
 
     // Update profile (merge weight & recalculation results, preserve AI plans)
     const updatedProfile = {
