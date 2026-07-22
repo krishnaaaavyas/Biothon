@@ -222,6 +222,72 @@ export function generateExplainedRecommendations(input: ExplanationEngineInput):
     });
   }
 
+  // ─────────────────────────────────────────────────────────────
+  // Rule 9: Family History Prevention
+  // Triggered if family history reported
+  // ─────────────────────────────────────────────────────────────
+  if (p.familyHistory && typeof p.familyHistory === "string" && p.familyHistory.trim().length > 0) {
+    candidates.push({
+      id: "family-history-review",
+      action: `Targeted prevention screening for family history`,
+      why: "Familial predisposition increases baseline risk for chronic conditions.",
+      evidence: [`Family history: ${p.familyHistory}.`],
+      expectedBenefit: "Early preventive action and risk mitigation.",
+      timeline: "This Month",
+    });
+  }
+
+  // ─────────────────────────────────────────────────────────────
+  // Rule 10: Age-Tailored Assessment (Age 45+)
+  // ─────────────────────────────────────────────────────────────
+  if (p.age && p.age >= 45) {
+    candidates.push({
+      id: "age-tailored-checkup",
+      action: "Schedule periodic cardiovascular and metabolic checkup",
+      why: "Age 45 and above increases clinical recommendation for routine health monitoring.",
+      evidence: [`Age ${p.age} years.`],
+      expectedBenefit: "Protects long-term vascular and metabolic health.",
+      timeline: "This Month",
+    });
+  }
+
+  // ─────────────────────────────────────────────────────────────
+  // Fallbacks for Healthy / Normal Profiles (Guarantees 3 items)
+  // ─────────────────────────────────────────────────────────────
+  if (candidates.length < 3) {
+    const isObeseOrOverweight = bmi && bmi >= 25;
+    if (!isObeseOrOverweight) {
+      candidates.push({
+        id: "weight-maintenance-plan",
+        action: "Maintain healthy body weight and energy balance",
+        why: "BMI is within normal healthy reference range.",
+        evidence: [`BMI ${bmi || 22} (Normal weight range).`],
+        expectedBenefit: "Sustains long-term metabolic health and energy.",
+        timeline: "This Month",
+      });
+    }
+
+    if (!isSedentary) {
+      candidates.push({
+        id: "active-strength-maintenance",
+        action: "Maintain active physical conditioning & progressive resistance",
+        why: "Active lifestyle supports cardiorespiratory and muscular health.",
+        evidence: [`Active workout schedule (${p.exercise || "active"}).`],
+        expectedBenefit: "Preserves lean muscle mass and endurance.",
+        timeline: "This Week",
+      });
+    }
+
+    candidates.push({
+      id: "balanced-nutrition-plan",
+      action: "Adhere to balanced whole-food dietary plan",
+      why: "Optimal screening markers and metabolic stability.",
+      evidence: ["Normal baseline screening markers."],
+      expectedBenefit: "Sustains digestive health and micronutrient balance.",
+      timeline: "This Month",
+    });
+  }
+
   // Sort candidates by timeline urgency: Today (3) > This Week (2) > This Month (1)
   candidates.sort((a, b) => TIMELINE_WEIGHT[b.timeline] - TIMELINE_WEIGHT[a.timeline]);
 

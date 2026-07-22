@@ -193,13 +193,17 @@ export function generateWorkoutPlan(input: WorkoutEngineInput): WorkoutEngineOut
     conds.includes("back-pain") ||
     conds.includes("arthritis");
 
+  const isActive = act === "active" || (typeof p.workoutDaysPerWeek === "number" && p.workoutDaysPerWeek >= 5);
+
   // Select suitable base exercise
   let primaryExerciseName = "Brisk Walking";
   if (hasJointRestriction) {
     primaryExerciseName = "Gentle Hatha Yoga & Spine Mobility";
   } else if (isObese) {
     primaryExerciseName = "Low-Impact Stationary Cycling";
-  } else if (!isSedentary && !isLight) {
+  } else if (isActive) {
+    primaryExerciseName = "Progressive Resistance Training & Cardio Maintenance";
+  } else {
     primaryExerciseName = "Brisk Walking";
   }
 
@@ -219,6 +223,9 @@ export function generateWorkoutPlan(input: WorkoutEngineInput): WorkoutEngineOut
   } else if (isSedentary) {
     clinicalReason = "Low reported physical activity.";
     expectedBenefit = "Establishes baseline aerobic conditioning and metabolic stamina.";
+  } else if (isActive) {
+    clinicalReason = "Active physical activity level requires muscular strength and athletic maintenance.";
+    expectedBenefit = "Builds muscular strength, lean body mass, and cardiorespiratory fitness.";
   } else {
     clinicalReason = "Baseline activity maintenance.";
     expectedBenefit = "Maintains metabolic health and cardiorespiratory fitness.";
